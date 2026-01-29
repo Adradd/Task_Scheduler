@@ -1,0 +1,15 @@
+package app.CalendarApp.repository;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
+
+public interface AccountRepository extends MongoRepository<Account, String> {
+
+    @Query("{id: ?0}")
+    Account findAccountByUsername(String id);
+
+    @Query("{email: ?0}")
+    Account findAccountByEmail(String email);
+
+    public long count();
+}
