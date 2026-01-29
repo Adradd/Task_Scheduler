@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Greeting Page</title>
+    <style>
+        body {font-family: Arial, sans-serif; text-align: center;}
+        .container {margin-top: 100px;}
+        .greeting {font-size: 24px; margin-bottom: 20px;}
+        .button {
+            padding: 10px 20px; background: #007bff; color: #fff;
+            border: none; border-radius: 4px; cursor: pointer;
+        }
+        .button:hover {background: #0056b3;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="greeting" th:text="${message}"></h1>
+    <button class="button" onclick="sayHello()">Say Hello</button>
+</div>
+<script>
+    function sayHello() { alert('Hello, there!'); }
+</script>
+</body>
+</html>
