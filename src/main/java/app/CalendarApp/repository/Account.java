@@ -6,14 +6,14 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document("Account")
 public class Account {
     @Id
-    private String id;
+    private String accountId;
     private String username;
     private String password;
     private String email;
     private String dateCreated;
 
-    public Account(String id, String username, String password, String email, String dateCreated) {
-        this.id = id;
+    public Account(String accountId, String username, String password, String email, String dateCreated) {
+        this.accountId = accountId;
         this.username = username;
         this.password = password;
         this.email = email;
@@ -21,10 +21,10 @@ public class Account {
     }
 
     public String getId() {
-        return id;
+        return accountId;
     }
-    public void setId(String id) {
-        this.id = id;
+    public void setId(String accountId) {
+        this.accountId = accountId;
     }
     public String getUsername() {
         return username;
