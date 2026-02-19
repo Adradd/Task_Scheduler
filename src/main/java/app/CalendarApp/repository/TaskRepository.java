@@ -1,5 +1,5 @@
 package app.CalendarApp.repository;
 
-public class TaskRepository {
+public interface TaskRepository {
 
 }
