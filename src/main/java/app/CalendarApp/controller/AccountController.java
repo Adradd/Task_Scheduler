@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/accounts")
-@CrossOrigin(origins = "*")
 public class AccountController {
     private final AccountService accountService;
 
@@ -46,4 +45,3 @@ public class AccountController {
         return ResponseEntity.noContent().build();
     }
 }
-

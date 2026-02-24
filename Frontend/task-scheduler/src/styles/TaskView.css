@@ -1,0 +1,167 @@
+.task-view-container {
+    padding: 20px;
+    width: 100%;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 18px;
+    color: #666;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+}
+
+.task-table thead {
+    background-color: #007bff;
+    color: white;
+}
+
+.task-table th,
+.task-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    word-wrap: break-word;
+}
+
+.task-table thead th {
+    font-weight: 600;
+    padding: 15px 12px;
+}
+
+.task-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.task-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.task-table tbody tr.editing {
+    background-color: #fff3cd;
+}
+
+.task-table tbody tr.new-task-row {
+    background-color: #e7f3ff;
+    font-weight: 500;
+}
+
+.task-table tbody tr.new-task-row:hover {
+    background-color: #d4e8ff;
+}
+
+.task-table input,
+.task-table select {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.task-table input:focus,
+.task-table select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.actions {
+    white-space: nowrap;
+    min-width: 150px;
+}
+
+.actions button {
+    margin-right: 5px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-edit {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: #218838;
+}
+
+.btn-delete {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}
+
+.btn-save {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: #0056b3;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background-color: #5a6268;
+}
+
+.btn-add {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-add:hover {
+    background-color: #138496;
+}
+
+@media (max-width: 768px) {
+    .task-table {
+        font-size: 13px;
+    }
+
+    .task-table th,
+    .task-table td {
+        padding: 8px;
+    }
+
+    .actions button {
+        padding: 4px 8px;
+        font-size: 12px;
+        margin-right: 3px;
+    }
+}
+

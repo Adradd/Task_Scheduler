@@ -6,6 +6,7 @@ import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 public class TaskServiceImpl implements TaskService {
@@ -24,6 +25,11 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public Task findTaskByOwner(Account owner) {
         return taskRepository.findTaskByOwner(owner);
+    }
+
+    @Override
+    public List<Task> findAllTasksByOwner(Account owner) {
+        return taskRepository.findAllByOwner(owner);
     }
 
     @Override
@@ -76,7 +82,7 @@ public class TaskServiceImpl implements TaskService {
         if (task.getOwner() == null) {
             throw new IllegalArgumentException("Owner is required");
         }
-        // Optionally check owner fields
+
         if (task.getOwner().getUsername() == null || task.getOwner().getUsername().trim().isEmpty()) {
             throw new IllegalArgumentException("Owner username is required");
         }
@@ -89,7 +95,7 @@ public class TaskServiceImpl implements TaskService {
               task.getPriority().equalsIgnoreCase("high"))) {
             throw new IllegalArgumentException("Priority must be low, medium, or high");
         }
-        // Optionally check uniqueness for create
+
         if (!isUpdate && taskRepository.findTaskByTaskId(task.getTaskId()) != null) {
             throw new IllegalArgumentException("Task ID already exists");
         }
