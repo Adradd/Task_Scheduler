@@ -59,16 +59,41 @@ function Login({ onLoginSuccess }) {
                 password: formData.password
             });
 
+            console.log('Login response:', response.data);
+
             // Store auth credentials in localStorage
             localStorage.setItem('authToken', btoa(`${formData.username}:${formData.password}`));
             localStorage.setItem('username', response.data.username);
             localStorage.setItem('accountId', response.data.accountId);
             localStorage.setItem('role', response.data.role);
 
-            onLoginSuccess(response.data);
-            navigate('/');
+            // Call the callback to update parent state
+            if (typeof onLoginSuccess === 'function') {
+                onLoginSuccess(response.data);
+            } else {
+                console.error('onLoginSuccess is not a function:', onLoginSuccess);
+            }
+
+            // Navigate to task view
+            navigate('/task-view');
         } catch (err) {
-            const errorMessage = err.response?.data?.error || 'Login failed. Please try again.';
+            console.error('Login error:', err);
+            console.error('Error response:', err.response);
+            console.error('Backend URL:', backendUrl);
+
+            let errorMessage = 'Login failed. Please try again.';
+
+            if (err.response) {
+                // Backend responded with error
+                errorMessage = err.response.data?.error || err.response.statusText || 'Server error';
+            } else if (err.request) {
+                // Request was made but no response
+                errorMessage = 'No response from server. Is the backend running on ' + backendUrl + '?';
+            } else {
+                // Other error
+                errorMessage = err.message;
+            }
+
             setErrors({ submit: errorMessage });
         } finally {
             setLoading(false);

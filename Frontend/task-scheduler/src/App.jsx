@@ -7,6 +7,7 @@ import CalendarView from "./pages/CalendarView.jsx";
 import Account from "./pages/Account.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,6 +27,7 @@ function App() {
     }, []);
 
     const handleLoginSuccess = (userData) => {
+        console.log('Login successful, user data:', userData);
         setUser(userData);
         setIsAuthenticated(true);
     };
@@ -84,9 +86,9 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
             <div className="content">
                 <Routes>
                     <Route path="/" element={<Home />} />
-                    <Route path="/task-view" element={<TaskView user={user} />} />
-                    <Route path="/calendar-view" element={<CalendarView />} />
-                    <Route path="/account" element={<Account user={user} />} />
+                    <Route path="/task-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><TaskView user={user} /></ProtectedRoute>} />
+                    <Route path="/calendar-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CalendarView /></ProtectedRoute>} />
+                    <Route path="/account" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Account user={user} onLogout={onLogout} /></ProtectedRoute>} />
                     <Route path="/login" element={<Login onLoginSuccess={onLoginSuccess} />} />
                     <Route path="/register" element={<Register onRegisterSuccess={onRegisterSuccess} />} />
                 </Routes>
