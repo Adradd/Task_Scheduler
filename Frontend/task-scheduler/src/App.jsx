@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
-import './App.css'
-import Navbar from "./components/Navbar.jsx";
-import TaskView from "./components/TaskView.jsx";
-import Login from "./components/Login.jsx";
-import Register from "./components/Register.jsx";
-import Footer from "./components/Footer.jsx";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom'
+import './styles/App.css'
+import Home from "./pages/Home.jsx";
+import TaskView from "./pages/TaskView.jsx";
+import CalendarView from "./pages/CalendarView.jsx";
+import Account from "./pages/Account.jsx";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
 
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
-    const [currentView, setCurrentView] = useState('login'); // 'login', 'register', or 'tasks'
 
     // Check if user is already logged in on component mount
     useEffect(() => {
@@ -21,18 +22,16 @@ function App() {
                 accountId: localStorage.getItem('accountId'),
                 role: localStorage.getItem('role')
             });
-            setCurrentView('tasks');
         }
     }, []);
 
     const handleLoginSuccess = (userData) => {
         setUser(userData);
         setIsAuthenticated(true);
-        setCurrentView('tasks');
     };
 
     const handleRegisterSuccess = () => {
-        setCurrentView('login');
+        // User will navigate to login after successful registration
     };
 
     const handleLogout = () => {
@@ -42,32 +41,56 @@ function App() {
         localStorage.removeItem('role');
         setIsAuthenticated(false);
         setUser(null);
-        setCurrentView('login');
-    };
-
-    const switchToRegister = () => {
-        setCurrentView('register');
-    };
-
-    const switchToLogin = () => {
-        setCurrentView('login');
     };
 
     return (
+        <Router>
+            <AppContent
+                isAuthenticated={isAuthenticated}
+                user={user}
+                onLoginSuccess={handleLoginSuccess}
+                onRegisterSuccess={handleRegisterSuccess}
+                onLogout={handleLogout}
+            />
+        </Router>
+    )
+}
+
+function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, onLogout }) {
+    const location = useLocation();
+    const showNavbar = !['/login', '/register'].includes(location.pathname);
+
+    return (
         <>
-            {isAuthenticated && currentView === 'tasks' && (
-                <>
-                    <Navbar user={user} onLogout={handleLogout} />
-                    <TaskView user={user} />
-                    <Footer />
-                </>
+            {showNavbar && (
+                <nav className="navbar">
+                    <ul className="nav-list">
+                        <li className="nav-item-logo-item">
+                            <Link to="/" className={"logo-home-link"}><span className={"site-logo"}>schedule.me</span></Link>
+                        </li>
+                        <li className="nav-item">
+                            <Link to="/task-view">Tasks</Link>
+                        </li>
+                        <li className="nav-item">
+                            <Link to="/calendar-view">Calendar</Link>
+                        </li>
+                        <li className={"nav-item"}>
+                            <Link to="/account">Account</Link>
+                        </li>
+                    </ul>
+                </nav>
             )}
-            {!isAuthenticated && currentView === 'login' && (
-                <Login onLoginSuccess={handleLoginSuccess} onSwitchToRegister={switchToRegister} />
-            )}
-            {!isAuthenticated && currentView === 'register' && (
-                <Register onRegisterSuccess={handleRegisterSuccess} />
-            )}
+
+            <div className="content">
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/task-view" element={<TaskView user={user} />} />
+                    <Route path="/calendar-view" element={<CalendarView />} />
+                    <Route path="/account" element={<Account user={user} />} />
+                    <Route path="/login" element={<Login onLoginSuccess={onLoginSuccess} />} />
+                    <Route path="/register" element={<Register onRegisterSuccess={onRegisterSuccess} />} />
+                </Routes>
+            </div>
         </>
     )
 }

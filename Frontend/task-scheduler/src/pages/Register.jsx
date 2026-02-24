@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Register.css';
 
-function Register({ onRegisterSuccess }) {
+function Register() {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -13,6 +14,7 @@ function Register({ onRegisterSuccess }) {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
     const validateForm = () => {
@@ -83,7 +85,7 @@ function Register({ onRegisterSuccess }) {
         setSuccessMessage('');
 
         try {
-            const response = await axios.post(`${backendUrl}/api/accounts`, {
+            await axios.post(`${backendUrl}/api/accounts`, {
                 username: formData.username,
                 email: formData.email,
                 password: formData.password
@@ -100,7 +102,7 @@ function Register({ onRegisterSuccess }) {
 
             // Redirect to login after 2 seconds
             setTimeout(() => {
-                onRegisterSuccess();
+                navigate('/login');
             }, 2000);
         } catch (err) {
             const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.';

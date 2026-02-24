@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Login.css';
 
-function Login({ onLoginSuccess, onSwitchToRegister }) {
+function Login({ onLoginSuccess }) {
     const [formData, setFormData] = useState({
         username: '',
         password: ''
@@ -10,6 +11,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
 
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
     const validateForm = () => {
@@ -64,6 +66,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
             localStorage.setItem('role', response.data.role);
 
             onLoginSuccess(response.data);
+            navigate('/');
         } catch (err) {
             const errorMessage = err.response?.data?.error || 'Login failed. Please try again.';
             setErrors({ submit: errorMessage });
@@ -113,7 +116,7 @@ function Login({ onLoginSuccess, onSwitchToRegister }) {
                 </form>
 
                 <div className="register-link">
-                    <p>Don't have an account? <button type="button" onClick={onSwitchToRegister} className="link-btn">Create one</button></p>
+                    <p>Don't have an account? <button type="button" onClick={() => navigate('/register')} className="link-btn">Create one</button></p>
                 </div>
             </div>
         </div>

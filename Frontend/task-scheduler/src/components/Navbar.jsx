@@ -1,10 +1,8 @@
-import logo from '../assets/logo.svg'
-
 function Navbar({ user, onLogout }) {
     return (
         <header>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px' }}>
-                <img src={logo} alt={"schedule.me Logo"} />
+                <img alt={"schedule.me Logo"} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     {user && (
                         <>

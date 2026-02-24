@@ -1,0 +1,126 @@
+.home-container {
+    font-family: Inter, sans-serif;
+    color: #333;
+}
+
+/* Hero Section */
+.title-section {
+    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
+    color: white;
+    padding: 6rem 2rem;
+    text-align: center;
+    min-height: 30vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.title-section h1 {
+    font-size: 3rem;
+    margin: 0 0 1rem 0;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    margin: 0 0 2rem 0;
+    opacity: 0.95;
+    max-width: 600px;
+}
+
+.cta-button {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.title-section .cta-button {
+    background-color: white;
+    color: #000000;
+}
+
+.title-section .cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Feature Sections */
+.task-features,
+.calendar-features {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.task-features {
+    background-color: #f9f9f9;
+}
+
+.calendar-features {
+    background-color: white;
+}
+
+.task-features h2,
+.calendar-features h2 {
+    font-size: 2rem;
+    margin: 0 0 1rem 0;
+    color: #333;
+}
+
+.task-features > p,
+.calendar-features > p {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 0 0 2rem 0;
+    max-width: 600px;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.feature-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s;
+}
+
+.task-features .feature-card {
+    border-top: 4px solid #4CAF50;
+}
+
+.calendar-features .feature-card {
+    border-top: 4px solid #2196F3;
+    background-color: #f9f9f9;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.feature-card h3 {
+    font-size: 1.3rem;
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.feature-card p {
+    color: #666;
+    line-height: 1.6;
+    margin: 0;
+}
+
