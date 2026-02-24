@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import '../styles/TaskView.css';
 
-function TaskView() {
+function TaskView({ user }) {
     const [tasks, setTasks] = useState([]);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -20,20 +20,57 @@ function TaskView() {
     });
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
-    const authConfig = {
-        auth: { username: 'user', password: 'password' }
+
+    // Generate time options: 15 minute increments up to 3 hours, then 30 minute increments
+    const generateTimeOptions = () => {
+        const options = [];
+
+        // 15-minute increments from 15 minutes to 3 hours (180 minutes)
+        for (let minutes = 15; minutes <= 180; minutes += 15) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const label = mins === 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : `${hours}h ${mins}m`;
+            options.push({ value: `${hours}h ${mins}m`, label });
+        }
+
+        // 30-minute increments from 3.5 hours to 8 hours (210 to 480 minutes)
+        for (let minutes = 210; minutes <= 480; minutes += 30) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const label = mins === 0 ? `${hours} hours` : `${hours}h ${mins}m`;
+            options.push({ value: `${hours}h ${mins}m`, label });
+        }
+
+        return options;
     };
 
-    // Fetch all tasks on component mount
+    const timeOptions = generateTimeOptions();
+
+    // Create auth config from stored credentials
+    const getAuthConfig = () => {
+        const authToken = localStorage.getItem('authToken');
+        if (authToken) {
+            return {
+                headers: {
+                    'Authorization': 'Basic ' + authToken
+                }
+            };
+        }
+        return {};
+    };
+
+    // Fetch all tasks on component mount and when user changes
     useEffect(() => {
-        fetchTasks();
-    }, []);
+        if (user) {
+            fetchTasks();
+        }
+    }, [user]);
 
     const fetchTasks = async () => {
         try {
             setLoading(true);
             setError(null);
-            const res = await axios.get(`${backendUrl}/api/tasks`, authConfig);
+            const res = await axios.get(`${backendUrl}/api/tasks`, getAuthConfig());
             setTasks(res.data || []);
         } catch (err) {
             setError('Failed to fetch tasks: ' + (err.response?.data?.message || err.message));
@@ -51,7 +88,7 @@ function TaskView() {
     const handleSaveEdit = async (taskId) => {
         try {
             setError(null);
-            await axios.put(`${backendUrl}/api/tasks`, editData, authConfig);
+            await axios.put(`${backendUrl}/api/tasks`, editData, getAuthConfig());
             setTasks(tasks.map(t => t.taskId === taskId ? editData : t));
             setEditingId(null);
             setEditData({});
@@ -72,7 +109,7 @@ function TaskView() {
         }
         try {
             setError(null);
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, authConfig);
+            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
             setTasks(tasks.filter(t => t.taskId !== taskId));
         } catch (err) {
             setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
@@ -110,7 +147,7 @@ function TaskView() {
                 comments: newTask.comments
             };
 
-            const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, authConfig);
+            const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, getAuthConfig());
             setTasks([...tasks, res.data]);
             setNewTask({
                 taskName: '',
@@ -176,10 +213,9 @@ function TaskView() {
                                 <td>
                                     {editingId === task.taskId ? (
                                         <input
-                                            type="text"
+                                            type="date"
                                             value={editData.deadline}
                                             onChange={(e) => handleEditChange('deadline', e.target.value)}
-                                            placeholder="DD-MM-YYYY"
                                         />
                                     ) : (
                                         task.deadline
@@ -187,11 +223,17 @@ function TaskView() {
                                 </td>
                                 <td>
                                     {editingId === task.taskId ? (
-                                        <input
-                                            type="text"
+                                        <select
                                             value={editData.timeToComplete}
                                             onChange={(e) => handleEditChange('timeToComplete', e.target.value)}
-                                        />
+                                        >
+                                            <option value="">Select Time</option>
+                                            {timeOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
                                     ) : (
                                         task.timeToComplete
                                     )}
@@ -203,9 +245,9 @@ function TaskView() {
                                             onChange={(e) => handleEditChange('priority', e.target.value)}
                                         >
                                             <option value="">Select Priority</option>
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
+                                            <option value="Low">Low</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
                                         </select>
                                     ) : (
                                         task.priority
@@ -302,19 +344,23 @@ function TaskView() {
                             </td>
                             <td>
                                 <input
-                                    type="text"
+                                    type="date"
                                     value={newTask.deadline}
                                     onChange={(e) => handleNewTaskChange('deadline', e.target.value)}
-                                    placeholder="DD-MM-YYYY"
                                 />
                             </td>
                             <td>
-                                <input
-                                    type="text"
+                                <select
                                     value={newTask.timeToComplete}
                                     onChange={(e) => handleNewTaskChange('timeToComplete', e.target.value)}
-                                    placeholder="Time"
-                                />
+                                >
+                                    <option value="">Select Time</option>
+                                    {timeOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </td>
                             <td>
                                 <select
@@ -322,9 +368,9 @@ function TaskView() {
                                     onChange={(e) => handleNewTaskChange('priority', e.target.value)}
                                 >
                                     <option value="">Select Priority</option>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
                                 </select>
                             </td>
                             <td>

@@ -86,8 +86,8 @@ public class TaskServiceImpl implements TaskService {
         if (task.getOwner().getUsername() == null || task.getOwner().getUsername().trim().isEmpty()) {
             throw new IllegalArgumentException("Owner username is required");
         }
-        if (task.getDeadline() != null && !task.getDeadline().matches("\\d{2}-\\d{2}-\\d{4}")) {
-            throw new IllegalArgumentException("Deadline must be in DD-MM-YYYY format");
+        if (task.getDeadline() != null && !task.getDeadline().matches("\\d{2}-\\d{2}-\\d{4}|\\d{4}-\\d{2}-\\d{2}")) {
+            throw new IllegalArgumentException("Deadline must be in DD-MM-YYYY or YYYY-MM-DD format");
         }
         if (task.getPriority() != null &&
             !(task.getPriority().equalsIgnoreCase("low") ||

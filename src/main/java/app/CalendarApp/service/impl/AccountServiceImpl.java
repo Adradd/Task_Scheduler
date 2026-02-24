@@ -4,6 +4,7 @@ import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
 import app.CalendarApp.service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.regex.Pattern;
@@ -11,11 +12,13 @@ import java.util.regex.Pattern;
 @Service
 public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
+    private final PasswordEncoder passwordEncoder;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
 
     @Autowired
-    public AccountServiceImpl(AccountRepository accountRepository) {
+    public AccountServiceImpl(AccountRepository accountRepository, PasswordEncoder passwordEncoder) {
         this.accountRepository = accountRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -36,6 +39,7 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public Account createAccount(Account account) {
         validateAccount(account, false);
+        account.setPassword(passwordEncoder.encode(account.getPassword()));
         return accountRepository.save(account);
     }
 

@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -44,16 +45,20 @@ public class TaskController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Task> createTask(@RequestBody Task task, Authentication authentication) {
-//        String username = authentication.getName();
-//        Account account = accountService.findAccountByUsername(username);
-//        if (account == null) {
-//            return ResponseEntity.badRequest().build();
-//        }
-//        task.setOwner(account);
-        Task created = taskService.createTask(task);
-//        // TODO: Create Account login section and create task with the logged in user as owner.
-        return ResponseEntity.ok(created);
+    public ResponseEntity<?> createTask(@RequestBody Task task, Authentication authentication) {
+        try {
+            String username = authentication.getName();
+            Account account = accountService.findAccountByUsername(username);
+            if (account == null) {
+                return ResponseEntity.badRequest().body("Account not found for user: " + username);
+            }
+
+            task.setOwner(account);
+            Task created = taskService.createTask(task);
+            return ResponseEntity.ok(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PutMapping
