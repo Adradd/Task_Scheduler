@@ -340,7 +340,183 @@
     width: fit-content;
 }
 
-/* Responsive Design */
+/* View Type Selector */
+.view-type-selector {
+    display: flex;
+    gap: 0.5rem;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.view-btn {
+    padding: 0.6rem 1.2rem;
+    border: 2px solid #e0e0e0;
+    background: white;
+    color: #333;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+    border-color: #3fb0ba;
+    color: #3fb0ba;
+}
+
+.view-btn.active {
+    background-color: #3fb0ba;
+    color: white;
+    border-color: #3fb0ba;
+    box-shadow: 0 4px 12px rgba(63, 176, 186, 0.3);
+}
+
+/* Day View Styles */
+.day-view {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.day-view-header {
+    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.day-view-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.day-view-timeline {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.day-view-hour {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    border-bottom: 1px solid #e0e0e0;
+    min-height: 60px;
+}
+
+.hour-label {
+    padding: 1rem;
+    text-align: center;
+    font-weight: 600;
+    color: #666;
+    background: #f9f9f9;
+    border-right: 1px solid #e0e0e0;
+    font-size: 0.9rem;
+}
+
+.hour-content {
+    padding: 0.5rem;
+    position: relative;
+}
+
+.day-task-event {
+    background-color: #3fb0ba;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0.5rem;
+}
+
+.day-task-event:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Week View Styles */
+.week-view {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.week-view-header {
+    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
+    color: white;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.week-view-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.week-view-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #e0e0e0;
+    padding: 1px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.week-day-column {
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.week-day-header {
+    background: linear-gradient(135deg, #f0f9fb 0%, #e8f4f8 100%);
+    padding: 1rem;
+    text-align: center;
+    border-bottom: 2px solid #3fb0ba;
+}
+
+.week-day-name {
+    font-weight: 700;
+    color: #0653b5;
+    font-size: 0.95rem;
+}
+
+.week-day-date {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #333;
+    margin-top: 0.25rem;
+}
+
+.week-day-tasks {
+    flex: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.week-task-event {
+    background-color: #3fb0ba;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.week-task-event:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+}
+
 @media (max-width: 1024px) {
     .calendar-days {
         auto-rows: minmax(120px, auto);
@@ -395,6 +571,32 @@
 
     .task-event-time {
         font-size: 0.65rem;
+    }
+
+    .view-type-selector {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .view-btn {
+        width: 100%;
+    }
+
+    .week-view-grid {
+        max-height: 50vh;
+    }
+
+    .day-view-timeline {
+        max-height: 50vh;
+    }
+
+    .day-view-hour {
+        grid-template-columns: 50px 1fr;
+    }
+
+    .hour-label {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
     }
 }
 
@@ -456,5 +658,51 @@
         width: 95%;
         padding: 1.5rem;
     }
-}
 
+    .view-type-selector {
+        order: 2;
+    }
+
+    .month-year {
+        order: 3;
+    }
+
+    .btn-nav, .btn-today {
+        width: 100%;
+    }
+
+    .week-view-grid {
+        grid-template-columns: repeat(7, 1fr);
+        max-height: 45vh;
+        gap: 0;
+    }
+
+    .week-day-header {
+        padding: 0.5rem;
+    }
+
+    .week-day-name {
+        font-size: 0.8rem;
+    }
+
+    .week-day-date {
+        font-size: 1rem;
+    }
+
+    .week-day-tasks {
+        padding: 0.5rem;
+    }
+
+    .day-view-timeline {
+        max-height: 45vh;
+    }
+
+    .day-view-hour {
+        grid-template-columns: 40px 1fr;
+    }
+
+    .hour-label {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.65rem;
+    }
+}

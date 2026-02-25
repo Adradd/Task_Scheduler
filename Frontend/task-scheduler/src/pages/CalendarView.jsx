@@ -9,6 +9,7 @@ function CalendarView({ user }) {
     const [error, setError] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
     const [completedTasks, setCompletedTasks] = useState([]);
+    const [viewType, setViewType] = useState('month'); // 'week', 'month'
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -67,6 +68,24 @@ function CalendarView({ user }) {
         return tasks.filter(task => task.deadline === dateStr);
     };
 
+    const getTasksForWeek = (startDate) => {
+        const weekTasks = {};
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            weekTasks[dateStr] = tasks.filter(task => task.deadline === dateStr);
+        }
+        return weekTasks;
+    };
+
+    const getWeekStart = (date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day;
+        return new Date(d.setDate(diff));
+    };
+
     const getTimeToCompleteInMinutes = (timeStr) => {
         if (!timeStr) return 30;
         const match = timeStr.match(/(\d+)h\s*(\d+)m/);
@@ -95,12 +114,24 @@ function CalendarView({ user }) {
         }
     };
 
-    const handlePrevMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    const handlePrevious = () => {
+        const newDate = new Date(currentDate);
+        if (viewType === 'week') {
+            newDate.setDate(newDate.getDate() - 7);
+        } else {
+            newDate.setMonth(newDate.getMonth() - 1);
+        }
+        setCurrentDate(newDate);
     };
 
-    const handleNextMonth = () => {
-        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    const handleNext = () => {
+        const newDate = new Date(currentDate);
+        if (viewType === 'week') {
+            newDate.setDate(newDate.getDate() + 7);
+        } else {
+            newDate.setMonth(newDate.getMonth() + 1);
+        }
+        setCurrentDate(newDate);
     };
 
     const handleToday = () => {
@@ -114,17 +145,122 @@ function CalendarView({ user }) {
 
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    const daysInMonth = getDaysInMonth(currentDate);
-    const firstDayOfMonth = getFirstDayOfMonth(currentDate);
-    const days = [];
 
-    for (let i = 0; i < firstDayOfMonth; i++) {
-        days.push(null);
-    }
+    const renderWeekView = () => {
+        const weekStart = getWeekStart(currentDate);
+        const weekTasks = getTasksForWeek(weekStart);
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
 
-    for (let i = 1; i <= daysInMonth; i++) {
-        days.push(i);
-    }
+        return (
+            <div className="week-view">
+                <div className="week-view-header">
+                    <h2>
+                        Week of {weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </h2>
+                </div>
+                <div className="week-view-grid">
+                    {dayNames.map((dayName, index) => {
+                        const date = new Date(weekStart);
+                        date.setDate(date.getDate() + index);
+                        const dateStr = date.toISOString().split('T')[0];
+                        const dayTasks = weekTasks[dateStr] || [];
+
+                        return (
+                            <div key={dayName} className="week-day-column">
+                                <div className="week-day-header">
+                                    <div className="week-day-name">{dayName}</div>
+                                    <div className="week-day-date">{date.getDate()}</div>
+                                </div>
+                                <div className="week-day-tasks">
+                                    {dayTasks.map((task) => (
+                                        <div
+                                            key={task.taskId}
+                                            className="week-task-event"
+                                            style={{
+                                                backgroundColor: getPriorityColor(task.priority),
+                                                minHeight: `${getTaskHeight(task.timeToComplete) / 2}px`,
+                                                cursor: 'pointer'
+                                            }}
+                                            onClick={() => setSelectedTask(task)}
+                                            title={task.taskName}
+                                        >
+                                            <div className="task-event-title">{task.taskName}</div>
+                                            <div className="task-event-time">{task.timeToComplete}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    const renderMonthView = () => {
+        const daysInMonth = getDaysInMonth(currentDate);
+        const firstDayOfMonth = getFirstDayOfMonth(currentDate);
+        const days = [];
+
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            days.push(null);
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            days.push(i);
+        }
+
+        return (
+            <div className="month-view">
+                <div className="calendar-day-headers">
+                    {dayNames.map((day) => (
+                        <div key={day} className="calendar-day-header">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="calendar-days">
+                    {days.map((day, index) => {
+                        if (day === null) {
+                            return <div key={`empty-${index}`} className="calendar-day empty"></div>;
+                        }
+
+                        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                        const dayTasks = getTasksForDate(date);
+                        const isToday = date.toDateString() === new Date(2026, 1, 25).toDateString();
+
+                        return (
+                            <div
+                                key={day}
+                                className={`calendar-day ${isToday ? 'today' : ''}`}
+                            >
+                                <div className="day-number">{day}</div>
+                                <div className="day-tasks">
+                                    {dayTasks.map((task) => (
+                                        <div
+                                            key={task.taskId}
+                                            className="task-event"
+                                            style={{
+                                                backgroundColor: getPriorityColor(task.priority),
+                                                minHeight: `${getTaskHeight(task.timeToComplete)}px`,
+                                                cursor: 'pointer'
+                                            }}
+                                            onClick={() => setSelectedTask(task)}
+                                            title={task.taskName}
+                                        >
+                                            <div className="task-event-title">{task.taskName}</div>
+                                            <div className="task-event-time">{task.timeToComplete}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
 
     if (loading) {
         return <div className="loading">Loading calendar...</div>;
@@ -141,61 +277,41 @@ function CalendarView({ user }) {
                 {error && <div className="error-message">{error}</div>}
 
                 <div className="calendar-controls">
-                    <button className="btn-nav" onClick={handlePrevMonth}>← Previous</button>
-                    <div className="month-year">
-                        <h2>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</h2>
+                    <button className="btn-nav" onClick={handlePrevious}>← Previous</button>
+
+                    <div className="view-type-selector">
+                        <button
+                            className={`view-btn ${viewType === 'week' ? 'active' : ''}`}
+                            onClick={() => setViewType('week')}
+                        >
+                            Week
+                        </button>
+                        <button
+                            className={`view-btn ${viewType === 'month' ? 'active' : ''}`}
+                            onClick={() => setViewType('month')}
+                        >
+                            Month
+                        </button>
                     </div>
-                    <button className="btn-nav" onClick={handleNextMonth}>Next →</button>
+
+                    <div className="month-year">
+                        <h2>
+                            {viewType === 'week' && (() => {
+                                const weekStart = getWeekStart(currentDate);
+                                const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+                                return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                            })()}
+                            {viewType === 'month' && `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
+                        </h2>
+                    </div>
+
+                    <button className="btn-nav" onClick={handleNext}>Next →</button>
                     <button className="btn-today" onClick={handleToday}>Today</button>
                 </div>
 
                 <div className="calendar-grid">
-                    <div className="calendar-day-headers">
-                        {dayNames.map((day) => (
-                            <div key={day} className="calendar-day-header">
-                                {day}
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="calendar-days">
-                        {days.map((day, index) => {
-                            if (day === null) {
-                                return <div key={`empty-${index}`} className="calendar-day empty"></div>;
-                            }
-
-                            const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                            const dayTasks = getTasksForDate(date);
-                            const isToday = date.toDateString() === new Date(2026, 1, 25).toDateString();
-
-                            return (
-                                <div
-                                    key={day}
-                                    className={`calendar-day ${isToday ? 'today' : ''}`}
-                                >
-                                    <div className="day-number">{day}</div>
-                                    <div className="day-tasks">
-                                        {dayTasks.map((task) => (
-                                            <div
-                                                key={task.taskId}
-                                                className="task-event"
-                                                style={{
-                                                    backgroundColor: getPriorityColor(task.priority),
-                                                    minHeight: `${getTaskHeight(task.timeToComplete)}px`,
-                                                    cursor: 'pointer'
-                                                }}
-                                                onClick={() => setSelectedTask(task)}
-                                                title={task.taskName}
-                                            >
-                                                <div className="task-event-title">{task.taskName}</div>
-                                                <div className="task-event-time">{task.timeToComplete}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    {viewType === 'week' && renderWeekView()}
+                    {viewType === 'month' && renderMonthView()}
                 </div>
             </div>
 
