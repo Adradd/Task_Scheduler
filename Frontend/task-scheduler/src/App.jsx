@@ -93,7 +93,7 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                 <Routes>
                     <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
                     <Route path="/task-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><TaskView user={user} /></ProtectedRoute>} />
-                    <Route path="/calendar-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CalendarView /></ProtectedRoute>} />
+                    <Route path="/calendar-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><CalendarView user={user} /></ProtectedRoute>} />
                     <Route path="/account" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Account user={user} onLogout={onLogout} /></ProtectedRoute>} />
                     <Route path="/login" element={<Login onLoginSuccess={onLoginSuccess} />} />
                     <Route path="/register" element={<Register onRegisterSuccess={onRegisterSuccess} />} />

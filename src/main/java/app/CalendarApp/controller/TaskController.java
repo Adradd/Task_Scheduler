@@ -33,6 +33,8 @@ public class TaskController {
             return ResponseEntity.notFound().build();
         }
         List<Task> tasks = taskService.findAllTasksByOwner(account);
+        // Filter to only return uncompleted tasks
+        tasks.removeIf(Task::isCompleted);
         return ResponseEntity.ok(tasks);
     }
 

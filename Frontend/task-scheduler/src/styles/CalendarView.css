@@ -1,0 +1,460 @@
+.calendar-view-container {
+    padding: 0;
+    width: 100%;
+    background-color: #f9f9f9;
+    min-height: 100vh;
+}
+
+.calendar-header {
+    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
+    color: white;
+    padding: 4rem 2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.calendar-header h1 {
+    font-size: 2.5rem;
+    margin: 0 0 0.5rem 0;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.calendar-header p {
+    font-size: 1.1rem;
+    margin: 0;
+    opacity: 0.95;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.calendar-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem 2rem 2rem;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    font-size: 18px;
+    color: #666;
+}
+
+.calendar-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.month-year {
+    text-align: center;
+    min-width: 200px;
+}
+
+.month-year h2 {
+    font-size: 1.8rem;
+    color: #333;
+    margin: 0;
+    font-weight: 600;
+}
+
+.btn-nav, .btn-today {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.btn-nav {
+    background-color: white;
+    color: #333;
+    border: 2px solid #3fb0ba;
+}
+
+.btn-nav:hover {
+    background-color: #3fb0ba;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(63, 176, 186, 0.3);
+}
+
+.btn-today {
+    background-color: #3fb0ba;
+    color: white;
+}
+
+.btn-today:hover {
+    background-color: #0653b5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(6, 83, 181, 0.3);
+}
+
+.calendar-grid {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.calendar-day-headers {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 1rem;
+}
+
+.calendar-day-header {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #0653b5;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1rem;
+    auto-rows: minmax(150px, auto);
+}
+
+.calendar-day {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.calendar-day:hover {
+    border-color: #3fb0ba;
+    box-shadow: 0 4px 12px rgba(63, 176, 186, 0.2);
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #e8f4f8 0%, #f0f9fb 100%);
+    border: 2px solid #3fb0ba;
+    box-shadow: 0 4px 12px rgba(63, 176, 186, 0.3);
+}
+
+.calendar-day.empty {
+    background: #f5f5f5;
+    border: 1px solid #f0f0f0;
+    cursor: default;
+}
+
+.calendar-day.empty:hover {
+    border-color: #f0f0f0;
+    box-shadow: none;
+}
+
+.day-number {
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.calendar-day.today .day-number {
+    color: #0653b5;
+    background: white;
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.day-tasks {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow-y: auto;
+}
+
+.task-event {
+    background-color: #3fb0ba;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.task-event:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+}
+
+.task-event-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.25rem;
+}
+
+.task-event-time {
+    font-size: 0.75rem;
+    opacity: 0.9;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.modal-content h3 {
+    font-size: 1.5rem;
+    color: #333;
+    margin: 0 0 1.5rem 0;
+    padding-right: 2rem;
+}
+
+.task-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.detail-item strong {
+    color: #0653b5;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.detail-item {
+    color: #666;
+    line-height: 1.6;
+}
+
+.priority-badge {
+    display: inline-block;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-left: 0.5rem;
+    width: fit-content;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .calendar-days {
+        auto-rows: minmax(120px, auto);
+    }
+
+    .calendar-day {
+        min-height: 120px;
+    }
+}
+
+@media (max-width: 768px) {
+    .calendar-header h1 {
+        font-size: 2rem;
+    }
+
+    .calendar-controls {
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-nav, .btn-today {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .calendar-grid {
+        padding: 1rem;
+    }
+
+    .calendar-days {
+        auto-rows: minmax(100px, auto);
+        gap: 0.5rem;
+    }
+
+    .calendar-day {
+        min-height: 100px;
+        padding: 0.5rem;
+    }
+
+    .day-number {
+        font-size: 1rem;
+    }
+
+    .task-event {
+        font-size: 0.75rem;
+        padding: 0.4rem;
+    }
+
+    .task-event-title {
+        font-size: 0.7rem;
+    }
+
+    .task-event-time {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendar-content {
+        padding: 0 1rem 1rem 1rem;
+    }
+
+    .calendar-header {
+        padding: 2rem 1rem;
+    }
+
+    .calendar-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .calendar-header p {
+        font-size: 0.95rem;
+    }
+
+    .month-year h2 {
+        font-size: 1.3rem;
+    }
+
+    .calendar-grid {
+        padding: 0.75rem;
+    }
+
+    .calendar-day-headers {
+        gap: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .calendar-day-header {
+        font-size: 0.85rem;
+        padding: 0.25rem 0;
+    }
+
+    .calendar-days {
+        gap: 0.25rem;
+        auto-rows: minmax(80px, auto);
+    }
+
+    .calendar-day {
+        min-height: 80px;
+        padding: 0.4rem;
+    }
+
+    .day-number {
+        font-size: 0.9rem;
+    }
+
+    .task-event {
+        font-size: 0.65rem;
+        padding: 0.3rem;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 1.5rem;
+    }
+}
+
