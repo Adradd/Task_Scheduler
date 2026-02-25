@@ -74,4 +74,35 @@ public class TaskController {
         taskService.deleteTask(taskId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/completed")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<List<Task>> getCompletedTasksForUser(Authentication authentication) {
+        String username = authentication.getName();
+        Account account = accountService.findAccountByUsername(username);
+        if (account == null) {
+            return ResponseEntity.notFound().build();
+        }
+        List<Task> completedTasks = taskService.findAllCompletedTasksByOwner(account);
+        return ResponseEntity.ok(completedTasks);
+    }
+
+    @PutMapping("/{taskId}/complete")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<Task> markTaskAsComplete(@PathVariable String taskId) {
+        Task task = taskService.markTaskAsComplete(taskId);
+        return ResponseEntity.ok(task);
+    }
+
+    @PutMapping("/{taskId}/reopen")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<Task> reopenTask(@PathVariable String taskId) {
+        Task task = taskService.findTaskByTaskId(taskId);
+        if (task == null) {
+            return ResponseEntity.notFound().build();
+        }
+        task.setIsCompleted(false);
+        Task updated = taskService.updateTask(task);
+        return ResponseEntity.ok(updated);
+    }
 }

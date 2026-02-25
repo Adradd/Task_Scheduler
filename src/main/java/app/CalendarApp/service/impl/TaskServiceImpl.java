@@ -75,6 +75,21 @@ public class TaskServiceImpl implements TaskService {
         taskRepository.deleteById(taskId);
     }
 
+    @Override
+    public List<Task> findAllCompletedTasksByOwner(Account owner) {
+        return taskRepository.findAllByOwnerAndIsCompleted(owner, true);
+    }
+
+    @Override
+    public Task markTaskAsComplete(String taskId) {
+        Task task = taskRepository.findTaskByTaskId(taskId);
+        if (task == null) {
+            throw new IllegalArgumentException("Task does not exist");
+        }
+        task.setIsCompleted(true);
+        return taskRepository.save(task);
+    }
+
     private void validateTask(Task task, boolean isUpdate) {
         if (task.getTaskName() == null || task.getTaskName().trim().isEmpty()) {
             throw new IllegalArgumentException("Task name is required");

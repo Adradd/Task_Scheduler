@@ -12,6 +12,7 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 function App() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(null);
+    const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
     // Check if user is already logged in on component mount
     useEffect(() => {
@@ -24,6 +25,7 @@ function App() {
                 role: localStorage.getItem('role')
             });
         }
+        setIsLoadingAuth(false);
     }, []);
 
     const handleLoginSuccess = (userData) => {
@@ -44,6 +46,10 @@ function App() {
         setIsAuthenticated(false);
         setUser(null);
     };
+
+    if (isLoadingAuth) {
+        return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px', color: '#666'}}>Loading...</div>;
+    }
 
     return (
         <Router>

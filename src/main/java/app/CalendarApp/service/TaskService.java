@@ -15,5 +15,6 @@ public interface TaskService {
     Task createTask(Task task);
     Task updateTask(Task task);
     void deleteTask(String taskId);
+    List<Task> findAllCompletedTasksByOwner(Account owner);
+    Task markTaskAsComplete(String taskId);
 }
-
