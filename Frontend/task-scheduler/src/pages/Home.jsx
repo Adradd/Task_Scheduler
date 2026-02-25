@@ -1,12 +1,23 @@
 import '../styles/Home.css';
+import { useNavigate } from 'react-router-dom';
 
-function Home() {
+function Home({ isAuthenticated }) {
+    const navigate = useNavigate();
+
+    const handleGetStarted = () => {
+        if (isAuthenticated) {
+            navigate('/task-view');
+        } else {
+            navigate('/login');
+        }
+    };
+
     return (
         <main className="home-container">
             <div className="title-section">
                 <h1>You make the tasks, we manage the schedule</h1>
                 <p className="subtitle">Stay organized, stay productive. Manage your tasks and calendar in one place.</p>
-                <button className="cta-button">Get Started</button>
+                <button className="cta-button" onClick={handleGetStarted}>Get Started</button>
             </div>
 
             <div className="task-features">
