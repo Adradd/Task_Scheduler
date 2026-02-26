@@ -121,11 +121,6 @@ function Account({ user, onLogout }) {
                             <p>{accountData.email || 'Not provided'}</p>
                         )}
                     </div>
-
-                    <div className="info-group">
-                        <label>Role</label>
-                        <p>{accountData.role || 'User'}</p>
-                    </div>
                 </div>
 
                 <div className="account-actions">

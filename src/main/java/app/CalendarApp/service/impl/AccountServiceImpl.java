@@ -76,7 +76,8 @@ public class AccountServiceImpl implements AccountService {
         if (!isUpdate && accountRepository.findAccountByEmail(account.getEmail()) != null) {
             throw new IllegalArgumentException("Email already exists");
         }
-        if (account.getPassword() == null || account.getPassword().length() < 8) {
+        // Only validate password on account creation, not on update
+        if (!isUpdate && (account.getPassword() == null || account.getPassword().length() < 8)) {
             throw new IllegalArgumentException("Password must be at least 8 characters");
         }
     }

@@ -29,6 +29,30 @@ public class AccountController {
         return account != null ? ResponseEntity.ok(account) : ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/{accountId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> updateAccount(@PathVariable String accountId, @RequestBody Account accountUpdates) {
+        try {
+            Account existingAccount = accountService.findAccountByAccountId(accountId);
+            if (existingAccount == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Update only the allowed fields (username and email)
+            if (accountUpdates.getUsername() != null && !accountUpdates.getUsername().isEmpty()) {
+                existingAccount.setUsername(accountUpdates.getUsername());
+            }
+            if (accountUpdates.getEmail() != null && !accountUpdates.getEmail().isEmpty()) {
+                existingAccount.setEmail(accountUpdates.getEmail());
+            }
+
+            Account updated = accountService.updateAccount(existingAccount);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> createAccount(@RequestBody Account account) {
         try {
