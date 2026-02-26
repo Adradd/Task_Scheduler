@@ -96,16 +96,7 @@ function Account({ user, onLogout }) {
                 <div className="account-info">
                     <div className="info-group">
                         <label>Username</label>
-                        {editing ? (
-                            <input
-                                type="text"
-                                name="username"
-                                value={formData.username || ''}
-                                onChange={handleChange}
-                            />
-                        ) : (
-                            <p>{accountData.username}</p>
-                        )}
+                        <p>{accountData.username}</p>
                     </div>
 
                     <div className="info-group">
