@@ -50,7 +50,7 @@ function TaskView({ user }) {
 
     // Create auth config from stored credentials
     const getAuthConfig = () => {
-        const authToken = localStorage.getItem('authToken');
+        const authToken = sessionStorage.getItem('authToken');
         if (authToken) {
             return {
                 headers: {
