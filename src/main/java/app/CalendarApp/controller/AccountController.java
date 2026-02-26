@@ -61,6 +61,7 @@ public class AccountController {
             response.put("accountId", created.getId());
             response.put("username", created.getUsername());
             response.put("email", created.getEmail());
+            response.put("dateCreated", created.getDateCreated());
             response.put("message", "Account created successfully");
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {

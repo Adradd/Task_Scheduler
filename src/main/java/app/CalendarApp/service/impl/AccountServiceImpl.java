@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.regex.Pattern;
 
 @Service
@@ -40,6 +41,8 @@ public class AccountServiceImpl implements AccountService {
     public Account createAccount(Account account) {
         validateAccount(account, false);
         account.setPassword(passwordEncoder.encode(account.getPassword()));
+        // Set the date created to today's date in YYYY-MM-DD format
+        account.setDateCreated(LocalDate.now().toString());
         return accountRepository.save(account);
     }
 
