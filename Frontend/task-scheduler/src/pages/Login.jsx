@@ -61,11 +61,11 @@ function Login({ onLoginSuccess }) {
 
             console.log('Login response:', response.data);
 
-            // Store auth credentials in localStorage
-            localStorage.setItem('authToken', btoa(`${formData.username}:${formData.password}`));
-            localStorage.setItem('username', response.data.username);
-            localStorage.setItem('accountId', response.data.accountId);
-            localStorage.setItem('role', response.data.role);
+            // Store auth credentials in sessionStorage (cleared when the tab/browser is closed)
+            sessionStorage.setItem('authToken', btoa(`${formData.username}:${formData.password}`));
+            sessionStorage.setItem('username', response.data.username);
+            sessionStorage.setItem('accountId', response.data.accountId);
+            sessionStorage.setItem('role', response.data.role);
 
             // Call the callback to update parent state
             if (typeof onLoginSuccess === 'function') {

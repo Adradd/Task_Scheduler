@@ -14,7 +14,7 @@ function Account({ user, onLogout }) {
 
     // Create auth config from stored credentials
     const getAuthConfig = () => {
-        const authToken = localStorage.getItem('authToken');
+        const authToken = sessionStorage.getItem('authToken');
         if (authToken) {
             return {
                 headers: {
@@ -36,7 +36,7 @@ function Account({ user, onLogout }) {
         try {
             setLoading(true);
             setError(null);
-            const accountId = localStorage.getItem('accountId');
+            const accountId = sessionStorage.getItem('accountId');
             const res = await axios.get(`${backendUrl}/api/accounts/${accountId}`, getAuthConfig());
             setAccountData(res.data);
             setFormData(res.data);
@@ -59,7 +59,7 @@ function Account({ user, onLogout }) {
     const handleSaveChanges = async () => {
         try {
             setError(null);
-            const accountId = localStorage.getItem('accountId');
+            const accountId = sessionStorage.getItem('accountId');
             await axios.put(`${backendUrl}/api/accounts/${accountId}`, formData, getAuthConfig());
             setAccountData(formData);
             setEditing(false);

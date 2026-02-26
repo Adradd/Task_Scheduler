@@ -16,13 +16,13 @@ function App() {
 
     // Check if user is already logged in on component mount
     useEffect(() => {
-        const storedUsername = localStorage.getItem('username');
+        const storedUsername = sessionStorage.getItem('username');
         if (storedUsername) {
             setIsAuthenticated(true);
             setUser({
                 username: storedUsername,
-                accountId: localStorage.getItem('accountId'),
-                role: localStorage.getItem('role')
+                accountId: sessionStorage.getItem('accountId'),
+                role: sessionStorage.getItem('role')
             });
         }
         setIsLoadingAuth(false);
@@ -39,10 +39,10 @@ function App() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('username');
-        localStorage.removeItem('accountId');
-        localStorage.removeItem('role');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('username');
+        sessionStorage.removeItem('accountId');
+        sessionStorage.removeItem('role');
         setIsAuthenticated(false);
         setUser(null);
     };

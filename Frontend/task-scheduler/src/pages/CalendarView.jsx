@@ -14,7 +14,7 @@ function CalendarView({ user }) {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
     const getAuthConfig = () => {
-        const authToken = localStorage.getItem('authToken');
+        const authToken = sessionStorage.getItem('authToken');
         if (authToken) {
             return {
                 headers: {
