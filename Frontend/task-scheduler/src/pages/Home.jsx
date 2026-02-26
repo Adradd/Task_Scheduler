@@ -15,8 +15,8 @@ function Home({ isAuthenticated }) {
     return (
         <main className="home-container">
             <div className="title-section">
-                <h1>You make the tasks, we manage the schedule</h1>
-                <p className="subtitle">Stay organized, stay productive. Manage your tasks and calendar in one place.</p>
+                <h1>You make the tasks, we manage the schedule.</h1>
+                <p className="subtitle">Stay organized, stay productive. Manage your tasks and calendar in one place with automated event creation.</p>
                 <button className="cta-button" onClick={handleGetStarted}>Get Started</button>
             </div>
 
@@ -34,7 +34,7 @@ function Home({ isAuthenticated }) {
                     </div>
                     <div className="feature-card">
                         <h3>Track Progress</h3>
-                        <p>Monitor your task completion and stay on top of your workload with real-time updates.</p>
+                        <p>Monitor task completion and stay on top of your workload with real-time updates.</p>
                     </div>
                 </div>
             </div>
@@ -45,11 +45,11 @@ function Home({ isAuthenticated }) {
                 <div className="features-grid">
                     <div className="feature-card">
                         <h3>Visual Planning</h3>
-                        <p>See all your tasks and deadlines at a glance with our intuitive calendar view.</p>
+                        <p>See all your tasks and deadlines at a glance with our interactive calendar.</p>
                     </div>
                     <div className="feature-card">
                         <h3>Automated Task Scheduling</h3>
-                        <p>Let us manage your time for you. Give us your working yours and we find the time for you to work.</p>
+                        <p>Let us manage your time for you. Give us your working hours and we'll find time for you to work.</p>
                     </div>
                     <div className="feature-card">
                         <h3>Schedule Management</h3>

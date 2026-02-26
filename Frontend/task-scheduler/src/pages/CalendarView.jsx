@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import {useEffect, useState} from 'react';
 import '../styles/CalendarView.css';
 
 function CalendarView({ user }) {
@@ -97,8 +97,7 @@ function CalendarView({ user }) {
 
     const getTaskHeight = (timeStr) => {
         const minutes = getTimeToCompleteInMinutes(timeStr);
-        const height = Math.max(30, (minutes / 60) * 60);
-        return height;
+        return Math.max(30, (minutes / 60) * 60);
     };
 
     const getPriorityColor = (priority) => {
@@ -269,8 +268,7 @@ function CalendarView({ user }) {
     return (
         <div className="calendar-view-container">
             <div className="calendar-header">
-                <h1>Calendar View</h1>
-                <p>Visualize your tasks and deadlines</p>
+                <h1>My Calendar</h1>
             </div>
 
             <div className="calendar-content">

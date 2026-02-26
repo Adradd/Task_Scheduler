@@ -258,8 +258,7 @@ function TaskView({ user }) {
         <div className="task-view-container">
             {/* Header Section */}
             <div className="task-header">
-                <h1>Task Management</h1>
-                <p>Organize, prioritize, and track your tasks efficiently</p>
+                <h1>My Tasks</h1>
             </div>
 
             {/* Content Section */}
