@@ -20,6 +20,7 @@ public class Task {
     private String tags;
     private String subtask;
     private String comments;
+    private boolean isCompleted;
 
     public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, String project, String tags, String subtask, String comments) {
         this.taskId = taskId;
@@ -32,6 +33,7 @@ public class Task {
         this.tags = tags;
         this.subtask = subtask;
         this.comments = comments;
+        this.isCompleted = false;
     }
     public String getTaskId() {
         return taskId;
@@ -112,6 +114,11 @@ public class Task {
         this.comments = comments;
     }
 
+    public boolean isCompleted() {
+        return isCompleted;
+    }
 
-
+    public void setIsCompleted(boolean completed) {
+        isCompleted = completed;
+    }
 }

@@ -11,6 +11,7 @@ public class Account {
     private String password;
     private String email;
     private String dateCreated;
+    private String role;
 
     public Account(String accountId, String username, String password, String email, String dateCreated) {
         this.accountId = accountId;
@@ -18,6 +19,7 @@ public class Account {
         this.password = password;
         this.email = email;
         this.dateCreated = dateCreated;
+        this.role = "user";
     }
 
     public String getId() {
@@ -49,5 +51,11 @@ public class Account {
     }
     public void setDateCreated(String dateCreated) {
         this.dateCreated = dateCreated;
+    }
+    public String getRole() {
+        return role;
+    }
+    public void setRole(String role) {
+        this.role = role;
     }
 }
