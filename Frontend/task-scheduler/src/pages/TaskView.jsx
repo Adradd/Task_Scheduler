@@ -494,7 +494,7 @@ function TaskView({ user }) {
                                         type="text"
                                         value={newTask.tags}
                                         onChange={(e) => handleNewTaskChange('tags', e.target.value)}
-                                        placeholder="e.g., work, urgent"
+                                        placeholder="e.g., work, personal"
                                     />
                                 </div>
                                 <div className="task-field">
