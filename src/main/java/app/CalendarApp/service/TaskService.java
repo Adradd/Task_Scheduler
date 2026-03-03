@@ -11,7 +11,7 @@ public interface TaskService {
     Task findTaskByDeadline(String deadline);
     Task findTaskByPriority(String priority);
     Task findTaskByProject(String project);
-    Task findTaskByTags(String tags);
+    List<Task> findTasksByTag(String tag);
     Task createTask(Task task);
     Task updateTask(Task task);
     void deleteTask(String taskId);

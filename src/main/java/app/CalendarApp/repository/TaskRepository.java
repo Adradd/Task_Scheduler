@@ -12,6 +12,6 @@ public interface TaskRepository extends MongoRepository<Task, String> {
     Task findTaskByDeadline(String deadline);
     Task findTaskByPriority(String priority);
     Task findTaskByProject(String project);
-    Task findTaskByTags(String tags);
+    List<Task> findAllByTagsContaining(String tag);
     List<Task> findAllByOwnerAndIsCompleted(Account owner, boolean isCompleted);
 }

@@ -7,5 +7,7 @@ import java.util.List;
 
 public interface TagService {
     List<Tag> findAllByOwner(Account owner);
-    String createTag(String tag);
+    Tag findTagByOwnerAndName(Account owner, String tagName);
+    Tag createTag(Account owner, String tagName);
+    List<String> ensureTagsExist(Account owner, List<String> tags);
 }

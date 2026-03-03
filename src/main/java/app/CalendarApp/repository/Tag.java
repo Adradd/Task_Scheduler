@@ -4,7 +4,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
-@Document("Account")
+@Document("Tag")
 public class Tag {
     @Id
     private String tagId;
@@ -13,6 +13,10 @@ public class Tag {
     private Account owner;
 
     private String tagName;
+
+    public Tag() {
+        // Required by persistence/deserialization frameworks.
+    }
 
     public Tag(String tagId, Account owner, String tagName)  {
         this.tagId = tagId;

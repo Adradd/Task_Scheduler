@@ -16,12 +16,32 @@ function TaskView({ user }) {
         timeToComplete: '',
         priority: '',
         project: '',
-        tags: '',
+        tags: [],
         subtask: '',
         comments: ''
     });
+    const [availableTags, setAvailableTags] = useState([]);
+    const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
+    const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
+    const [newTaskTagInput, setNewTaskTagInput] = useState('');
+    const [editTaskTagInput, setEditTaskTagInput] = useState('');
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+    const parseTagInput = (value) => {
+        if (!value) return [];
+        return [...new Set(value.split(',').map(tag => tag.trim()).filter(Boolean))];
+    };
+
+    const formatTags = (tags) => {
+        if (!Array.isArray(tags) || tags.length === 0) return '';
+        return tags.join(', ');
+    };
+
+    const normalizeTask = (task) => ({
+        ...task,
+        tags: Array.isArray(task?.tags) ? task.tags : []
+    });
 
     // Generate time options: 15 minute increments up to 3 hours, then 30 minute increments
     const generateTimeOptions = () => {
@@ -49,7 +69,7 @@ function TaskView({ user }) {
     const timeOptions = generateTimeOptions();
 
     // Create auth config from stored credentials
-    const getAuthConfig = () => {
+    const getAuthConfig = () => { // TODO: split out & use shared code
         const authToken = sessionStorage.getItem('authToken');
         if (authToken) {
             return {
@@ -66,15 +86,26 @@ function TaskView({ user }) {
         if (user) {
             fetchTasks();
             fetchCompletedTasks();
+            fetchAvailableTags();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
+
+    const fetchAvailableTags = async () => {
+        try {
+            const res = await axios.get(`${backendUrl}/api/tags`, getAuthConfig());
+            setAvailableTags((res.data || []).map(tag => tag.tagName));
+        } catch (err) {
+            console.error('Failed to fetch tags:', err);
+        }
+    };
 
     const fetchTasks = async () => {
         try {
             setLoading(true);
             setError(null);
             const res = await axios.get(`${backendUrl}/api/tasks`, getAuthConfig());
-            setTasks(res.data || []);
+            setTasks((res.data || []).map(normalizeTask));
         } catch (err) {
             setError('Failed to fetch tasks: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -87,7 +118,7 @@ function TaskView({ user }) {
         try {
             setError(null);
             const res = await axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig());
-            setCompletedTasks(res.data || []);
+            setCompletedTasks((res.data || []).map(normalizeTask));
         } catch (err) {
             setError('Failed to fetch completed tasks: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -96,16 +127,20 @@ function TaskView({ user }) {
 
     const handleEdit = (task) => {
         setEditingId(task.taskId);
-        setEditData({ ...task });
+        const normalized = normalizeTask(task);
+        setEditData(normalized);
+        setEditTaskTagInput(formatTags(normalized.tags));
     };
 
     const handleSaveEdit = async (taskId) => {
         try {
             setError(null);
-            await axios.put(`${backendUrl}/api/tasks`, editData, getAuthConfig());
-            setTasks(tasks.map(t => t.taskId === taskId ? editData : t));
+            const res = await axios.put(`${backendUrl}/api/tasks`, editData, getAuthConfig());
+            const updatedTask = normalizeTask(res.data || editData);
+            setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
             setEditingId(null);
             setEditData({});
+            fetchAvailableTags(); // Refresh available tags
         } catch (err) {
             setError('Failed to update task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -136,7 +171,7 @@ function TaskView({ user }) {
             setError(null);
             const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
             setTasks(tasks.filter(t => t.taskId !== taskId));
-            setCompletedTasks([...completedTasks, res.data]);
+            setCompletedTasks([...completedTasks, normalizeTask(res.data)]);
         } catch (err) {
             setError('Failed to complete task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -148,7 +183,7 @@ function TaskView({ user }) {
             setError(null);
             const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/reopen`, {}, getAuthConfig());
             setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
-            setTasks([...tasks, res.data]);
+            setTasks([...tasks, normalizeTask(res.data)]);
         } catch (err) {
             setError('Failed to reopen task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -200,17 +235,19 @@ function TaskView({ user }) {
             };
 
             const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, getAuthConfig());
-            setTasks([...tasks, res.data]);
+            setTasks([...tasks, normalizeTask(res.data)]);
             setNewTask({
                 taskName: '',
                 deadline: '',
                 timeToComplete: '',
                 priority: '',
                 project: '',
-                tags: '',
+                tags: [],
                 subtask: '',
                 comments: ''
             });
+            setNewTaskTagInput('');
+            fetchAvailableTags(); // Refresh available tags
         } catch (err) {
             setError('Failed to create task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -218,11 +255,63 @@ function TaskView({ user }) {
     };
 
     const handleNewTaskChange = (field, value) => {
+        if (field === 'tags') {
+            setNewTaskTagInput(value);
+            setShowNewTaskTagDropdown(value.length > 0);
+            setNewTask(prev => ({ ...prev, tags: parseTagInput(value) }));
+            return;
+        }
         setNewTask(prev => ({ ...prev, [field]: value }));
     };
 
     const handleEditChange = (field, value) => {
+        if (field === 'tags') {
+            setEditTaskTagInput(value);
+            setShowEditTagDropdown(value.length > 0);
+            setEditData(prev => ({ ...prev, tags: parseTagInput(value) }));
+            return;
+        }
         setEditData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleTagSelect = (tagName, isNewTask = true) => {
+        if (isNewTask) {
+            const currentTags = newTask.tags || [];
+            if (!currentTags.includes(tagName)) {
+                const updatedTags = [...currentTags, tagName];
+                setNewTask(prev => ({ ...prev, tags: updatedTags }));
+                setNewTaskTagInput(formatTags(updatedTags));
+            }
+            setShowNewTaskTagDropdown(false);
+        } else {
+            const currentTags = editData.tags || [];
+            if (!currentTags.includes(tagName)) {
+                const updatedTags = [...currentTags, tagName];
+                setEditData(prev => ({ ...prev, tags: updatedTags }));
+                setEditTaskTagInput(formatTags(updatedTags));
+            }
+            setShowEditTagDropdown(false);
+        }
+    };
+
+    const removeTag = (tagToRemove, isNewTask = true) => {
+        if (isNewTask) {
+            const updatedTags = newTask.tags.filter(tag => tag !== tagToRemove);
+            setNewTask(prev => ({ ...prev, tags: updatedTags }));
+            setNewTaskTagInput(formatTags(updatedTags));
+        } else {
+            const updatedTags = editData.tags.filter(tag => tag !== tagToRemove);
+            setEditData(prev => ({ ...prev, tags: updatedTags }));
+            setEditTaskTagInput(formatTags(updatedTags));
+        }
+    };
+
+    const getFilteredTags = (inputValue, currentTags) => {
+        const input = inputValue.split(',').pop().trim().toLowerCase();
+        if (!input) return availableTags.filter(tag => !currentTags.includes(tag));
+        return availableTags.filter(tag =>
+            tag.toLowerCase().includes(input) && !currentTags.includes(tag)
+        );
     };
 
     const sortTasks = (tasksToSort) => {
@@ -372,13 +461,55 @@ function TaskView({ user }) {
                                     <div className="task-field">
                                         <label>Tags</label>
                                         {editingId === task.taskId ? (
-                                            <input
-                                                type="text"
-                                                value={editData.tags}
-                                                onChange={(e) => handleEditChange('tags', e.target.value)}
-                                            />
+                                            <div className="tag-input-container">
+                                                <div className="tag-chips">
+                                                    {editData.tags && editData.tags.map((tag, idx) => (
+                                                        <span key={idx} className="tag-chip">
+                                                            {tag}
+                                                            <button
+                                                                type="button"
+                                                                className="tag-remove"
+                                                                onClick={() => removeTag(tag, false)}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={editTaskTagInput}
+                                                    onChange={(e) => handleEditChange('tags', e.target.value)}
+                                                    onFocus={() => setShowEditTagDropdown(true)}
+                                                    onBlur={() => setTimeout(() => setShowEditTagDropdown(false), 200)}
+                                                    placeholder="Add tags (comma-separated)"
+                                                />
+                                                {showEditTagDropdown && getFilteredTags(editTaskTagInput, editData.tags || []).length > 0 && (
+                                                    <div className="tag-dropdown">
+                                                        {getFilteredTags(editTaskTagInput, editData.tags || []).map((tag, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                className="tag-dropdown-item"
+                                                                onClick={() => handleTagSelect(tag, false)}
+                                                            >
+                                                                {tag}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
-                                            <div className="task-field-value">{task.tags}</div>
+                                            <div className="task-field-value">
+                                                {task.tags && task.tags.length > 0 ? (
+                                                    <div className="tag-chips-display">
+                                                        {task.tags.map((tag, idx) => (
+                                                            <span key={idx} className="tag-chip-display">{tag}</span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span className="no-tags">No tags</span>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
 
@@ -490,12 +621,43 @@ function TaskView({ user }) {
                                 </div>
                                 <div className="task-field">
                                     <label>Tags</label>
-                                    <input
-                                        type="text"
-                                        value={newTask.tags}
-                                        onChange={(e) => handleNewTaskChange('tags', e.target.value)}
-                                        placeholder="e.g., work, personal"
-                                    />
+                                    <div className="tag-input-container">
+                                        <div className="tag-chips">
+                                            {newTask.tags && newTask.tags.map((tag, idx) => (
+                                                <span key={idx} className="tag-chip">
+                                                    {tag}
+                                                    <button
+                                                        type="button"
+                                                        className="tag-remove"
+                                                        onClick={() => removeTag(tag, true)}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={newTaskTagInput}
+                                            onChange={(e) => handleNewTaskChange('tags', e.target.value)}
+                                            onFocus={() => setShowNewTaskTagDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowNewTaskTagDropdown(false), 200)}
+                                            placeholder="Add tags (comma-separated)"
+                                        />
+                                        {showNewTaskTagDropdown && getFilteredTags(newTaskTagInput, newTask.tags || []).length > 0 && (
+                                            <div className="tag-dropdown">
+                                                {getFilteredTags(newTaskTagInput, newTask.tags || []).map((tag, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="tag-dropdown-item"
+                                                        onClick={() => handleTagSelect(tag, true)}
+                                                    >
+                                                        {tag}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="task-field">
                                     <label>Subtask</label>

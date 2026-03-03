@@ -3,7 +3,6 @@ package app.CalendarApp.service;
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
 import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
@@ -16,8 +15,11 @@ import java.util.Collection;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
-    @Autowired
-    private AccountRepository accountRepository;
+    private final AccountRepository accountRepository;
+
+    public CustomUserDetailsService(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     @Override
     public UserDetails loadUserByUsername(@Nullable String username) throws UsernameNotFoundException {

@@ -4,6 +4,7 @@ import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.service.TaskService;
 import app.CalendarApp.service.AccountService;
+import app.CalendarApp.service.TagService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,17 +12,20 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService taskService;
     private final AccountService accountService;
+    private final TagService tagService;
 
     @Autowired
-    public TaskController(TaskService taskService, AccountService accountService) {
+    public TaskController(TaskService taskService, AccountService accountService, TagService tagService) {
         this.taskService = taskService;
         this.accountService = accountService;
+        this.tagService = tagService;
     }
 
     @GetMapping
@@ -49,13 +53,13 @@ public class TaskController {
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> createTask(@RequestBody Task task, Authentication authentication) {
         try {
-            String username = authentication.getName();
-            Account account = accountService.findAccountByUsername(username);
+            Account account = resolveAccount(authentication);
             if (account == null) {
-                return ResponseEntity.badRequest().body("Account not found for user: " + username);
+                return ResponseEntity.badRequest().body("Account not found for authenticated user");
             }
 
             task.setOwner(account);
+            task.setTags(tagService.ensureTagsExist(account, task.getTags()));
             Task created = taskService.createTask(task);
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
@@ -65,9 +69,28 @@ public class TaskController {
 
     @PutMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Task> updateTask(@RequestBody Task task) {
-        Task updated = taskService.updateTask(task);
-        return ResponseEntity.ok(updated);
+    public ResponseEntity<?> updateTask(@RequestBody Task task, Authentication authentication) {
+        try {
+            Account account = resolveAccount(authentication);
+            if (account == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Authenticated account not found"));
+            }
+
+            Task existing = taskService.findTaskByTaskId(task.getTaskId());
+            if (existing == null) {
+                return ResponseEntity.notFound().build();
+            }
+            if (existing.getOwner() == null || !account.getId().equals(existing.getOwner().getId())) {
+                return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
+            }
+
+            task.setOwner(account);
+            task.setTags(tagService.ensureTagsExist(account, task.getTags()));
+            Task updated = taskService.updateTask(task);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{taskId}")
@@ -106,5 +129,12 @@ public class TaskController {
         task.setIsCompleted(false);
         Task updated = taskService.updateTask(task);
         return ResponseEntity.ok(updated);
+    }
+
+    private Account resolveAccount(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return null;
+        }
+        return accountService.findAccountByUsername(authentication.getName());
     }
 }

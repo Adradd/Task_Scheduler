@@ -48,8 +48,8 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task findTaskByTags(String tags) {
-        return taskRepository.findTaskByTags(tags);
+    public List<Task> findTasksByTag(String tag) {
+        return taskRepository.findAllByTagsContaining(tag);
     }
 
     @Override
