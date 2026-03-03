@@ -13,6 +13,14 @@ function CalendarView({ user }) {
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+    const getTagNames = (tags) => {
+        if (!Array.isArray(tags)) return [];
+        return tags.map(tag => {
+            if (typeof tag === 'string') return tag;
+            return tag?.tagName || '';
+        }).filter(Boolean);
+    };
+
     const getAuthConfig = () => {
         const authToken = sessionStorage.getItem('authToken');
         if (authToken) {
@@ -339,7 +347,7 @@ function CalendarView({ user }) {
                             </div>
                             {selectedTask.tags && (
                                 <div className="detail-item">
-                                    <strong>Tags:</strong> {selectedTask.tags}
+                                    <strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ')}
                                 </div>
                             )}
                             {selectedTask.subtask && (

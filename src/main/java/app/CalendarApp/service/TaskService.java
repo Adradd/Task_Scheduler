@@ -1,6 +1,7 @@
 package app.CalendarApp.service;
 
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
 import java.util.List;
 
@@ -11,7 +12,7 @@ public interface TaskService {
     Task findTaskByDeadline(String deadline);
     Task findTaskByPriority(String priority);
     Task findTaskByProject(String project);
-    List<Task> findTasksByTag(String tag);
+    List<Task> findTasksByTag(Tag tag);
     Task createTask(Task task);
     Task updateTask(Task task);
     void deleteTask(String taskId);

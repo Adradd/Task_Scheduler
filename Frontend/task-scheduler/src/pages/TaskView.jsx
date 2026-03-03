@@ -21,12 +21,31 @@ function TaskView({ user }) {
         comments: ''
     });
     const [availableTags, setAvailableTags] = useState([]);
+    const [allTagObjects, setAllTagObjects] = useState([]);
     const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
     const [newTaskTagInput, setNewTaskTagInput] = useState('');
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+    // Extract tag names from Tag objects
+    const getTagNames = (tags) => {
+        if (!Array.isArray(tags)) return [];
+        return tags.map(tag => {
+            if (typeof tag === 'string') return tag;
+            return tag?.tagName || '';
+        }).filter(Boolean);
+    };
+
+    // Convert tag names to Tag objects
+    const tagNameToTagObject = (tagName) => {
+        const found = allTagObjects.find(t => t.tagName?.toLowerCase() === tagName?.toLowerCase());
+        if (found) {
+            return found;
+        }
+        return { tagName: tagName.trim() };
+    };
 
     const parseTagInput = (value) => {
         if (!value) return [];
@@ -35,7 +54,8 @@ function TaskView({ user }) {
 
     const formatTags = (tags) => {
         if (!Array.isArray(tags) || tags.length === 0) return '';
-        return tags.join(', ');
+        const tagNames = getTagNames(tags);
+        return tagNames.join(', ');
     };
 
     const normalizeTask = (task) => ({
@@ -94,7 +114,9 @@ function TaskView({ user }) {
     const fetchAvailableTags = async () => {
         try {
             const res = await axios.get(`${backendUrl}/api/tags`, getAuthConfig());
-            setAvailableTags((res.data || []).map(tag => tag.tagName));
+            const tags = res.data || [];
+            setAllTagObjects(tags);
+            setAvailableTags(tags.map(tag => tag.tagName));
         } catch (err) {
             console.error('Failed to fetch tags:', err);
         }
@@ -128,14 +150,27 @@ function TaskView({ user }) {
     const handleEdit = (task) => {
         setEditingId(task.taskId);
         const normalized = normalizeTask(task);
-        setEditData(normalized);
-        setEditTaskTagInput(formatTags(normalized.tags));
+        // Convert Tag objects to tag name strings for editing
+        const tagNames = getTagNames(normalized.tags);
+        const editDataWithNames = {
+            ...normalized,
+            tags: tagNames
+        };
+        setEditData(editDataWithNames);
+        setEditTaskTagInput(formatTags(tagNames));
     };
 
     const handleSaveEdit = async (taskId) => {
         try {
             setError(null);
-            const res = await axios.put(`${backendUrl}/api/tasks`, editData, getAuthConfig());
+            // Convert tag names to Tag objects
+            const tagObjects = (editData.tags || []).map(tagName => tagNameToTagObject(tagName));
+            const dataToSend = {
+                ...editData,
+                tags: tagObjects
+            };
+
+            const res = await axios.put(`${backendUrl}/api/tasks`, dataToSend, getAuthConfig());
             const updatedTask = normalizeTask(res.data || editData);
             setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
             setEditingId(null);
@@ -222,6 +257,9 @@ function TaskView({ user }) {
 
         try {
             setError(null);
+            // Convert tag names to Tag objects
+            const tagObjects = newTask.tags.map(tagName => tagNameToTagObject(tagName));
+
             const taskToCreate = {
                 taskId: `task_${Date.now()}`,
                 taskName: newTask.taskName,
@@ -229,7 +267,7 @@ function TaskView({ user }) {
                 timeToComplete: newTask.timeToComplete,
                 priority: newTask.priority,
                 project: newTask.project,
-                tags: newTask.tags,
+                tags: tagObjects,
                 subtask: newTask.subtask,
                 comments: newTask.comments
             };
@@ -258,6 +296,7 @@ function TaskView({ user }) {
         if (field === 'tags') {
             setNewTaskTagInput(value);
             setShowNewTaskTagDropdown(value.length > 0);
+            // Only parse the input as tags, don't double-format
             setNewTask(prev => ({ ...prev, tags: parseTagInput(value) }));
             return;
         }
@@ -268,7 +307,9 @@ function TaskView({ user }) {
         if (field === 'tags') {
             setEditTaskTagInput(value);
             setShowEditTagDropdown(value.length > 0);
-            setEditData(prev => ({ ...prev, tags: parseTagInput(value) }));
+            // Store tag names as strings internally
+            const tagNames = parseTagInput(value).filter(Boolean);
+            setEditData(prev => ({ ...prev, tags: tagNames }));
             return;
         }
         setEditData(prev => ({ ...prev, [field]: value }));
@@ -280,7 +321,8 @@ function TaskView({ user }) {
             if (!currentTags.includes(tagName)) {
                 const updatedTags = [...currentTags, tagName];
                 setNewTask(prev => ({ ...prev, tags: updatedTags }));
-                setNewTaskTagInput(formatTags(updatedTags));
+                // Update the input field to show current input value (clearing the partial match)
+                setNewTaskTagInput('');
             }
             setShowNewTaskTagDropdown(false);
         } else {
@@ -288,7 +330,8 @@ function TaskView({ user }) {
             if (!currentTags.includes(tagName)) {
                 const updatedTags = [...currentTags, tagName];
                 setEditData(prev => ({ ...prev, tags: updatedTags }));
-                setEditTaskTagInput(formatTags(updatedTags));
+                // Update the input field to show current input value (clearing the partial match)
+                setEditTaskTagInput('');
             }
             setShowEditTagDropdown(false);
         }
@@ -298,11 +341,11 @@ function TaskView({ user }) {
         if (isNewTask) {
             const updatedTags = newTask.tags.filter(tag => tag !== tagToRemove);
             setNewTask(prev => ({ ...prev, tags: updatedTags }));
-            setNewTaskTagInput(formatTags(updatedTags));
+            setNewTaskTagInput('');
         } else {
             const updatedTags = editData.tags.filter(tag => tag !== tagToRemove);
             setEditData(prev => ({ ...prev, tags: updatedTags }));
-            setEditTaskTagInput(formatTags(updatedTags));
+            setEditTaskTagInput('');
         }
     };
 
@@ -502,8 +545,8 @@ function TaskView({ user }) {
                                             <div className="task-field-value">
                                                 {task.tags && task.tags.length > 0 ? (
                                                     <div className="tag-chips-display">
-                                                        {task.tags.map((tag, idx) => (
-                                                            <span key={idx} className="tag-chip-display">{tag}</span>
+                                                        {getTagNames(task.tags).map((tagName, idx) => (
+                                                            <span key={idx} className="tag-chip-display">{tagName}</span>
                                                         ))}
                                                     </div>
                                                 ) : (

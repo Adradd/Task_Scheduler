@@ -7,9 +7,7 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 @Document("Task")
 public class Task {
@@ -24,7 +22,8 @@ public class Task {
     private String timeToComplete;
     private String priority;
     private String project;
-    private List<String> tags = new ArrayList<>();
+    @DocumentReference(lazy = true)
+    private List<Tag> tags = new ArrayList<>();
     private String subtask;
     private String comments;
     private boolean isCompleted;
@@ -33,7 +32,7 @@ public class Task {
         // Required by persistence/deserialization frameworks.
     }
 
-    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, String project, List<String> tags, String subtask, String comments) {
+    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, String project, List<Tag> tags, String subtask, String comments) {
         this.taskId = taskId;
         this.owner = owner;
         this.taskName = taskName;
@@ -41,7 +40,7 @@ public class Task {
         this.timeToComplete = timeToComplete;
         this.priority = priority;
         this.project = project;
-        setTags(tags);
+        this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
         this.subtask = subtask;
         this.comments = comments;
         this.isCompleted = false;
@@ -101,12 +100,12 @@ public class Task {
         this.priority = priority;
     }
 
-    public List<String> getTags() {
+    public List<Tag> getTags() {
         return tags;
     }
 
-    public void setTags(List<String> tags) {
-        this.tags = normalizeTags(tags);
+    public void setTags(List<Tag> tags) {
+        this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
     }
 
     @JsonSetter("tags")
@@ -115,18 +114,24 @@ public class Task {
             this.tags = new ArrayList<>();
             return;
         }
-        if (tags instanceof String tagString) {
-            this.tags = normalizeTags(List.of(tagString.split(",")));
-            return;
-        }
+
         if (tags instanceof Collection<?> collection) {
-            List<String> raw = new ArrayList<>();
+            List<Tag> tagList = new ArrayList<>();
             for (Object value : collection) {
-                if (value != null) {
-                    raw.add(String.valueOf(value));
+                if (value instanceof java.util.Map<?, ?> tagMap) {
+                    Tag tag = new Tag();
+                    if (tagMap.containsKey("tagId")) {
+                        tag.setTagId(String.valueOf(tagMap.get("tagId")));
+                    }
+                    if (tagMap.containsKey("tagName")) {
+                        tag.setTagName(String.valueOf(tagMap.get("tagName")));
+                    }
+                    tagList.add(tag);
+                } else if (value instanceof Tag tag) {
+                    tagList.add(tag);
                 }
             }
-            this.tags = normalizeTags(raw);
+            this.tags = tagList;
         }
     }
 
@@ -152,22 +157,5 @@ public class Task {
 
     public void setIsCompleted(boolean completed) {
         isCompleted = completed;
-    }
-
-    private List<String> normalizeTags(Collection<String> rawTags) {
-        if (rawTags == null) {
-            return new ArrayList<>();
-        }
-        Set<String> normalized = new LinkedHashSet<>();
-        for (String raw : rawTags) {
-            if (raw == null) {
-                continue;
-            }
-            String value = raw.trim();
-            if (!value.isEmpty()) {
-                normalized.add(value);
-            }
-        }
-        return new ArrayList<>(normalized);
     }
 }

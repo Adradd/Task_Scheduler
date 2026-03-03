@@ -15,7 +15,7 @@ public class Tag {
     private String tagName;
 
     public Tag() {
-        // Required by persistence/deserialization frameworks.
+
     }
 
     public Tag(String tagId, Account owner, String tagName)  {

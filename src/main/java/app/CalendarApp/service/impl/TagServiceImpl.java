@@ -52,25 +52,29 @@ public class TagServiceImpl implements TagService {
     }
 
     @Override
-    public List<String> ensureTagsExist(Account owner, List<String> tags) {
+    public List<Tag> ensureTagsExist(Account owner, List<Tag> tags) {
         if (owner == null || tags == null || tags.isEmpty()) {
             return new ArrayList<>();
         }
 
-        Set<String> normalized = new LinkedHashSet<>();
-        for (String rawTag : tags) {
-            if (rawTag == null) {
+        List<Tag> resolvedTags = new ArrayList<>();
+        for (Tag tag : tags) {
+            if (tag == null || tag.getTagName() == null || tag.getTagName().trim().isEmpty()) {
                 continue;
             }
-            String value = rawTag.trim();
-            if (value.isEmpty()) {
-                continue;
+            String tagName = tag.getTagName().trim();
+            // Find existing tag or create it if it doesn't exist
+            Tag resolvedTag = findTagByOwnerAndName(owner, tagName);
+            if (resolvedTag == null) {
+                // Tag doesn't exist, create it
+                resolvedTag = createTag(owner, tagName);
             }
-            createTag(owner, value);
-            normalized.add(value);
+            if (resolvedTag != null) {
+                resolvedTags.add(resolvedTag);
+            }
         }
 
-        return new ArrayList<>(normalized);
+        return resolvedTags;
     }
 
     private void validateTag(Account owner, String tagName) {

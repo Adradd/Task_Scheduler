@@ -1,6 +1,7 @@
 package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.TaskService;
@@ -48,7 +49,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<Task> findTasksByTag(String tag) {
+    public List<Task> findTasksByTag(Tag tag) {
         return taskRepository.findAllByTagsContaining(tag);
     }
 
