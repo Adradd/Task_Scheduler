@@ -4,7 +4,7 @@ import '../styles/CalendarView.css';
 
 function CalendarView({ user }) {
     const [tasks, setTasks] = useState([]);
-    const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 25)); // February 25, 2026
+    const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
@@ -142,7 +142,7 @@ function CalendarView({ user }) {
     };
 
     const handleToday = () => {
-        setCurrentDate(new Date(2026, 1, 25));
+        setCurrentDate(new Date());
     };
 
     const monthNames = [
@@ -235,7 +235,7 @@ function CalendarView({ user }) {
 
                         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                         const dayTasks = getTasksForDate(date);
-                        const isToday = date.toDateString() === new Date(2026, 1, 25).toDateString();
+                        const isToday = date.toDateString() === new Date().toDateString();
 
                         return (
                             <div
