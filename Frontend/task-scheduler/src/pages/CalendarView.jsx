@@ -269,6 +269,12 @@ function CalendarView({ user }) {
         );
     };
 
+    const getProjectName = (project) => {
+        if (!project) return '';
+        if (typeof project === 'string') return project;
+        return project?.projectName || '';
+    };
+
     if (loading) {
         return <div className="loading">Loading calendar...</div>;
     }
@@ -343,7 +349,7 @@ function CalendarView({ user }) {
                                 </span>
                             </div>
                             <div className="detail-item">
-                                <strong>Project:</strong> {selectedTask.project}
+                                <strong>Project:</strong> {getProjectName(selectedTask.project)}
                             </div>
                             {selectedTask.tags && (
                                 <div className="detail-item">

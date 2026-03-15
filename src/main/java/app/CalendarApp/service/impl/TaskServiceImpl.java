@@ -1,12 +1,14 @@
 package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service
@@ -44,7 +46,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task findTaskByProject(String project) {
+    public Task findTaskByProject(Project project) {
         return taskRepository.findTaskByProject(project);
     }
 
@@ -110,6 +112,9 @@ public class TaskServiceImpl implements TaskService {
               task.getPriority().equalsIgnoreCase("medium") ||
               task.getPriority().equalsIgnoreCase("high"))) {
             throw new IllegalArgumentException("Priority must be low, medium, or high");
+        }
+        if (task.getProject() == null || task.getProject().getProjectName() == null || task.getProject().getProjectName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Project is required");
         }
 
         if (!isUpdate && taskRepository.findTaskByTaskId(task.getTaskId()) != null) {

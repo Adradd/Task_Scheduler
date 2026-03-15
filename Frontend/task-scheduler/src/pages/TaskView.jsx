@@ -22,8 +22,12 @@ function TaskView({ user }) {
     });
     const [availableTags, setAvailableTags] = useState([]);
     const [allTagObjects, setAllTagObjects] = useState([]);
+    const [availableProjects, setAvailableProjects] = useState([]);
+    const [allProjectObjects, setAllProjectObjects] = useState([]);
     const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
+    const [showNewTaskProjectDropdown, setShowNewTaskProjectDropdown] = useState(false);
+    const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
     const [newTaskTagInput, setNewTaskTagInput] = useState('');
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
 
@@ -58,8 +62,23 @@ function TaskView({ user }) {
         return tagNames.join(', ');
     };
 
+    const projectToProjectName = (project) => {
+        if (!project) return '';
+        if (typeof project === 'string') return project;
+        return project?.projectName || '';
+    };
+
+    const projectNameToProjectObject = (projectName) => {
+        const found = allProjectObjects.find(p => p.projectName?.toLowerCase() === projectName?.toLowerCase());
+        if (found) {
+            return found;
+        }
+        return { projectName: projectName.trim() };
+    };
+
     const normalizeTask = (task) => ({
         ...task,
+        project: task?.project || null,
         tags: Array.isArray(task?.tags) ? task.tags : []
     });
 
@@ -107,6 +126,7 @@ function TaskView({ user }) {
             fetchTasks();
             fetchCompletedTasks();
             fetchAvailableTags();
+            fetchAvailableProjects();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
@@ -119,6 +139,17 @@ function TaskView({ user }) {
             setAvailableTags(tags.map(tag => tag.tagName));
         } catch (err) {
             console.error('Failed to fetch tags:', err);
+        }
+    };
+
+    const fetchAvailableProjects = async () => {
+        try {
+            const res = await axios.get(`${backendUrl}/api/projects`, getAuthConfig());
+            const projects = res.data || [];
+            setAllProjectObjects(projects);
+            setAvailableProjects([...new Set(projects.map(project => project.projectName).filter(Boolean))]);
+        } catch (err) {
+            console.error('Failed to fetch projects:', err);
         }
     };
 
@@ -154,6 +185,7 @@ function TaskView({ user }) {
         const tagNames = getTagNames(normalized.tags);
         const editDataWithNames = {
             ...normalized,
+            project: projectToProjectName(normalized.project),
             tags: tagNames
         };
         setEditData(editDataWithNames);
@@ -167,6 +199,7 @@ function TaskView({ user }) {
             const tagObjects = (editData.tags || []).map(tagName => tagNameToTagObject(tagName));
             const dataToSend = {
                 ...editData,
+                project: projectNameToProjectObject(editData.project || ''),
                 tags: tagObjects
             };
 
@@ -175,7 +208,8 @@ function TaskView({ user }) {
             setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
             setEditingId(null);
             setEditData({});
-            fetchAvailableTags(); // Refresh available tags
+            fetchAvailableTags();
+            fetchAvailableProjects();
         } catch (err) {
             setError('Failed to update task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -266,7 +300,7 @@ function TaskView({ user }) {
                 deadline: newTask.deadline,
                 timeToComplete: newTask.timeToComplete,
                 priority: newTask.priority,
-                project: newTask.project,
+                project: projectNameToProjectObject(newTask.project),
                 tags: tagObjects,
                 subtask: newTask.subtask,
                 comments: newTask.comments
@@ -285,7 +319,8 @@ function TaskView({ user }) {
                 comments: ''
             });
             setNewTaskTagInput('');
-            fetchAvailableTags(); // Refresh available tags
+            fetchAvailableTags();
+            fetchAvailableProjects();
         } catch (err) {
             setError('Failed to create task: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -300,6 +335,9 @@ function TaskView({ user }) {
             setNewTask(prev => ({ ...prev, tags: parseTagInput(value) }));
             return;
         }
+        if (field === 'project') {
+            setShowNewTaskProjectDropdown(true);
+        }
         setNewTask(prev => ({ ...prev, [field]: value }));
     };
 
@@ -311,6 +349,9 @@ function TaskView({ user }) {
             const tagNames = parseTagInput(value).filter(Boolean);
             setEditData(prev => ({ ...prev, tags: tagNames }));
             return;
+        }
+        if (field === 'project') {
+            setShowEditProjectDropdown(true);
         }
         setEditData(prev => ({ ...prev, [field]: value }));
     };
@@ -357,6 +398,24 @@ function TaskView({ user }) {
         );
     };
 
+    const getFilteredProjects = (inputValue) => {
+        const input = (inputValue || '').trim().toLowerCase();
+        if (!input) {
+            return availableProjects;
+        }
+        return availableProjects.filter(projectName => projectName.toLowerCase().includes(input));
+    };
+
+    const handleProjectSelect = (projectName, isNewTask = true) => {
+        if (isNewTask) {
+            setNewTask(prev => ({ ...prev, project: projectName }));
+            setShowNewTaskProjectDropdown(false);
+            return;
+        }
+        setEditData(prev => ({ ...prev, project: projectName }));
+        setShowEditProjectDropdown(false);
+    };
+
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
         sorted.sort((a, b) => {
@@ -366,8 +425,8 @@ function TaskView({ user }) {
                 const dateB = b.deadline ? new Date(b.deadline) : new Date(0);
                 return dateA - dateB;
             } else if (sortBy === 'project') {
-                const projectA = (a.project || '').toLowerCase();
-                const projectB = (b.project || '').toLowerCase();
+                const projectA = projectToProjectName(a.project).toLowerCase();
+                const projectB = projectToProjectName(b.project).toLowerCase();
                 return projectA.localeCompare(projectB);
             } else if (sortBy === 'priority') {
                 const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
@@ -491,13 +550,31 @@ function TaskView({ user }) {
                                     <div className="task-field">
                                         <label>Project</label>
                                         {editingId === task.taskId ? (
-                                            <input
-                                                type="text"
-                                                value={editData.project}
-                                                onChange={(e) => handleEditChange('project', e.target.value)}
-                                            />
+                                            <div className="tag-input-container">
+                                                <input
+                                                    type="text"
+                                                    value={editData.project}
+                                                    onChange={(e) => handleEditChange('project', e.target.value)}
+                                                    onFocus={() => setShowEditProjectDropdown(true)}
+                                                    onBlur={() => setTimeout(() => setShowEditProjectDropdown(false), 200)}
+                                                    placeholder="Select or type a project"
+                                                />
+                                                {showEditProjectDropdown && getFilteredProjects(editData.project).length > 0 && (
+                                                    <div className="tag-dropdown">
+                                                        {getFilteredProjects(editData.project).map((projectName) => (
+                                                            <div
+                                                                key={projectName}
+                                                                className="tag-dropdown-item"
+                                                                onClick={() => handleProjectSelect(projectName, false)}
+                                                            >
+                                                                {projectName}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
-                                            <div className="task-field-value">{task.project}</div>
+                                            <div className="task-field-value">{projectToProjectName(task.project)}</div>
                                         )}
                                     </div>
 
@@ -655,12 +732,29 @@ function TaskView({ user }) {
                                 </div>
                                 <div className="task-field">
                                     <label>Project *</label>
-                                    <input
-                                        type="text"
-                                        value={newTask.project}
-                                        onChange={(e) => handleNewTaskChange('project', e.target.value)}
-                                        placeholder="Enter project name"
-                                    />
+                                    <div className="tag-input-container">
+                                        <input
+                                            type="text"
+                                            value={newTask.project}
+                                            onChange={(e) => handleNewTaskChange('project', e.target.value)}
+                                            onFocus={() => setShowNewTaskProjectDropdown(true)}
+                                            onBlur={() => setTimeout(() => setShowNewTaskProjectDropdown(false), 200)}
+                                            placeholder="Select or type a project"
+                                        />
+                                        {showNewTaskProjectDropdown && getFilteredProjects(newTask.project).length > 0 && (
+                                            <div className="tag-dropdown">
+                                                {getFilteredProjects(newTask.project).map((projectName) => (
+                                                    <div
+                                                        key={projectName}
+                                                        className="tag-dropdown-item"
+                                                        onClick={() => handleProjectSelect(projectName, true)}
+                                                    >
+                                                        {projectName}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="task-field">
                                     <label>Tags</label>
@@ -739,7 +833,7 @@ function TaskView({ user }) {
                                         <div className="completed-task-info">
                                             <div><strong>Deadline:</strong> {task.deadline}</div>
                                             <div><strong>Priority:</strong> {task.priority}</div>
-                                            <div><strong>Project:</strong> {task.project}</div>
+                                            <div><strong>Project:</strong> {projectToProjectName(task.project)}</div>
                                         </div>
                                     </div>
                                     <div className="completed-task-actions">

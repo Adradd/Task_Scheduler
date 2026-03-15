@@ -21,7 +21,8 @@ public class Task {
     private String deadline;
     private String timeToComplete;
     private String priority;
-    private String project;
+    @DocumentReference(lazy = true)
+    private Project project;
     @DocumentReference(lazy = true)
     private List<Tag> tags = new ArrayList<>();
     private String subtask;
@@ -32,7 +33,7 @@ public class Task {
         // Required by persistence/deserialization frameworks.
     }
 
-    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, String project, List<Tag> tags, String subtask, String comments) {
+    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String subtask, String comments) {
         this.taskId = taskId;
         this.owner = owner;
         this.taskName = taskName;
@@ -84,11 +85,11 @@ public class Task {
         this.timeToComplete = timeToComplete;
     }
 
-    public String getProject() {
+    public Project getProject() {
         return project;
     }
 
-    public void setProject(String project) {
+    public void setProject(Project project) {
         this.project = project;
     }
 
@@ -132,6 +133,37 @@ public class Task {
                 }
             }
             this.tags = tagList;
+        }
+    }
+
+    @JsonSetter("project")
+    public void setProjectFromJson(Object project) {
+        if (project == null) {
+            this.project = null;
+            return;
+        }
+
+        if (project instanceof Project parsedProject) {
+            this.project = parsedProject;
+            return;
+        }
+
+        if (project instanceof java.util.Map<?, ?> projectMap) {
+            Project parsedProject = new Project();
+            if (projectMap.containsKey("projectId")) {
+                parsedProject.setProjectId(String.valueOf(projectMap.get("projectId")));
+            }
+            if (projectMap.containsKey("projectName")) {
+                parsedProject.setProjectName(String.valueOf(projectMap.get("projectName")));
+            }
+            this.project = parsedProject;
+            return;
+        }
+
+        if (project instanceof String projectName && !projectName.trim().isEmpty()) {
+            Project parsedProject = new Project();
+            parsedProject.setProjectName(projectName.trim());
+            this.project = parsedProject;
         }
     }
 

@@ -2,9 +2,10 @@ package app.CalendarApp.controller;
 
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.Account;
-import app.CalendarApp.service.TaskService;
 import app.CalendarApp.service.AccountService;
+import app.CalendarApp.service.ProjectService;
 import app.CalendarApp.service.TagService;
+import app.CalendarApp.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,12 +21,14 @@ public class TaskController {
     private final TaskService taskService;
     private final AccountService accountService;
     private final TagService tagService;
+    private final ProjectService projectService;
 
     @Autowired
-    public TaskController(TaskService taskService, AccountService accountService, TagService tagService) {
+    public TaskController(TaskService taskService, AccountService accountService, TagService tagService, ProjectService projectService) {
         this.taskService = taskService;
         this.accountService = accountService;
         this.tagService = tagService;
+        this.projectService = projectService;
     }
 
     @GetMapping
@@ -59,6 +62,7 @@ public class TaskController {
             }
 
             task.setOwner(account);
+            task.setProject(projectService.ensureProjectExists(account, task.getProject()));
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
             Task created = taskService.createTask(task);
             return ResponseEntity.ok(created);
@@ -85,6 +89,7 @@ public class TaskController {
             }
 
             task.setOwner(account);
+            task.setProject(projectService.ensureProjectExists(account, task.getProject()));
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
             Task updated = taskService.updateTask(task);
             return ResponseEntity.ok(updated);
