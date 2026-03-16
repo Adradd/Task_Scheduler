@@ -281,10 +281,6 @@ function CalendarView({ user }) {
 
     return (
         <div className="calendar-view-container">
-            <div className="calendar-header">
-                <h1>My Calendar</h1>
-            </div>
-
             <div className="calendar-content">
                 {error && <div className="error-message">{error}</div>}
 

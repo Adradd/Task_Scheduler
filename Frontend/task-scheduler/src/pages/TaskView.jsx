@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
+import bookIcon from '../assets/book-open-svgrepo-com.svg';
+import inboxIcon from '../assets/inbox-svgrepo-com.svg';
+import locationIcon from '../assets/location-svgrepo-com.svg';
 import '../styles/TaskView.css';
 
 function TaskView({ user }) {
@@ -632,6 +635,10 @@ function TaskView({ user }) {
         );
     };
 
+    const renderSidebarIcon = (icon) => (
+        <img className="sidebar-view-icon" src={icon} alt="" aria-hidden="true" />
+    );
+
     const renderTaskCard = (task) => {
         const taskTagNames = getTagNames(task.tags);
         const projectName = projectToProjectName(task.project) || 'Uncategorized';
@@ -705,7 +712,16 @@ function TaskView({ user }) {
     };
 
     if (loading) {
-        return <div className="loading">Loading tasks...</div>;
+        return (
+            <div className="task-view-container">
+                <div className="task-content">
+                    <div className="task-layout task-layout-loading">
+                        <aside className="project-sidebar task-loading-sidebar" />
+                        <div className="task-main-panel loading loading-panel">Loading tasks...</div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     const taskCountByProject = tasks.reduce((counts, task) => {
@@ -793,6 +809,7 @@ function TaskView({ user }) {
                                     className={`sidebar-view-button ${selectedFilter === 'inbox' ? 'active' : ''}`}
                                     onClick={() => setSelectedFilter('inbox')}
                                 >
+                                    {renderSidebarIcon(inboxIcon)}
                                     Inbox
                                 </button>
                                 <button
@@ -800,6 +817,7 @@ function TaskView({ user }) {
                                     className={`sidebar-view-button ${selectedFilter === 'today' ? 'active' : ''}`}
                                     onClick={() => setSelectedFilter('today')}
                                 >
+                                    {renderSidebarIcon(locationIcon)}
                                     Today
                                 </button>
                                 <button
@@ -807,6 +825,7 @@ function TaskView({ user }) {
                                     className={`sidebar-view-button ${selectedFilter === 'overview' ? 'active' : ''}`}
                                     onClick={() => setSelectedFilter('overview')}
                                 >
+                                    {renderSidebarIcon(bookIcon)}
                                     Overview
                                 </button>
                             </div>

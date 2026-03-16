@@ -5,30 +5,6 @@
     min-height: 100vh;
 }
 
-.calendar-header {
-    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
-    color: white;
-    padding: 4rem 2rem;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.calendar-header h1 {
-    font-size: 2.5rem;
-    margin: 0 0 0.5rem 0;
-    font-weight: 700;
-    line-height: 1.2;
-}
-
-.calendar-header p {
-    font-size: 1.1rem;
-    margin: 0;
-    opacity: 0.95;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
 .calendar-content {
     max-width: 1400px;
     margin: 0 auto;

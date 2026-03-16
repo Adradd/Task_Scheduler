@@ -18,6 +18,10 @@
     align-items: stretch;
 }
 
+.task-layout-loading {
+    overflow: hidden;
+}
+
 .task-layout.sidebar-collapsed {
     grid-template-columns: 56px minmax(0, 1fr);
 }
@@ -96,6 +100,9 @@
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
 }
 
 .sidebar-view-button:hover {
@@ -104,6 +111,13 @@
 
 .sidebar-view-button.active {
     background: rgba(255, 255, 255, 0.12);
+}
+
+.sidebar-view-icon {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    object-fit: contain;
 }
 
 .project-create-panel {
@@ -320,7 +334,18 @@
     text-align: center;
     padding: 40px;
     font-size: 18px;
-    color: #666;
+    color: rgba(245, 242, 243, 0.82);
+}
+
+.loading-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 80px);
+}
+
+.task-loading-sidebar {
+    pointer-events: none;
 }
 
 .tasks-container {
@@ -374,7 +399,7 @@
 
 .task-field label {
     font-size: 0.85rem;
-    color: #666;
+    color: #fff;
     font-weight: 500;
     margin-bottom: 0.4rem;
     text-transform: uppercase;
@@ -535,21 +560,28 @@
 }
 
 .empty-task-state {
-    background: linear-gradient(135deg, #edf8fa 0%, #eef4ff 100%);
-    border: 1px solid #cfe4f5;
-    border-radius: 18px;
-    padding: 2rem;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
     text-align: center;
+    min-height: 45vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .empty-task-state h3 {
     margin: 0 0 0.5rem;
-    color: #19324f;
+    color: #f5f2f3;
+    font-size: 1.35rem;
 }
 
 .empty-task-state p {
     margin: 0;
-    color: #617186;
+    color: rgba(245, 242, 243, 0.68);
+    max-width: 28rem;
 }
 
 .btn-save:disabled,
