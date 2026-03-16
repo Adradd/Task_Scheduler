@@ -62,7 +62,11 @@ public class TaskController {
             }
 
             task.setOwner(account);
-            task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+            if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
+                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+            } else {
+                task.setProject(null);
+            }
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
             Task created = taskService.createTask(task);
             return ResponseEntity.ok(created);
@@ -89,7 +93,11 @@ public class TaskController {
             }
 
             task.setOwner(account);
-            task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+            if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
+                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+            } else {
+                task.setProject(null);
+            }
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
             Task updated = taskService.updateTask(task);
             return ResponseEntity.ok(updated);

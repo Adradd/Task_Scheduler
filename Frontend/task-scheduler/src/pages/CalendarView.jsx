@@ -356,11 +356,6 @@ function CalendarView({ user }) {
                                     <strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ')}
                                 </div>
                             )}
-                            {selectedTask.subtask && (
-                                <div className="detail-item">
-                                    <strong>Subtask:</strong> {selectedTask.subtask}
-                                </div>
-                            )}
                             {selectedTask.comments && (
                                 <div className="detail-item">
                                     <strong>Comments:</strong> {selectedTask.comments}

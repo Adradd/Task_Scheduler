@@ -73,9 +73,6 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
             {showNavbar && (
                 <nav className="navbar">
                     <ul className="nav-list">
-                        <li className="nav-item-logo-item">
-                            <Link to="/" className={"logo-home-link"}><span className={"site-logo"}>schedule.me</span></Link>
-                        </li>
                         <li className="nav-item">
                             <Link to="/task-view" className={location.pathname === '/task-view' ? 'active' : ''}>Tasks</Link>
                         </li>
@@ -84,6 +81,9 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                         </li>
                         <li className={"nav-item"}>
                             <Link to="/account" className={location.pathname === '/account' ? 'active' : ''}>Account</Link>
+                        </li>
+                        <li className="nav-item-logo-item">
+                            <Link to="/" className={"logo-home-link"}><span className={"site-logo"}>schedule.me</span></Link>
                         </li>
                     </ul>
                 </nav>

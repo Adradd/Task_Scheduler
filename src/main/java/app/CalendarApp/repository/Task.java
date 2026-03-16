@@ -25,7 +25,6 @@ public class Task {
     private Project project;
     @DocumentReference(lazy = true)
     private List<Tag> tags = new ArrayList<>();
-    private String subtask;
     private String comments;
     private boolean isCompleted;
 
@@ -33,7 +32,7 @@ public class Task {
         // Required by persistence/deserialization frameworks.
     }
 
-    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String subtask, String comments) {
+    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String comments) {
         this.taskId = taskId;
         this.owner = owner;
         this.taskName = taskName;
@@ -42,7 +41,6 @@ public class Task {
         this.priority = priority;
         this.project = project;
         this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
-        this.subtask = subtask;
         this.comments = comments;
         this.isCompleted = false;
     }
@@ -165,14 +163,6 @@ public class Task {
             parsedProject.setProjectName(projectName.trim());
             this.project = parsedProject;
         }
-    }
-
-    public String getSubtask() {
-        return subtask;
-    }
-
-    public void setSubtask(String subtask) {
-        this.subtask = subtask;
     }
 
     public String getComments() {

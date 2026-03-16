@@ -113,10 +113,6 @@ public class TaskServiceImpl implements TaskService {
               task.getPriority().equalsIgnoreCase("high"))) {
             throw new IllegalArgumentException("Priority must be low, medium, or high");
         }
-        if (task.getProject() == null || task.getProject().getProjectName() == null || task.getProject().getProjectName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Project is required");
-        }
-
         if (!isUpdate && taskRepository.findTaskByTaskId(task.getTaskId()) != null) {
             throw new IllegalArgumentException("Task ID already exists");
         }

@@ -17,7 +17,6 @@ function TaskView({ user }) {
         priority: '',
         project: '',
         tags: [],
-        subtask: '',
         comments: ''
     });
     const [availableTags, setAvailableTags] = useState([]);
@@ -30,6 +29,11 @@ function TaskView({ user }) {
     const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
     const [newTaskTagInput, setNewTaskTagInput] = useState('');
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
+    const [selectedFilter, setSelectedFilter] = useState('overview');
+    const [showNewProjectInput, setShowNewProjectInput] = useState(false);
+    const [newProjectName, setNewProjectName] = useState('');
+    const [isCreatingProject, setIsCreatingProject] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -69,6 +73,9 @@ function TaskView({ user }) {
     };
 
     const projectNameToProjectObject = (projectName) => {
+        if (!projectName || !projectName.trim()) {
+            return null;
+        }
         const found = allProjectObjects.find(p => p.projectName?.toLowerCase() === projectName?.toLowerCase());
         if (found) {
             return found;
@@ -106,6 +113,14 @@ function TaskView({ user }) {
     };
 
     const timeOptions = generateTimeOptions();
+
+    const todayKey = (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    })();
 
     // Create auth config from stored credentials
     const getAuthConfig = () => { // TODO: split out & use shared code
@@ -278,7 +293,6 @@ function TaskView({ user }) {
         if (!task.deadline.trim()) return 'Deadline is required';
         if (!task.timeToComplete.trim()) return 'Time to complete is required';
         if (!task.priority.trim()) return 'Priority is required';
-        if (!task.project.trim()) return 'Project is required';
         return null;
     };
 
@@ -302,7 +316,6 @@ function TaskView({ user }) {
                 priority: newTask.priority,
                 project: projectNameToProjectObject(newTask.project),
                 tags: tagObjects,
-                subtask: newTask.subtask,
                 comments: newTask.comments
             };
 
@@ -315,7 +328,6 @@ function TaskView({ user }) {
                 priority: '',
                 project: '',
                 tags: [],
-                subtask: '',
                 comments: ''
             });
             setNewTaskTagInput('');
@@ -416,6 +428,235 @@ function TaskView({ user }) {
         setShowEditProjectDropdown(false);
     };
 
+    const handleCreateProject = async () => {
+        const trimmedName = newProjectName.trim();
+        if (!trimmedName) {
+            setError('Project name is required');
+            return;
+        }
+
+        try {
+            setIsCreatingProject(true);
+            setError(null);
+            const res = await axios.post(`${backendUrl}/api/projects`, { projectName: trimmedName }, getAuthConfig());
+            const createdProject = res.data;
+            const createdProjectName = createdProject?.projectName || trimmedName;
+
+            setAllProjectObjects(prev => {
+                const exists = prev.some(project => project.projectName?.toLowerCase() === createdProjectName.toLowerCase());
+                return exists ? prev : [...prev, createdProject];
+            });
+            setAvailableProjects(prev => {
+                const nextProjects = prev.includes(createdProjectName) ? prev : [...prev, createdProjectName];
+                return nextProjects.sort((a, b) => a.localeCompare(b));
+            });
+            setSelectedFilter(`project:${createdProjectName}`);
+            setNewTask(prev => ({ ...prev, project: createdProjectName }));
+            setNewProjectName('');
+            setShowNewProjectInput(false);
+        } catch (err) {
+            setError('Failed to create project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+            console.error(err);
+        } finally {
+            setIsCreatingProject(false);
+        }
+    };
+
+    const renderTaskCard = (task) => (
+        <div key={task.taskId} className={`task-card ${editingId === task.taskId ? 'editing' : ''}`}>
+            <div className="task-card-header">
+                <input
+                    type="checkbox"
+                    className="task-checkbox"
+                    checked={task.isCompleted || false}
+                    onChange={() => handleCompleteTask(task.taskId)}
+                    title="Mark task as complete"
+                />
+                {editingId === task.taskId ? (
+                    <input
+                        type="text"
+                        className="task-title"
+                        value={editData.taskName}
+                        onChange={(e) => handleEditChange('taskName', e.target.value)}
+                    />
+                ) : (
+                    <h3 className="task-title">{task.taskName}</h3>
+                )}
+            </div>
+
+            <div className="task-card-body">
+                <div className="task-field">
+                    <label>Deadline</label>
+                    {editingId === task.taskId ? (
+                        <input
+                            type="date"
+                            value={editData.deadline}
+                            onChange={(e) => handleEditChange('deadline', e.target.value)}
+                        />
+                    ) : (
+                        <div className="task-field-value">{task.deadline}</div>
+                    )}
+                </div>
+
+                <div className="task-field">
+                    <label>Time to Complete</label>
+                    {editingId === task.taskId ? (
+                        <select
+                            value={editData.timeToComplete}
+                            onChange={(e) => handleEditChange('timeToComplete', e.target.value)}
+                        >
+                            <option value="">Select Time</option>
+                            {timeOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                    {option.label}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="task-field-value">{task.timeToComplete}</div>
+                    )}
+                </div>
+
+                <div className="task-field">
+                    <label>Priority</label>
+                    {editingId === task.taskId ? (
+                        <select
+                            value={editData.priority}
+                            onChange={(e) => handleEditChange('priority', e.target.value)}
+                        >
+                            <option value="">Select Priority</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    ) : (
+                        <div className="task-field-value">{task.priority}</div>
+                    )}
+                </div>
+
+                <div className="task-field">
+                    <label>Project</label>
+                    {editingId === task.taskId ? (
+                        <div className="tag-input-container">
+                            <input
+                                type="text"
+                                value={editData.project}
+                                onChange={(e) => handleEditChange('project', e.target.value)}
+                                onFocus={() => setShowEditProjectDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowEditProjectDropdown(false), 200)}
+                                placeholder="Select or type a project"
+                            />
+                            {showEditProjectDropdown && getFilteredProjects(editData.project).length > 0 && (
+                                <div className="tag-dropdown">
+                                    {getFilteredProjects(editData.project).map((projectName) => (
+                                        <div
+                                            key={projectName}
+                                            className="tag-dropdown-item"
+                                            onClick={() => handleProjectSelect(projectName, false)}
+                                        >
+                                            {projectName}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="task-field-value">{projectToProjectName(task.project) || 'Uncategorized'}</div>
+                    )}
+                </div>
+
+                <div className="task-field">
+                    <label>Tags</label>
+                    {editingId === task.taskId ? (
+                        <div className="tag-input-container">
+                            <div className="tag-chips">
+                                {editData.tags && editData.tags.map((tag, idx) => (
+                                    <span key={idx} className="tag-chip">
+                                        {tag}
+                                        <button
+                                            type="button"
+                                            className="tag-remove"
+                                            onClick={() => removeTag(tag, false)}
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                            <input
+                                type="text"
+                                value={editTaskTagInput}
+                                onChange={(e) => handleEditChange('tags', e.target.value)}
+                                onFocus={() => setShowEditTagDropdown(true)}
+                                onBlur={() => setTimeout(() => setShowEditTagDropdown(false), 200)}
+                                placeholder="Add tags (comma-separated)"
+                            />
+                            {showEditTagDropdown && getFilteredTags(editTaskTagInput, editData.tags || []).length > 0 && (
+                                <div className="tag-dropdown">
+                                    {getFilteredTags(editTaskTagInput, editData.tags || []).map((tag, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="tag-dropdown-item"
+                                            onClick={() => handleTagSelect(tag, false)}
+                                        >
+                                            {tag}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="task-field-value">
+                            {task.tags && task.tags.length > 0 ? (
+                                <div className="tag-chips-display">
+                                    {getTagNames(task.tags).map((tagName, idx) => (
+                                        <span key={idx} className="tag-chip-display">{tagName}</span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="no-tags">No tags</span>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="task-field">
+                    <label>Comments</label>
+                    {editingId === task.taskId ? (
+                        <textarea
+                            value={editData.comments}
+                            onChange={(e) => handleEditChange('comments', e.target.value)}
+                        />
+                    ) : (
+                        <div className="task-field-value">{task.comments}</div>
+                    )}
+                </div>
+            </div>
+
+            <div className="task-card-actions">
+                {editingId === task.taskId ? (
+                    <>
+                        <button className="btn-save" onClick={() => handleSaveEdit(task.taskId)}>
+                            Save
+                        </button>
+                        <button className="btn-cancel" onClick={handleCancel}>
+                            Cancel
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button className="btn-edit" onClick={() => handleEdit(task)}>
+                            Edit
+                        </button>
+                        <button className="btn-delete" onClick={() => handleDelete(task.taskId)}>
+                            Delete
+                        </button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
         sorted.sort((a, b) => {
@@ -443,380 +684,333 @@ function TaskView({ user }) {
         return <div className="loading">Loading tasks...</div>;
     }
 
-    const sortedTasks = sortTasks(tasks);
+    const taskCountByProject = tasks.reduce((counts, task) => {
+        const projectName = projectToProjectName(task.project);
+        if (!projectName) {
+            return counts;
+        }
+
+        counts[projectName] = (counts[projectName] || 0) + 1;
+        return counts;
+    }, {});
+
+    const sidebarProjects = availableProjects
+        .filter(Boolean)
+        .map((projectName) => ({
+            projectName,
+            taskCount: taskCountByProject[projectName] || 0
+        }))
+        .sort((a, b) => a.projectName.localeCompare(b.projectName));
+
+    const filteredTasks = selectedFilter === 'overview'
+        ? tasks
+        : selectedFilter === 'inbox'
+            ? tasks.filter(task => !projectToProjectName(task.project))
+            : selectedFilter === 'today'
+                ? tasks.filter(task => task.deadline === todayKey)
+                : selectedFilter.startsWith('project:')
+                    ? tasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
+                    : tasks;
+
+    const sortedTasks = sortTasks(filteredTasks);
+    const selectedProjectName = selectedFilter.startsWith('project:') ? selectedFilter.replace('project:', '') : '';
+    const sectionTitle = selectedFilter === 'inbox'
+        ? 'Inbox'
+        : selectedFilter === 'today'
+            ? 'Today'
+            : selectedFilter === 'overview'
+                ? 'Overview'
+                : selectedProjectName;
+    const sectionSubtitle = selectedFilter === 'inbox'
+        ? `${sortedTasks.length} task${sortedTasks.length === 1 ? '' : 's'} without a project`
+        : selectedFilter === 'today'
+            ? `${sortedTasks.length} task${sortedTasks.length === 1 ? '' : 's'} due today`
+            : selectedFilter === 'overview'
+                ? `${tasks.length} active task${tasks.length === 1 ? '' : 's'} across ${sidebarProjects.length} project${sidebarProjects.length === 1 ? '' : 's'}`
+                : `${sortedTasks.length} active task${sortedTasks.length === 1 ? '' : 's'} in ${selectedProjectName}`;
+    const emptyStateTitle = selectedFilter === 'inbox'
+        ? 'Inbox is clear'
+        : selectedFilter === 'today'
+            ? 'Nothing due today'
+            : selectedFilter === 'overview'
+                ? 'No active tasks yet'
+                : 'No tasks in this project';
+    const emptyStateMessage = selectedFilter === 'inbox'
+        ? 'Tasks without a project will appear here.'
+        : selectedFilter === 'today'
+            ? 'Tasks due today will show up here from any project.'
+            : selectedFilter === 'overview'
+                ? 'Create a task below to get started.'
+                : 'Pick another section or create a new task below.';
 
     return (
         <div className="task-view-container">
-            {/* Header Section */}
-            <div className="task-header">
-                <h1>My Tasks</h1>
-            </div>
-
             {/* Content Section */}
             <div className="task-content">
                 {error && <div className="error-message">{error}</div>}
 
-                {/* Active Tasks Section */}
-                <div>
-                    <div className="task-section-title">
-                        <span>Active Tasks</span>
-                        <div className="sort-controls">
-                            <label htmlFor="sort-select">Sort by:</label>
-                            <select
-                                id="sort-select"
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                            >
-                                <option value="deadline">Deadline</option>
-                                <option value="priority">Priority</option>
-                                <option value="project">Project</option>
-                            </select>
-                        </div>
-                    </div>
+                <div className={`task-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+                    <aside className={`project-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+                        <button
+                            type="button"
+                            className="sidebar-collapse-button"
+                            onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        >
+                            {isSidebarCollapsed ? '>' : '<'}
+                        </button>
 
-                    <div className="tasks-container">
-                        {sortedTasks.map(task => (
-                            <div key={task.taskId} className={`task-card ${editingId === task.taskId ? 'editing' : ''}`}>
-                                <div className="task-card-header">
-                                    <input
-                                        type="checkbox"
-                                        className="task-checkbox"
-                                        checked={task.isCompleted || false}
-                                        onChange={() => handleCompleteTask(task.taskId)}
-                                        title="Mark task as complete"
-                                    />
-                                    {editingId === task.taskId ? (
-                                        <input
-                                            type="text"
-                                            className="task-title"
-                                            value={editData.taskName}
-                                            onChange={(e) => handleEditChange('taskName', e.target.value)}
-                                        />
+                        {!isSidebarCollapsed && (
+                            <>
+                        <div className="project-sidebar-main">
+                            <div className="sidebar-views">
+                                <button
+                                    type="button"
+                                    className={`sidebar-view-button ${selectedFilter === 'inbox' ? 'active' : ''}`}
+                                    onClick={() => setSelectedFilter('inbox')}
+                                >
+                                    Inbox
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`sidebar-view-button ${selectedFilter === 'today' ? 'active' : ''}`}
+                                    onClick={() => setSelectedFilter('today')}
+                                >
+                                    Today
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`sidebar-view-button ${selectedFilter === 'overview' ? 'active' : ''}`}
+                                    onClick={() => setSelectedFilter('overview')}
+                                >
+                                    Overview
+                                </button>
+                            </div>
+
+                            <div className="project-section">
+                                <p className="project-sidebar-eyebrow">Projects</p>
+                                <div className="project-nav-list">
+                                    {sidebarProjects.length > 0 ? (
+                                        sidebarProjects.map((project) => (
+                                            <button
+                                                type="button"
+                                                key={project.projectName}
+                                                className={`project-nav-item ${selectedFilter === `project:${project.projectName}` ? 'active' : ''}`}
+                                                onClick={() => setSelectedFilter(`project:${project.projectName}`)}
+                                                title={project.projectName}
+                                            >
+                                                <span className="project-nav-label">{project.projectName}</span>
+                                                <span className="project-count">{project.taskCount}</span>
+                                            </button>
+                                        ))
                                     ) : (
-                                        <h3 className="task-title">{task.taskName}</h3>
+                                        <p className="project-empty-state">No active projects yet.</p>
                                     )}
                                 </div>
+                            </div>
+                        </div>
 
-                                <div className="task-card-body">
-                                    <div className="task-field">
-                                        <label>Deadline</label>
-                                        {editingId === task.taskId ? (
-                                            <input
-                                                type="date"
-                                                value={editData.deadline}
-                                                onChange={(e) => handleEditChange('deadline', e.target.value)}
-                                            />
-                                        ) : (
-                                            <div className="task-field-value">{task.deadline}</div>
-                                        )}
+                        <div className="project-sidebar-footer">
+                            {showNewProjectInput && (
+                                <div className="project-create-panel">
+                                    <input
+                                        type="text"
+                                        value={newProjectName}
+                                        onChange={(e) => setNewProjectName(e.target.value)}
+                                        placeholder="New project name"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleCreateProject();
+                                            } else if (e.key === 'Escape') {
+                                                setShowNewProjectInput(false);
+                                                setNewProjectName('');
+                                            }
+                                        }}
+                                    />
+                                    <div className="project-create-actions">
+                                        <button type="button" className="btn-save" onClick={handleCreateProject} disabled={isCreatingProject}>
+                                            {isCreatingProject ? 'Saving...' : 'Create'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-cancel"
+                                            onClick={() => {
+                                                setShowNewProjectInput(false);
+                                                setNewProjectName('');
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
                                     </div>
+                                </div>
+                            )}
 
+                            <button
+                                type="button"
+                                className="project-add-footer-button"
+                                onClick={() => setShowNewProjectInput(prev => !prev)}
+                            >
+                                + Add Project
+                            </button>
+                        </div>
+                            </>
+                        )}
+                    </aside>
+
+                    <div className="task-main-panel">
+                        <div className="task-section-title">
+                            <span>{sectionTitle}</span>
+                            <div className="sort-controls">
+                                <label htmlFor="sort-select">Sort by:</label>
+                                <select
+                                    id="sort-select"
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                >
+                                    <option value="deadline">Deadline</option>
+                                    <option value="priority">Priority</option>
+                                    <option value="project">Project</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="task-section-subtitle">
+                            {sectionSubtitle}
+                        </div>
+
+                        <div className="tasks-container">
+                            {sortedTasks.length > 0 ? sortedTasks.map(renderTaskCard) : (
+                                <div className="empty-task-state">
+                                    <h3>{emptyStateTitle}</h3>
+                                    <p>{emptyStateMessage}</p>
+                                </div>
+                            )}
+
+                            <div className="new-task-card">
+                                <h3 className="new-task-card-title">+ Add New Task</h3>
+                                <div className="new-task-body">
                                     <div className="task-field">
-                                        <label>Time to Complete</label>
-                                        {editingId === task.taskId ? (
-                                            <select
-                                                value={editData.timeToComplete}
-                                                onChange={(e) => handleEditChange('timeToComplete', e.target.value)}
-                                            >
-                                                <option value="">Select Time</option>
-                                                {timeOptions.map((option) => (
-                                                    <option key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : (
-                                            <div className="task-field-value">{task.timeToComplete}</div>
-                                        )}
+                                        <label>Task Name *</label>
+                                        <input
+                                            type="text"
+                                            value={newTask.taskName}
+                                            onChange={(e) => handleNewTaskChange('taskName', e.target.value)}
+                                            placeholder="Enter task name"
+                                        />
                                     </div>
-
                                     <div className="task-field">
-                                        <label>Priority</label>
-                                        {editingId === task.taskId ? (
-                                            <select
-                                                value={editData.priority}
-                                                onChange={(e) => handleEditChange('priority', e.target.value)}
-                                            >
-                                                <option value="">Select Priority</option>
-                                                <option value="Low">Low</option>
-                                                <option value="Medium">Medium</option>
-                                                <option value="High">High</option>
-                                            </select>
-                                        ) : (
-                                            <div className="task-field-value">{task.priority}</div>
-                                        )}
+                                        <label>Deadline *</label>
+                                        <input
+                                            type="date"
+                                            value={newTask.deadline}
+                                            onChange={(e) => handleNewTaskChange('deadline', e.target.value)}
+                                        />
                                     </div>
-
+                                    <div className="task-field">
+                                        <label>Time to Complete *</label>
+                                        <select
+                                            value={newTask.timeToComplete}
+                                            onChange={(e) => handleNewTaskChange('timeToComplete', e.target.value)}
+                                        >
+                                            <option value="">Select Time</option>
+                                            {timeOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="task-field">
+                                        <label>Priority *</label>
+                                        <select
+                                            value={newTask.priority}
+                                            onChange={(e) => handleNewTaskChange('priority', e.target.value)}
+                                        >
+                                            <option value="">Select Priority</option>
+                                            <option value="Low">Low</option>
+                                            <option value="Medium">Medium</option>
+                                            <option value="High">High</option>
+                                        </select>
+                                    </div>
                                     <div className="task-field">
                                         <label>Project</label>
-                                        {editingId === task.taskId ? (
-                                            <div className="tag-input-container">
-                                                <input
-                                                    type="text"
-                                                    value={editData.project}
-                                                    onChange={(e) => handleEditChange('project', e.target.value)}
-                                                    onFocus={() => setShowEditProjectDropdown(true)}
-                                                    onBlur={() => setTimeout(() => setShowEditProjectDropdown(false), 200)}
-                                                    placeholder="Select or type a project"
-                                                />
-                                                {showEditProjectDropdown && getFilteredProjects(editData.project).length > 0 && (
-                                                    <div className="tag-dropdown">
-                                                        {getFilteredProjects(editData.project).map((projectName) => (
-                                                            <div
-                                                                key={projectName}
-                                                                className="tag-dropdown-item"
-                                                                onClick={() => handleProjectSelect(projectName, false)}
-                                                            >
-                                                                {projectName}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="task-field-value">{projectToProjectName(task.project)}</div>
-                                        )}
-                                    </div>
-
-                                    <div className="task-field">
-                                        <label>Tags</label>
-                                        {editingId === task.taskId ? (
-                                            <div className="tag-input-container">
-                                                <div className="tag-chips">
-                                                    {editData.tags && editData.tags.map((tag, idx) => (
-                                                        <span key={idx} className="tag-chip">
-                                                            {tag}
-                                                            <button
-                                                                type="button"
-                                                                className="tag-remove"
-                                                                onClick={() => removeTag(tag, false)}
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                                <input
-                                                    type="text"
-                                                    value={editTaskTagInput}
-                                                    onChange={(e) => handleEditChange('tags', e.target.value)}
-                                                    onFocus={() => setShowEditTagDropdown(true)}
-                                                    onBlur={() => setTimeout(() => setShowEditTagDropdown(false), 200)}
-                                                    placeholder="Add tags (comma-separated)"
-                                                />
-                                                {showEditTagDropdown && getFilteredTags(editTaskTagInput, editData.tags || []).length > 0 && (
-                                                    <div className="tag-dropdown">
-                                                        {getFilteredTags(editTaskTagInput, editData.tags || []).map((tag, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className="tag-dropdown-item"
-                                                                onClick={() => handleTagSelect(tag, false)}
-                                                            >
-                                                                {tag}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="task-field-value">
-                                                {task.tags && task.tags.length > 0 ? (
-                                                    <div className="tag-chips-display">
-                                                        {getTagNames(task.tags).map((tagName, idx) => (
-                                                            <span key={idx} className="tag-chip-display">{tagName}</span>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <span className="no-tags">No tags</span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="task-field">
-                                        <label>Subtask</label>
-                                        {editingId === task.taskId ? (
+                                        <div className="tag-input-container">
                                             <input
                                                 type="text"
-                                                value={editData.subtask}
-                                                onChange={(e) => handleEditChange('subtask', e.target.value)}
+                                                value={newTask.project}
+                                                onChange={(e) => handleNewTaskChange('project', e.target.value)}
+                                                onFocus={() => setShowNewTaskProjectDropdown(true)}
+                                                onBlur={() => setTimeout(() => setShowNewTaskProjectDropdown(false), 200)}
+                                                placeholder="Optional project"
                                             />
-                                        ) : (
-                                            <div className="task-field-value">{task.subtask}</div>
-                                        )}
+                                            {showNewTaskProjectDropdown && getFilteredProjects(newTask.project).length > 0 && (
+                                                <div className="tag-dropdown">
+                                                    {getFilteredProjects(newTask.project).map((projectName) => (
+                                                        <div
+                                                            key={projectName}
+                                                            className="tag-dropdown-item"
+                                                            onClick={() => handleProjectSelect(projectName, true)}
+                                                        >
+                                                            {projectName}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-
+                                    <div className="task-field">
+                                        <label>Tags</label>
+                                        <div className="tag-input-container">
+                                            <div className="tag-chips">
+                                                {newTask.tags && newTask.tags.map((tag, idx) => (
+                                                    <span key={idx} className="tag-chip">
+                                                        {tag}
+                                                        <button
+                                                            type="button"
+                                                            className="tag-remove"
+                                                            onClick={() => removeTag(tag, true)}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={newTaskTagInput}
+                                                onChange={(e) => handleNewTaskChange('tags', e.target.value)}
+                                                onFocus={() => setShowNewTaskTagDropdown(true)}
+                                                onBlur={() => setTimeout(() => setShowNewTaskTagDropdown(false), 200)}
+                                                placeholder="Add tags (comma-separated)"
+                                            />
+                                            {showNewTaskTagDropdown && getFilteredTags(newTaskTagInput, newTask.tags || []).length > 0 && (
+                                                <div className="tag-dropdown">
+                                                    {getFilteredTags(newTaskTagInput, newTask.tags || []).map((tag, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            className="tag-dropdown-item"
+                                                            onClick={() => handleTagSelect(tag, true)}
+                                                        >
+                                                            {tag}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="task-field">
                                         <label>Comments</label>
-                                        {editingId === task.taskId ? (
-                                            <textarea
-                                                value={editData.comments}
-                                                onChange={(e) => handleEditChange('comments', e.target.value)}
-                                            />
-                                        ) : (
-                                            <div className="task-field-value">{task.comments}</div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="task-card-actions">
-                                    {editingId === task.taskId ? (
-                                        <>
-                                            <button className="btn-save" onClick={() => handleSaveEdit(task.taskId)}>
-                                                Save
-                                            </button>
-                                            <button className="btn-cancel" onClick={handleCancel}>
-                                                Cancel
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button className="btn-edit" onClick={() => handleEdit(task)}>
-                                                Edit
-                                            </button>
-                                            <button className="btn-delete" onClick={() => handleDelete(task.taskId)}>
-                                                Delete
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
-
-                        {/* New Task Card */}
-                        <div className="new-task-card">
-                            <h3 className="new-task-card-title">+ Add New Task</h3>
-                            <div className="new-task-body">
-                                <div className="task-field">
-                                    <label>Task Name *</label>
-                                    <input
-                                        type="text"
-                                        value={newTask.taskName}
-                                        onChange={(e) => handleNewTaskChange('taskName', e.target.value)}
-                                        placeholder="Enter task name"
-                                    />
-                                </div>
-                                <div className="task-field">
-                                    <label>Deadline *</label>
-                                    <input
-                                        type="date"
-                                        value={newTask.deadline}
-                                        onChange={(e) => handleNewTaskChange('deadline', e.target.value)}
-                                    />
-                                </div>
-                                <div className="task-field">
-                                    <label>Time to Complete *</label>
-                                    <select
-                                        value={newTask.timeToComplete}
-                                        onChange={(e) => handleNewTaskChange('timeToComplete', e.target.value)}
-                                    >
-                                        <option value="">Select Time</option>
-                                        {timeOptions.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="task-field">
-                                    <label>Priority *</label>
-                                    <select
-                                        value={newTask.priority}
-                                        onChange={(e) => handleNewTaskChange('priority', e.target.value)}
-                                    >
-                                        <option value="">Select Priority</option>
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
-                                    </select>
-                                </div>
-                                <div className="task-field">
-                                    <label>Project *</label>
-                                    <div className="tag-input-container">
-                                        <input
-                                            type="text"
-                                            value={newTask.project}
-                                            onChange={(e) => handleNewTaskChange('project', e.target.value)}
-                                            onFocus={() => setShowNewTaskProjectDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowNewTaskProjectDropdown(false), 200)}
-                                            placeholder="Select or type a project"
+                                        <textarea
+                                            value={newTask.comments}
+                                            onChange={(e) => handleNewTaskChange('comments', e.target.value)}
+                                            placeholder="Add any comments or notes"
                                         />
-                                        {showNewTaskProjectDropdown && getFilteredProjects(newTask.project).length > 0 && (
-                                            <div className="tag-dropdown">
-                                                {getFilteredProjects(newTask.project).map((projectName) => (
-                                                    <div
-                                                        key={projectName}
-                                                        className="tag-dropdown-item"
-                                                        onClick={() => handleProjectSelect(projectName, true)}
-                                                    >
-                                                        {projectName}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
-                                <div className="task-field">
-                                    <label>Tags</label>
-                                    <div className="tag-input-container">
-                                        <div className="tag-chips">
-                                            {newTask.tags && newTask.tags.map((tag, idx) => (
-                                                <span key={idx} className="tag-chip">
-                                                    {tag}
-                                                    <button
-                                                        type="button"
-                                                        className="tag-remove"
-                                                        onClick={() => removeTag(tag, true)}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <input
-                                            type="text"
-                                            value={newTaskTagInput}
-                                            onChange={(e) => handleNewTaskChange('tags', e.target.value)}
-                                            onFocus={() => setShowNewTaskTagDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowNewTaskTagDropdown(false), 200)}
-                                            placeholder="Add tags (comma-separated)"
-                                        />
-                                        {showNewTaskTagDropdown && getFilteredTags(newTaskTagInput, newTask.tags || []).length > 0 && (
-                                            <div className="tag-dropdown">
-                                                {getFilteredTags(newTaskTagInput, newTask.tags || []).map((tag, idx) => (
-                                                    <div
-                                                        key={idx}
-                                                        className="tag-dropdown-item"
-                                                        onClick={() => handleTagSelect(tag, true)}
-                                                    >
-                                                        {tag}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="task-field">
-                                    <label>Subtask</label>
-                                    <input
-                                        type="text"
-                                        value={newTask.subtask}
-                                        onChange={(e) => handleNewTaskChange('subtask', e.target.value)}
-                                        placeholder="Enter subtask"
-                                    />
-                                </div>
-                                <div className="task-field">
-                                    <label>Comments</label>
-                                    <textarea
-                                        value={newTask.comments}
-                                        onChange={(e) => handleNewTaskChange('comments', e.target.value)}
-                                        placeholder="Add any comments or notes"
-                                    />
-                                </div>
+                                <button className="btn-add" onClick={handleCreateTask}>
+                                    Create Task
+                                </button>
                             </div>
-                            <button className="btn-add" onClick={handleCreateTask}>
-                                Create Task
-                            </button>
                         </div>
                     </div>
                 </div>
