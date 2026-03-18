@@ -49,6 +49,21 @@ public class ProjectController {
         }
     }
 
+    @DeleteMapping("/{projectId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> deleteProject(Authentication authentication, @PathVariable String projectId) {
+        Account account = resolveAccount(authentication);
+        if (account == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            projectService.deleteProject(account, projectId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     private Account resolveAccount(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             return null;
@@ -56,4 +71,3 @@ public class ProjectController {
         return accountService.findAccountByUsername(authentication.getName());
     }
 }
-

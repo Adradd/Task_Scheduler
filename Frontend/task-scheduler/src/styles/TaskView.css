@@ -270,6 +270,13 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.65);
 }
 
+.task-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
 .task-title-group {
     margin-left: auto;
     text-align: right;
@@ -313,6 +320,24 @@
 .new-task-button:hover {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.35);
+}
+
+.project-delete-header-button {
+    border: 1px solid rgba(220, 53, 69, 0.32);
+    background: rgba(220, 53, 69, 0.12);
+    color: #ffd6db;
+    border-radius: 999px;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.project-delete-header-button:hover {
+    background: rgba(220, 53, 69, 0.2);
+    border-color: rgba(220, 53, 69, 0.45);
 }
 
 .task-section-subtitle {
@@ -623,6 +648,11 @@
     }
 
     .task-section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .task-header-actions {
         flex-direction: column;
         align-items: stretch;
     }

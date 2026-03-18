@@ -12,7 +12,7 @@ function TaskView({ user }) {
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
     const [editData, setEditData] = useState({});
-    const [sortBy, setSortBy] = useState('deadline'); // 'deadline', 'project', 'priority'
+    const [sortBy] = useState('deadline'); // 'deadline', 'project', 'priority'
     const [newTask, setNewTask] = useState({
         taskName: '',
         deadline: '',
@@ -75,6 +75,11 @@ function TaskView({ user }) {
         if (!project) return '';
         if (typeof project === 'string') return project;
         return project?.projectName || '';
+    };
+
+    const projectToProjectId = (project) => {
+        if (!project || typeof project === 'string') return '';
+        return project?.projectId || project?.id || project?._id || '';
     };
 
     const projectNameToProjectObject = (projectName) => {
@@ -475,6 +480,35 @@ function TaskView({ user }) {
         }
     };
 
+    const handleDeleteProject = async (project) => {
+        const projectIdentifier = project?.projectId || project?.projectName;
+        if (!projectIdentifier) {
+            return;
+        }
+        if (!window.confirm(`Delete "${project.projectName}" and all associated tasks?`)) {
+            return;
+        }
+
+        try {
+            setError(null);
+            await axios.delete(`${backendUrl}/api/projects/${encodeURIComponent(projectIdentifier)}`, getAuthConfig());
+
+            setAllProjectObjects(prev => prev.filter(currentProject =>
+                currentProject.projectId !== project.projectId && currentProject.projectName !== project.projectName
+            ));
+            setAvailableProjects(prev => prev.filter(projectName => projectName !== project.projectName));
+            setTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
+            setCompletedTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
+
+            if (selectedFilter === `project:${project.projectName}`) {
+                setSelectedFilter('overview');
+            }
+        } catch (err) {
+            setError('Failed to delete project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+            console.error(err);
+        }
+    };
+
     const renderTaskEditor = (isNewTask = false, taskId = null) => {
         const taskData = isNewTask ? newTask : editData;
         const projectDropdownVisible = isNewTask ? showNewTaskProjectDropdown : showEditProjectDropdown;
@@ -734,11 +768,12 @@ function TaskView({ user }) {
         return counts;
     }, {});
 
-    const sidebarProjects = availableProjects
-        .filter(Boolean)
-        .map((projectName) => ({
-            projectName,
-            taskCount: taskCountByProject[projectName] || 0
+    const sidebarProjects = allProjectObjects
+        .filter(project => project?.projectName)
+        .map((project) => ({
+            projectId: project.projectId,
+            projectName: project.projectName,
+            taskCount: taskCountByProject[project.projectName] || 0
         }))
         .sort((a, b) => a.projectName.localeCompare(b.projectName));
 
@@ -754,6 +789,9 @@ function TaskView({ user }) {
 
     const sortedTasks = sortTasks(filteredTasks);
     const selectedProjectName = selectedFilter.startsWith('project:') ? selectedFilter.replace('project:', '') : '';
+    const selectedProjectObject = selectedProjectName
+        ? allProjectObjects.find(project => project.projectName === selectedProjectName) || { projectName: selectedProjectName }
+        : null;
     const sectionTitle = selectedFilter === 'inbox'
         ? 'Inbox'
         : selectedFilter === 'today'
@@ -837,7 +875,7 @@ function TaskView({ user }) {
                                         sidebarProjects.map((project) => (
                                             <button
                                                 type="button"
-                                                key={project.projectName}
+                                                key={project.projectId || project.projectName}
                                                 className={`project-nav-item ${selectedFilter === `project:${project.projectName}` ? 'active' : ''}`}
                                                 onClick={() => setSelectedFilter(`project:${project.projectName}`)}
                                                 title={project.projectName}
@@ -902,16 +940,27 @@ function TaskView({ user }) {
 
                     <div className="task-main-panel">
                         <div className="task-section-header">
-                            <button
-                                type="button"
-                                className="new-task-button"
-                                onClick={() => {
-                                    handleCancel();
-                                    setShowNewTaskForm(prev => !prev);
-                                }}
-                            >
-                                {showNewTaskForm ? 'Close New Task' : '+ New Task'}
-                            </button>
+                            <div className="task-header-actions">
+                                <button
+                                    type="button"
+                                    className="new-task-button"
+                                    onClick={() => {
+                                        handleCancel();
+                                        setShowNewTaskForm(prev => !prev);
+                                    }}
+                                >
+                                    {showNewTaskForm ? 'Close New Task' : '+ New Task'}
+                                </button>
+                                {selectedProjectObject && (
+                                    <button
+                                        type="button"
+                                        className="project-delete-header-button"
+                                        onClick={() => handleDeleteProject(selectedProjectObject)}
+                                    >
+                                        Delete Project
+                                    </button>
+                                )}
+                            </div>
 
                             <div className="task-title-group">
                                 <div className="task-section-title">
