@@ -8,19 +8,19 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 public class Project {
     @Id
     private String projectId;
-
     @DocumentReference(lazy = true)
     private Account owner;
-
     private String projectName;
+    private String projectColor;
 
     public Project() {
     }
 
-    public Project(String projectId, Account owner, String projectName) {
+    public Project(String projectId, Account owner, String projectName, String projectColor) {
         this.projectId = projectId;
         this.owner = owner;
         this.projectName = projectName;
+        this.projectColor = projectColor;
     }
 
     public String getProjectId() {
@@ -45,6 +45,14 @@ public class Project {
 
     public void setProjectName(String projectName) {
         this.projectName = projectName;
+    }
+
+    public String getProjectColor() {
+        return projectColor;
+    }
+
+    public void setProjectColor(String projectColor) {
+        this.projectColor = projectColor;
     }
 }
 

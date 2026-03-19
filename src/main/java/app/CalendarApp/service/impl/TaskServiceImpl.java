@@ -14,10 +14,12 @@ import java.util.List;
 @Service
 public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
+    private final TaskAutoSchedulerService autoSchedulerService;
 
     @Autowired
-    public TaskServiceImpl(TaskRepository taskRepository) {
+    public TaskServiceImpl(TaskRepository taskRepository, TaskAutoSchedulerService autoSchedulerService) {
         this.taskRepository = taskRepository;
+        this.autoSchedulerService = autoSchedulerService;
     }
 
     @Override
@@ -57,16 +59,32 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public Task createTask(Task task) {
+        return createTask(task, false);
+    }
+
+    @Override
+    public Task createTask(Task task, boolean autoSchedule) {
         validateTask(task, false);
+        if (autoSchedule) {
+            task = autoSchedulerService.scheduleTask(task, task.getOwner(), taskRepository.findAllByOwner(task.getOwner()));
+        }
         return taskRepository.save(task);
     }
 
     @Override
     public Task updateTask(Task task) {
+        return updateTask(task, false);
+    }
+
+    @Override
+    public Task updateTask(Task task, boolean autoSchedule) {
         if (task.getTaskId() == null || taskRepository.findTaskByTaskId(task.getTaskId()) == null) {
             throw new IllegalArgumentException("Task does not exist");
         }
         validateTask(task, true);
+        if (autoSchedule) {
+            task = autoSchedulerService.scheduleTask(task, task.getOwner(), taskRepository.findAllByOwner(task.getOwner()));
+        }
         return taskRepository.save(task);
     }
 

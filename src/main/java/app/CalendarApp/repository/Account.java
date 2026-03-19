@@ -12,14 +12,19 @@ public class Account {
     private String email;
     private String dateCreated;
     private String role;
+    private String startWorkingHours;
+    private String endWorkingHours;
 
-    public Account(String accountId, String username, String password, String email, String dateCreated) {
+    public Account(String accountId, String username, String password, String email,
+                   String dateCreated, String startWorkingHours, String endWorkingHours) {
         this.accountId = accountId;
         this.username = username;
         this.password = password;
         this.email = email;
         this.dateCreated = dateCreated;
         this.role = "user";
+        this.startWorkingHours = startWorkingHours;
+        this.endWorkingHours = endWorkingHours;
     }
 
     public String getId() {
@@ -57,5 +62,17 @@ public class Account {
     }
     public void setRole(String role) {
         this.role = role;
+    }
+    public String getStartWorkingHours() {
+        return startWorkingHours;
+    }
+    public void setStartWorkingHours(String startWorkingHours) {
+        this.startWorkingHours = startWorkingHours;
+    }
+    public String getEndWorkingHours() {
+        return endWorkingHours;
+    }
+    public void setEndWorkingHours(String endWorkingHours) {
+        this.endWorkingHours = endWorkingHours;
     }
 }

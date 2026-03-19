@@ -3,9 +3,18 @@ import { useEffect, useState } from 'react';
 import bookIcon from '../assets/book-open-svgrepo-com.svg';
 import inboxIcon from '../assets/inbox-svgrepo-com.svg';
 import locationIcon from '../assets/location-svgrepo-com.svg';
+import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
+import TaskListItem from '../components/TaskListItem.jsx';
 import '../styles/TaskView.css';
 
 function TaskView({ user }) {
+    const PROJECT_COLOR_OPTIONS = [
+        '#dc2626', '#ef4444', '#f43f5e', '#ec4899',
+        '#f97316', '#f59e0b', '#eab308', '#84cc16',
+        '#65a30d', '#22c55e', '#10b981', '#14b8a6',
+        '#06b6d4', '#0ea5e9', '#0576f3', '#1d4ed8',
+        '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+    ];
     const [tasks, setTasks] = useState([]);
     const [completedTasks, setCompletedTasks] = useState([]);
     const [error, setError] = useState(null);
@@ -35,10 +44,13 @@ function TaskView({ user }) {
     const [selectedFilter, setSelectedFilter] = useState('overview');
     const [showNewProjectInput, setShowNewProjectInput] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
+    const [newProjectColor, setNewProjectColor] = useState('#3fb0ba');
     const [isCreatingProject, setIsCreatingProject] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showNewTaskForm, setShowNewTaskForm] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
+    const [newTaskAutoSchedule, setNewTaskAutoSchedule] = useState(false);
+    const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -75,6 +87,15 @@ function TaskView({ user }) {
         if (!project) return '';
         if (typeof project === 'string') return project;
         return project?.projectName || '';
+    };
+
+    const projectToProjectColor = (project) => {
+        if (!project || typeof project === 'string') return '#3fb0ba';
+        const color = project?.projectColor;
+        if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color.trim())) {
+            return color.trim().toLowerCase();
+        }
+        return '#3fb0ba';
     };
 
     const projectToProjectId = (project) => {
@@ -216,6 +237,7 @@ function TaskView({ user }) {
         };
         setEditData(editDataWithNames);
         setEditTaskTagInput(formatTags(tagNames));
+        setEditTaskAutoSchedule(false);
     };
 
     const handleSaveEdit = async (taskId) => {
@@ -226,7 +248,8 @@ function TaskView({ user }) {
             const dataToSend = {
                 ...editData,
                 project: projectNameToProjectObject(editData.project || ''),
-                tags: tagObjects
+                tags: tagObjects,
+                autoSchedule: editTaskAutoSchedule
             };
 
             const res = await axios.put(`${backendUrl}/api/tasks`, dataToSend, getAuthConfig());
@@ -234,6 +257,7 @@ function TaskView({ user }) {
             setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
             setEditingId(null);
             setEditData({});
+            setEditTaskAutoSchedule(false);
             fetchAvailableTags();
             fetchAvailableProjects();
         } catch (err) {
@@ -245,6 +269,7 @@ function TaskView({ user }) {
     const handleCancel = () => {
         setEditingId(null);
         setEditData({});
+        setEditTaskAutoSchedule(false);
     };
 
     const resetNewTaskForm = () => {
@@ -261,6 +286,7 @@ function TaskView({ user }) {
         setShowNewTaskTagDropdown(false);
         setShowNewTaskProjectDropdown(false);
         setShowNewTaskForm(false);
+        setNewTaskAutoSchedule(false);
     };
 
     const handleDelete = async (taskId) => {
@@ -343,7 +369,8 @@ function TaskView({ user }) {
                 priority: newTask.priority,
                 project: projectNameToProjectObject(newTask.project),
                 tags: tagObjects,
-                comments: newTask.comments
+                comments: newTask.comments,
+                autoSchedule: newTaskAutoSchedule
             };
 
             const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, getAuthConfig());
@@ -456,7 +483,11 @@ function TaskView({ user }) {
         try {
             setIsCreatingProject(true);
             setError(null);
-            const res = await axios.post(`${backendUrl}/api/projects`, { projectName: trimmedName }, getAuthConfig());
+            const res = await axios.post(
+                `${backendUrl}/api/projects`,
+                { projectName: trimmedName, projectColor: newProjectColor },
+                getAuthConfig()
+            );
             const createdProject = res.data;
             const createdProjectName = createdProject?.projectName || trimmedName;
 
@@ -471,6 +502,7 @@ function TaskView({ user }) {
             setSelectedFilter(`project:${createdProjectName}`);
             setNewTask(prev => ({ ...prev, project: createdProjectName }));
             setNewProjectName('');
+            setNewProjectColor('#3fb0ba');
             setShowNewProjectInput(false);
         } catch (err) {
             setError('Failed to create project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
@@ -509,218 +541,53 @@ function TaskView({ user }) {
         }
     };
 
-    const renderTaskEditor = (isNewTask = false, taskId = null) => {
+    const getEditorProps = (isNewTask = false, taskId = null) => {
         const taskData = isNewTask ? newTask : editData;
         const projectDropdownVisible = isNewTask ? showNewTaskProjectDropdown : showEditProjectDropdown;
         const tagDropdownVisible = isNewTask ? showNewTaskTagDropdown : showEditTagDropdown;
         const tagInputValue = isNewTask ? newTaskTagInput : editTaskTagInput;
-        const currentTags = taskData.tags || [];
 
-        return (
-            <div className="task-editor-panel">
-                <div className="task-editor-grid">
-                    <div className="task-field task-field-wide">
-                        <label>Task Name *</label>
-                        <input
-                            type="text"
-                            value={taskData.taskName || ''}
-                            onChange={(e) => (isNewTask ? handleNewTaskChange('taskName', e.target.value) : handleEditChange('taskName', e.target.value))}
-                            placeholder="Enter task name"
-                        />
-                    </div>
-
-                    <div className="task-field">
-                        <label>Deadline *</label>
-                        <input
-                            type="date"
-                            value={taskData.deadline || ''}
-                            onChange={(e) => (isNewTask ? handleNewTaskChange('deadline', e.target.value) : handleEditChange('deadline', e.target.value))}
-                        />
-                    </div>
-
-                    <div className="task-field">
-                        <label>Time to Complete *</label>
-                        <select
-                            value={taskData.timeToComplete || ''}
-                            onChange={(e) => (isNewTask ? handleNewTaskChange('timeToComplete', e.target.value) : handleEditChange('timeToComplete', e.target.value))}
-                        >
-                            <option value="">Select Time</option>
-                            {timeOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="task-field">
-                        <label>Priority *</label>
-                        <select
-                            value={taskData.priority || ''}
-                            onChange={(e) => (isNewTask ? handleNewTaskChange('priority', e.target.value) : handleEditChange('priority', e.target.value))}
-                        >
-                            <option value="">Select Priority</option>
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                        </select>
-                    </div>
-
-                    <div className="task-field">
-                        <label>Project</label>
-                        <div className="tag-input-container">
-                            <input
-                                type="text"
-                                value={taskData.project || ''}
-                                onChange={(e) => (isNewTask ? handleNewTaskChange('project', e.target.value) : handleEditChange('project', e.target.value))}
-                                onFocus={() => (isNewTask ? setShowNewTaskProjectDropdown(true) : setShowEditProjectDropdown(true))}
-                                onBlur={() => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 200)}
-                                placeholder="Project"
-                            />
-                            {projectDropdownVisible && getFilteredProjects(taskData.project).length > 0 && (
-                                <div className="tag-dropdown">
-                                    {getFilteredProjects(taskData.project).map((projectName) => (
-                                        <div
-                                            key={projectName}
-                                            className="tag-dropdown-item"
-                                            onClick={() => handleProjectSelect(projectName, isNewTask)}
-                                        >
-                                            {projectName}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="task-field task-field-wide">
-                        <label>Tags</label>
-                        <div className="tag-input-container">
-                            <div className="tag-chips">
-                                {currentTags.map((tag, idx) => (
-                                    <span key={idx} className="tag-chip">
-                                        {tag}
-                                        <button
-                                            type="button"
-                                            className="tag-remove"
-                                            onClick={() => removeTag(tag, isNewTask)}
-                                        >
-                                            ×
-                                        </button>
-                                    </span>
-                                ))}
-                            </div>
-                            <input
-                                type="text"
-                                value={tagInputValue}
-                                onChange={(e) => (isNewTask ? handleNewTaskChange('tags', e.target.value) : handleEditChange('tags', e.target.value))}
-                                onFocus={() => (isNewTask ? setShowNewTaskTagDropdown(true) : setShowEditTagDropdown(true))}
-                                onBlur={() => setTimeout(() => (isNewTask ? setShowNewTaskTagDropdown(false) : setShowEditTagDropdown(false)), 200)}
-                                placeholder="Add tags"
-                            />
-                            {tagDropdownVisible && getFilteredTags(tagInputValue, currentTags).length > 0 && (
-                                <div className="tag-dropdown">
-                                    {getFilteredTags(tagInputValue, currentTags).map((tag, idx) => (
-                                        <div
-                                            key={idx}
-                                            className="tag-dropdown-item"
-                                            onClick={() => handleTagSelect(tag, isNewTask)}
-                                        >
-                                            {tag}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="task-field task-field-wide">
-                        <label>Comments</label>
-                        <textarea
-                            value={taskData.comments || ''}
-                            onChange={(e) => (isNewTask ? handleNewTaskChange('comments', e.target.value) : handleEditChange('comments', e.target.value))}
-                            placeholder="Add notes"
-                        />
-                    </div>
-                </div>
-
-                <div className="task-editor-actions">
-                    {isNewTask ? (
-                        <>
-                            <button className="btn-save" onClick={handleCreateTask}>
-                                Create Task
-                            </button>
-                            <button className="btn-cancel" onClick={resetNewTaskForm}>
-                                Cancel
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button className="btn-save" onClick={() => handleSaveEdit(taskId)}>
-                                Save
-                            </button>
-                            <button className="btn-cancel" onClick={handleCancel}>
-                                Cancel
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
-        );
+        return {
+            mode: isNewTask ? 'create' : 'edit',
+            taskData,
+            timeOptions,
+            projectDropdownVisible,
+            tagDropdownVisible,
+            tagInputValue,
+            filteredProjects: getFilteredProjects(taskData.project),
+            filteredTags: getFilteredTags(tagInputValue, taskData.tags || []),
+            autoSchedule: isNewTask ? newTaskAutoSchedule : editTaskAutoSchedule,
+            onChange: (field, value) => (isNewTask ? handleNewTaskChange(field, value) : handleEditChange(field, value)),
+            onProjectFocus: () => (isNewTask ? setShowNewTaskProjectDropdown(true) : setShowEditProjectDropdown(true)),
+            onProjectBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 200),
+            onTagFocus: () => (isNewTask ? setShowNewTaskTagDropdown(true) : setShowEditTagDropdown(true)),
+            onTagBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskTagDropdown(false) : setShowEditTagDropdown(false)), 200),
+            onProjectSelect: (projectName) => handleProjectSelect(projectName, isNewTask),
+            onTagSelect: (tagName) => handleTagSelect(tagName, isNewTask),
+            onRemoveTag: (tagName) => removeTag(tagName, isNewTask),
+            onAutoScheduleChange: (checked) => (isNewTask ? setNewTaskAutoSchedule(checked) : setEditTaskAutoSchedule(checked)),
+            onSave: () => (isNewTask ? handleCreateTask() : handleSaveEdit(taskId)),
+            onCancel: () => (isNewTask ? resetNewTaskForm() : handleCancel()),
+        };
     };
 
     const renderSidebarIcon = (icon) => (
         <img className="sidebar-view-icon" src={icon} alt="" aria-hidden="true" />
     );
 
-    const renderTaskCard = (task) => {
-        const taskTagNames = getTagNames(task.tags);
-        const projectName = projectToProjectName(task.project) || 'Uncategorized';
-        const taskMeta = [
-            task.priority || 'No priority',
-            task.comments || ''
-        ].filter(Boolean);
-
-        return (
-            <div key={task.taskId} className={`task-card ${editingId === task.taskId ? 'editing' : ''}`}>
-                <div className="task-row">
-                    <input
-                        type="checkbox"
-                        className="task-checkbox"
-                        checked={task.isCompleted || false}
-                        onChange={() => handleCompleteTask(task.taskId)}
-                        title="Mark task as complete"
-                    />
-
-                    <div className="task-main-copy">
-                        <h3 className="task-title">{task.taskName}</h3>
-                        <div className="task-tags-inline">
-                            {taskTagNames.length > 0 ? taskTagNames.join(' • ') : 'No tags'}
-                        </div>
-                        <div className="task-meta-inline">
-                            <span className="task-project-inline" title={projectName}>{projectName}</span>
-                            {taskMeta.length > 0 ? ` • ${taskMeta.join(' • ')}` : ''}
-                        </div>
-                        <div className="task-row-actions">
-                            <button className="btn-edit" onClick={() => handleEdit(task)}>
-                                Edit
-                            </button>
-                            <button className="btn-delete" onClick={() => handleDelete(task.taskId)}>
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="task-datetime">
-                        <span>{task.deadline || 'No date'}</span>
-                        <span>{task.timeToComplete || 'No estimate'}</span>
-                    </div>
-                </div>
-
-                {editingId === task.taskId && renderTaskEditor(false, task.taskId)}
-            </div>
-        );
-    };
+    const renderTaskCard = (task) => (
+        <TaskListItem
+            key={task.taskId}
+            task={task}
+            isEditing={editingId === task.taskId}
+            editorPanel={<TaskEditorPanel {...getEditorProps(false, task.taskId)} />}
+            getProjectName={projectToProjectName}
+            getTagNames={getTagNames}
+            onToggleComplete={handleCompleteTask}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+        />
+    );
 
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
@@ -773,6 +640,7 @@ function TaskView({ user }) {
         .map((project) => ({
             projectId: project.projectId,
             projectName: project.projectName,
+            projectColor: project.projectColor,
             taskCount: taskCountByProject[project.projectName] || 0
         }))
         .sort((a, b) => a.projectName.localeCompare(b.projectName));
@@ -880,7 +748,14 @@ function TaskView({ user }) {
                                                 onClick={() => setSelectedFilter(`project:${project.projectName}`)}
                                                 title={project.projectName}
                                             >
-                                                <span className="project-nav-label">{project.projectName}</span>
+                                                <span className="project-nav-label-wrap">
+                                                    <span
+                                                        className="project-nav-color-dot"
+                                                        style={{ backgroundColor: projectToProjectColor(project) }}
+                                                        aria-hidden="true"
+                                                    />
+                                                    <span className="project-nav-label">{project.projectName}</span>
+                                                </span>
                                                 <span className="project-count">{project.taskCount}</span>
                                             </button>
                                         ))
@@ -905,19 +780,38 @@ function TaskView({ user }) {
                                             } else if (e.key === 'Escape') {
                                                 setShowNewProjectInput(false);
                                                 setNewProjectName('');
+                                                setNewProjectColor('#3fb0ba');
                                             }
                                         }}
                                     />
+                                    <div className="project-color-picker-group">
+                                        <p className="project-color-picker-label">Project Color</p>
+                                        <div className="project-color-options">
+                                            {PROJECT_COLOR_OPTIONS.map((color) => (
+                                                <button
+                                                    type="button"
+                                                    key={color}
+                                                    className={`project-color-option ${newProjectColor === color ? 'selected' : ''}`}
+                                                    onClick={() => setNewProjectColor(color)}
+                                                    aria-label={`Set project color ${color}`}
+                                                    title={color}
+                                                >
+                                                    <span className="project-color-option-fill" style={{ backgroundColor: color }} aria-hidden="true" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                     <div className="project-create-actions">
-                                        <button type="button" className="btn-save" onClick={handleCreateProject} disabled={isCreatingProject}>
+                                        <button type="button" className="project-create-button" onClick={handleCreateProject} disabled={isCreatingProject}>
                                             {isCreatingProject ? 'Saving...' : 'Create'}
                                         </button>
                                         <button
                                             type="button"
-                                            className="btn-cancel"
+                                            className="project-create-button project-create-button-secondary"
                                             onClick={() => {
                                                 setShowNewProjectInput(false);
                                                 setNewProjectName('');
+                                                setNewProjectColor('#3fb0ba');
                                             }}
                                         >
                                             Cancel
@@ -973,7 +867,7 @@ function TaskView({ user }) {
                         </div>
 
                         <div className="tasks-container">
-                            {showNewTaskForm && renderTaskEditor(true)}
+                            {showNewTaskForm && <TaskEditorPanel {...getEditorProps(true)} />}
 
                             {sortedTasks.length > 0 ? sortedTasks.map(renderTaskCard) : (
                                 <div className="empty-task-state">

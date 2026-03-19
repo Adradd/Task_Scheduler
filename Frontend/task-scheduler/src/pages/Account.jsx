@@ -38,8 +38,13 @@ function Account({ user, onLogout }) {
             setError(null);
             const accountId = sessionStorage.getItem('accountId');
             const res = await axios.get(`${backendUrl}/api/accounts/${accountId}`, getAuthConfig());
-            setAccountData(res.data);
-            setFormData(res.data);
+            const normalized = {
+                ...res.data,
+                startWorkingHours: res.data?.startWorkingHours || '09:00',
+                endWorkingHours: res.data?.endWorkingHours || '17:00',
+            };
+            setAccountData(normalized);
+            setFormData(normalized);
         } catch (err) {
             setError('Failed to fetch account details: ' + (err.response?.data?.message || err.message));
             console.error(err);
@@ -110,6 +115,34 @@ function Account({ user, onLogout }) {
                             />
                         ) : (
                             <p>{accountData.email || 'Not provided'}</p>
+                        )}
+                    </div>
+
+                    <div className="info-group">
+                        <label>Start Working Hours</label>
+                        {editing ? (
+                            <input
+                                type="time"
+                                name="startWorkingHours"
+                                value={formData.startWorkingHours || ''}
+                                onChange={handleChange}
+                            />
+                        ) : (
+                            <p>{accountData.startWorkingHours || '09:00'}</p>
+                        )}
+                    </div>
+
+                    <div className="info-group">
+                        <label>End Working Hours</label>
+                        {editing ? (
+                            <input
+                                type="time"
+                                name="endWorkingHours"
+                                value={formData.endWorkingHours || ''}
+                                onChange={handleChange}
+                            />
+                        ) : (
+                            <p>{accountData.endWorkingHours || '17:00'}</p>
                         )}
                     </div>
                 </div>

@@ -68,7 +68,7 @@ public class TaskController {
                 task.setProject(null);
             }
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
-            Task created = taskService.createTask(task);
+            Task created = taskService.createTask(task, task.isAutoSchedule());
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -99,7 +99,7 @@ public class TaskController {
                 task.setProject(null);
             }
             task.setTags(tagService.ensureTagsExist(account, task.getTags()));
-            Task updated = taskService.updateTask(task);
+            Task updated = taskService.updateTask(task, task.isAutoSchedule());
             return ResponseEntity.ok(updated);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

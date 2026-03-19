@@ -15,6 +15,7 @@ import java.util.List;
 public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
+    private static final String DEFAULT_PROJECT_COLOR = "#3fb0ba";
 
     @Autowired
     public ProjectServiceImpl(ProjectRepository projectRepository, TaskRepository taskRepository) {
@@ -37,18 +38,29 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public Project createProject(Account owner, String projectName) {
+    public Project createProject(Account owner, String projectName, String projectColor) {
         validateProject(owner, projectName);
 
         String normalizedName = projectName.trim();
+        String requestedColor = normalizeProjectColorOrNull(projectColor);
+        String normalizedColor = requestedColor != null ? requestedColor : DEFAULT_PROJECT_COLOR;
         Project existing = projectRepository.findProjectByOwnerAndProjectNameIgnoreCase(owner, normalizedName);
         if (existing != null) {
+            if (requestedColor != null && !requestedColor.equalsIgnoreCase(existing.getProjectColor())) {
+                existing.setProjectColor(requestedColor);
+                return projectRepository.save(existing);
+            }
+            if (existing.getProjectColor() == null || existing.getProjectColor().isBlank()) {
+                existing.setProjectColor(DEFAULT_PROJECT_COLOR);
+                return projectRepository.save(existing);
+            }
             return existing;
         }
 
         Project project = new Project();
         project.setOwner(owner);
         project.setProjectName(normalizedName);
+        project.setProjectColor(normalizedColor);
         return projectRepository.save(project);
     }
 
@@ -83,9 +95,26 @@ public class ProjectServiceImpl implements ProjectService {
         String projectName = project.getProjectName().trim();
         Project resolvedProject = findProjectByOwnerAndName(owner, projectName);
         if (resolvedProject == null) {
-            resolvedProject = createProject(owner, projectName);
+            resolvedProject = createProject(owner, projectName, project.getProjectColor());
+        } else {
+            String incomingColor = normalizeProjectColorOrNull(project.getProjectColor());
+            if (incomingColor != null && !incomingColor.equalsIgnoreCase(resolvedProject.getProjectColor())) {
+                resolvedProject.setProjectColor(incomingColor);
+                resolvedProject = projectRepository.save(resolvedProject);
+            }
         }
         return resolvedProject;
+    }
+
+    private String normalizeProjectColorOrNull(String projectColor) {
+        if (projectColor == null || projectColor.isBlank()) {
+            return null;
+        }
+        String trimmed = projectColor.trim();
+        if (trimmed.matches("^#[0-9a-fA-F]{6}$")) {
+            return trimmed.toLowerCase();
+        }
+        return null;
     }
 
     private void validateProject(Account owner, String projectName) {

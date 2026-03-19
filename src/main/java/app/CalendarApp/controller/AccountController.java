@@ -45,6 +45,12 @@ public class AccountController {
             if (accountUpdates.getEmail() != null && !accountUpdates.getEmail().isEmpty()) {
                 existingAccount.setEmail(accountUpdates.getEmail());
             }
+            if (accountUpdates.getStartWorkingHours() != null && !accountUpdates.getStartWorkingHours().isEmpty()) {
+                existingAccount.setStartWorkingHours(accountUpdates.getStartWorkingHours());
+            }
+            if (accountUpdates.getEndWorkingHours() != null && !accountUpdates.getEndWorkingHours().isEmpty()) {
+                existingAccount.setEndWorkingHours(accountUpdates.getEndWorkingHours());
+            }
 
             Account updated = accountService.updateAccount(existingAccount);
             return ResponseEntity.ok(updated);

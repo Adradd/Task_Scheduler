@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.regex.Pattern;
 
 @Service
@@ -82,6 +83,15 @@ public class AccountServiceImpl implements AccountService {
         // Only validate password on account creation, not on update
         if (!isUpdate && (account.getPassword() == null || account.getPassword().length() < 8)) {
             throw new IllegalArgumentException("Password must be at least 8 characters");
+        }
+
+        if (account.getStartWorkingHours() != null && !account.getStartWorkingHours().isBlank()
+            && account.getEndWorkingHours() != null && !account.getEndWorkingHours().isBlank()) {
+            LocalTime start = LocalTime.parse(account.getStartWorkingHours());
+            LocalTime end = LocalTime.parse(account.getEndWorkingHours());
+            if (!end.isAfter(start)) {
+                throw new IllegalArgumentException("End working hours must be after start working hours");
+            }
         }
     }
 }

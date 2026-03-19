@@ -2,6 +2,7 @@ package app.CalendarApp.repository;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
@@ -27,12 +28,16 @@ public class Task {
     private List<Tag> tags = new ArrayList<>();
     private String comments;
     private boolean isCompleted;
+    private String startTime;
+    private String endTime;
+    @Transient
+    private boolean autoSchedule;
 
     public Task() {
         // Required by persistence/deserialization frameworks.
     }
 
-    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String comments) {
+    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String comments, String startTime) {
         this.taskId = taskId;
         this.owner = owner;
         this.taskName = taskName;
@@ -43,6 +48,7 @@ public class Task {
         this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
         this.comments = comments;
         this.isCompleted = false;
+        this.startTime = startTime;
     }
     public String getTaskId() {
         return taskId;
@@ -136,48 +142,70 @@ public class Task {
 
     @JsonSetter("project")
     public void setProjectFromJson(Object project) {
-        if (project == null) {
-            this.project = null;
-            return;
-        }
-
-        if (project instanceof Project parsedProject) {
-            this.project = parsedProject;
-            return;
-        }
-
-        if (project instanceof java.util.Map<?, ?> projectMap) {
-            Project parsedProject = new Project();
-            if (projectMap.containsKey("projectId")) {
-                parsedProject.setProjectId(String.valueOf(projectMap.get("projectId")));
+        switch (project) {
+            case null -> {
+                this.project = null;
+                return;
             }
-            if (projectMap.containsKey("projectName")) {
-                parsedProject.setProjectName(String.valueOf(projectMap.get("projectName")));
+            case Project parsedProject -> {
+                this.project = parsedProject;
+                return;
             }
-            this.project = parsedProject;
-            return;
+            case java.util.Map<?, ?> projectMap -> {
+                Project parsedProject = new Project();
+                if (projectMap.containsKey("projectId")) {
+                    parsedProject.setProjectId(String.valueOf(projectMap.get("projectId")));
+                }
+                if (projectMap.containsKey("projectName")) {
+                    parsedProject.setProjectName(String.valueOf(projectMap.get("projectName")));
+                }
+                if (projectMap.containsKey("projectColor")) {
+                    parsedProject.setProjectColor(String.valueOf(projectMap.get("projectColor")));
+                }
+                this.project = parsedProject;
+                return;
+            }
+            case String projectName when !projectName.trim().isEmpty() -> {
+                Project parsedProject = new Project();
+                parsedProject.setProjectName(projectName.trim());
+                this.project = parsedProject;
+            }
+            default -> {
+            }
         }
 
-        if (project instanceof String projectName && !projectName.trim().isEmpty()) {
-            Project parsedProject = new Project();
-            parsedProject.setProjectName(projectName.trim());
-            this.project = parsedProject;
-        }
     }
 
     public String getComments() {
         return comments;
     }
-
     public void setComments(String comments) {
         this.comments = comments;
     }
-
     public boolean isCompleted() {
         return isCompleted;
     }
-
     public void setIsCompleted(boolean completed) {
         isCompleted = completed;
+    }
+    public String getEndTime() {
+        return endTime;
+    }
+    public void setEndTime(String endTime) {
+        this.endTime = endTime;
+    }
+    public String getStartTime() {
+        return startTime;
+    }
+    public void setStartTime(String startTime) {
+        this.startTime = startTime;
+    }
+
+    public boolean isAutoSchedule() {
+        return autoSchedule;
+    }
+
+    public void setAutoSchedule(boolean autoSchedule) {
+        this.autoSchedule = autoSchedule;
     }
 }

@@ -15,7 +15,9 @@ public interface TaskService {
     Task findTaskByProject(Project project);
     List<Task> findTasksByTag(Tag tag);
     Task createTask(Task task);
+    Task createTask(Task task, boolean autoSchedule);
     Task updateTask(Task task);
+    Task updateTask(Task task, boolean autoSchedule);
     void deleteTask(String taskId);
     List<Task> findAllCompletedTasksByOwner(Account owner);
     Task markTaskAsComplete(String taskId);

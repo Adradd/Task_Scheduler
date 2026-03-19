@@ -42,7 +42,8 @@ public class ProjectController {
         }
         try {
             String projectName = payload.get("projectName");
-            Project created = projectService.createProject(account, projectName);
+            String projectColor = payload.get("projectColor");
+            Project created = projectService.createProject(account, projectName, projectColor);
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
