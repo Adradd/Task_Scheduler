@@ -3,12 +3,12 @@
     justify-content: center;
     align-items: center;
     min-height: calc(100vh - 80px);
-    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
+    background-color: #454047;
     padding: 20px;
 }
 
 .account-card {
-    background: white;
+    background: #dedbe3;
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     padding: 40px;
@@ -17,7 +17,7 @@
 }
 
 .account-card h1 {
-    text-align: center;
+    text-align: left;
     color: #333;
     margin-bottom: 30px;
     font-size: 28px;
@@ -38,7 +38,7 @@
     font-size: 14px;
     margin-bottom: 8px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 
 .info-group p {
