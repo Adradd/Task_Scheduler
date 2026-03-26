@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
 import './styles/App.css'
+import './styles/Pomodoro.css'
 import Home from "./pages/Home.jsx";
 import TaskView from "./pages/TaskView.jsx";
 import CalendarView from "./pages/CalendarView.jsx";
@@ -8,25 +9,24 @@ import Account from "./pages/Account.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import { PomodoroProvider } from './components/pomodoro/PomodoroProvider.jsx';
+import PomodoroFloatingWidget from './components/pomodoro/PomodoroFloatingWidget.jsx';
+import PomodoroFullTimer from './components/pomodoro/PomodoroFullTimer.jsx';
 
 function App() {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState(null);
-    const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-
-    // Check if user is already logged in on component mount
-    useEffect(() => {
+    const [user, setUser] = useState(() => {
         const storedUsername = sessionStorage.getItem('username');
-        if (storedUsername) {
-            setIsAuthenticated(true);
-            setUser({
-                username: storedUsername,
-                accountId: sessionStorage.getItem('accountId'),
-                role: sessionStorage.getItem('role')
-            });
+        if (!storedUsername) {
+            return null;
         }
-        setIsLoadingAuth(false);
-    }, []);
+
+        return {
+            username: storedUsername,
+            accountId: sessionStorage.getItem('accountId'),
+            role: sessionStorage.getItem('role')
+        };
+    });
+    const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(sessionStorage.getItem('username')));
 
     const handleLoginSuccess = (userData) => {
         console.log('Login successful, user data:', userData);
@@ -47,19 +47,24 @@ function App() {
         setUser(null);
     };
 
-    if (isLoadingAuth) {
-        return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '18px', color: '#666'}}>Loading...</div>;
-    }
-
     return (
         <Router>
-            <AppContent
-                isAuthenticated={isAuthenticated}
-                user={user}
-                onLoginSuccess={handleLoginSuccess}
-                onRegisterSuccess={handleRegisterSuccess}
-                onLogout={handleLogout}
-            />
+            <PomodoroProvider
+                config={{
+                    focusDurationMinutes: 25,
+                    shortBreakMinutes: 5,
+                    longBreakMinutes: 20,
+                    focusPerLongBreak: 4,
+                }}
+            >
+                <AppContent
+                    isAuthenticated={isAuthenticated}
+                    user={user}
+                    onLoginSuccess={handleLoginSuccess}
+                    onRegisterSuccess={handleRegisterSuccess}
+                    onLogout={handleLogout}
+                />
+            </PomodoroProvider>
         </Router>
     )
 }
@@ -67,6 +72,7 @@ function App() {
 function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, onLogout }) {
     const location = useLocation();
     const showNavbar = !['/login', '/register'].includes(location.pathname);
+    const showPomodoro = isAuthenticated && ['/task-view', '/calendar-view'].includes(location.pathname);
 
     return (
         <>
@@ -99,6 +105,9 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                     <Route path="/register" element={<Register onRegisterSuccess={onRegisterSuccess} />} />
                 </Routes>
             </div>
+
+            {showPomodoro && <PomodoroFloatingWidget />}
+            {showPomodoro && <PomodoroFullTimer />}
         </>
     )
 }
