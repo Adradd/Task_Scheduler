@@ -50,7 +50,7 @@ function PomodoroFullTimer() {
                 <div className="pomodoro-card-glow" />
 
                 <header className="pomodoro-card-header">
-                    <h2>Pomodoro Timer</h2>
+                    <h2>Pomodoro</h2>
                     <button
                         type="button"
                         className="pomodoro-close"

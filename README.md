@@ -1,3 +1,3 @@
-# ![schedule.me Logo](./Frontend/task-scheduler/src/assets/project-blue-logo.svg)
+# ![schedule.me Logo](./Frontend/task-scheduler/src/assets/product-logo.svg)
 schedule.me is a project based task manager that uses your existing calendar events from Google Calendar to 
 automatically find time to work on your tasks.

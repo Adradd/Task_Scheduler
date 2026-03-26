@@ -17,7 +17,6 @@ function formatClock(ms) {
 function PomodoroFloatingWidget() {
     const { phase, remainingMs, expanded, isRunning, setExpanded } = usePomodoro();
 
-    const statusIcon = useMemo(() => (isRunning ? '||' : '>'), [isRunning]);
 
     return (
         <button
@@ -29,7 +28,6 @@ function PomodoroFloatingWidget() {
             <span className="pomodoro-floating-time">{formatClock(remainingMs)}</span>
             <span className="pomodoro-floating-meta">
                 <span className="pomodoro-floating-phase">{PHASE_HINTS[phase]}</span>
-                <span className="pomodoro-floating-status" aria-hidden="true">{statusIcon}</span>
             </span>
         </button>
     );

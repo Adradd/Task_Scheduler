@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import bookIcon from '../assets/book-open-svgrepo-com.svg';
-import inboxIcon from '../assets/inbox-svgrepo-com.svg';
-import locationIcon from '../assets/location-svgrepo-com.svg';
+import bookIcon from '../assets/book.svg';
+import inboxIcon from '../assets/inbox.svg';
+import targetIcon from '../assets/target.svg';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
 import '../styles/TaskView.css';
@@ -723,7 +723,7 @@ function TaskView({ user }) {
                                     className={`sidebar-view-button ${selectedFilter === 'today' ? 'active' : ''}`}
                                     onClick={() => setSelectedFilter('today')}
                                 >
-                                    {renderSidebarIcon(locationIcon)}
+                                    {renderSidebarIcon(targetIcon)}
                                     Today
                                 </button>
                                 <button

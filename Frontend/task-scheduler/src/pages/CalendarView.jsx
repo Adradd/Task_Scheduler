@@ -961,12 +961,6 @@ function CalendarView({ user }) {
                                 <div className="task-section-title"><span>{sectionTitle}</span></div>
                                 <div className="task-section-subtitle">{sectionSubtitle}</div>
                             </div>
-
-                            <div className="calendar-nav-controls">
-                                <button type="button" className="calendar-nav-button" onClick={handlePrevious}>Previous</button>
-                                <button type="button" className="calendar-nav-button calendar-nav-button-primary" onClick={() => setCurrentDate(new Date())}>Today</button>
-                                <button type="button" className="calendar-nav-button" onClick={handleNext}>Next</button>
-                            </div>
                         </div>
 
                         <div className="calendar-controls-bar">
@@ -998,12 +992,18 @@ function CalendarView({ user }) {
                                     </div>
                                 )}
                             </div>
+
+                            <div className="calendar-nav-controls">
+                                <button type="button" className="calendar-nav-button" onClick={handlePrevious}>Previous</button>
+                                <button type="button" className="calendar-nav-button calendar-nav-button-primary" onClick={() => setCurrentDate(new Date())}>Today</button>
+                                <button type="button" className="calendar-nav-button" onClick={handleNext}>Next</button>
+                            </div>
+
                             <div className="view-type-selector">
                                 <button type="button" className={`view-btn ${viewType === 'day' ? 'active' : ''}`} onClick={() => setViewType('day')}>Day</button>
                                 <button type="button" className={`view-btn ${viewType === 'week' ? 'active' : ''}`} onClick={() => setViewType('week')}>Week</button>
                                 <button type="button" className={`view-btn ${viewType === 'month' ? 'active' : ''}`} onClick={() => setViewType('month')}>Month</button>
                             </div>
-                            <div className="month-year"><h2>{periodLabel}</h2></div>
                         </div>
 
                         {visibleTasks.length === 0 && (

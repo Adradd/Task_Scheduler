@@ -101,7 +101,7 @@
 .calendar-grid-wrap {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 14px;
-    background: #2f2b2e;
+    background: #1f1d1f;
     overflow: hidden;
 }
 
@@ -226,6 +226,7 @@
 
 .week-view {
     padding: 0.7rem;
+    background: #1f1d1f;
 }
 
 .week-view-grid {
