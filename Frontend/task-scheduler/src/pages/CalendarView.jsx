@@ -7,6 +7,55 @@ import useResizableSidebar from '../hooks/useResizableSidebar.js';
 import '../styles/TaskView.css';
 import '../styles/CalendarView.css';
 
+const parseTaskDateTime = (value) => {
+    if (!value || typeof value !== 'string') return null;
+
+    const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
+    const parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+    return parsed;
+};
+
+const getPriorityRank = (priority) => {
+    const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+    return priorityOrder[priority] ?? 3;
+};
+
+const getTaskScheduleRange = (task) => {
+    const startDate = parseTaskDateTime(task.startTime);
+    const endDate = parseTaskDateTime(task.endTime);
+    const hasValidRange = Boolean(startDate && endDate && endDate > startDate);
+    return { startDate, endDate, hasValidRange };
+};
+
+const sortByDeadlineSchedulePriority = (taskA, taskB) => {
+    const dateA = taskA.deadline ? parseTaskDateTime(`${taskA.deadline}T00:00:00`) : null;
+    const dateB = taskB.deadline ? parseTaskDateTime(`${taskB.deadline}T00:00:00`) : null;
+    const deadlineA = dateA ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
+    const deadlineB = dateB ? dateB.getTime() : Number.MAX_SAFE_INTEGER;
+    if (deadlineA !== deadlineB) {
+        return deadlineA - deadlineB;
+    }
+
+    const { startDate: startA, hasValidRange: hasScheduleA } = getTaskScheduleRange(taskA);
+    const { startDate: startB, hasValidRange: hasScheduleB } = getTaskScheduleRange(taskB);
+    const scheduleA = hasScheduleA ? startA.getTime() : Number.MAX_SAFE_INTEGER;
+    const scheduleB = hasScheduleB ? startB.getTime() : Number.MAX_SAFE_INTEGER;
+    if (scheduleA !== scheduleB) {
+        return scheduleA - scheduleB;
+    }
+
+    const priorityDiff = getPriorityRank(taskA.priority) - getPriorityRank(taskB.priority);
+    if (priorityDiff !== 0) {
+        return priorityDiff;
+    }
+
+    return (taskA.taskName || '').localeCompare(taskB.taskName || '');
+};
+
 function CalendarView({ user }) {
     const DAY_VIEW_START_HOUR = 0;
     const DAY_VIEW_END_HOUR = 23;
@@ -216,30 +265,6 @@ function CalendarView({ user }) {
         return d;
     };
 
-    const parseTaskDateTime = (value) => {
-        if (!value || typeof value !== 'string') return null;
-
-        const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
-        const parsed = new Date(normalized);
-
-        if (Number.isNaN(parsed.getTime())) {
-            return null;
-        }
-        return parsed;
-    };
-
-    const getPriorityRank = (priority) => {
-        const priorityOrder = { High: 0, Medium: 1, Low: 2 };
-        return priorityOrder[priority] ?? 3;
-    };
-
-    const getTaskScheduleRange = (task) => {
-        const startDate = parseTaskDateTime(task.startTime);
-        const endDate = parseTaskDateTime(task.endTime);
-        const hasValidRange = Boolean(startDate && endDate && endDate > startDate);
-        return { startDate, endDate, hasValidRange };
-    };
-
     const getTaskDisplayDateKey = (task) => {
         const { startDate, hasValidRange } = getTaskScheduleRange(task);
         if (hasValidRange) {
@@ -247,31 +272,6 @@ function CalendarView({ user }) {
         }
         return task.deadline || '';
     };
-
-    const sortByDeadlineSchedulePriority = useCallback((taskA, taskB) => {
-        const dateA = taskA.deadline ? parseTaskDateTime(`${taskA.deadline}T00:00:00`) : null;
-        const dateB = taskB.deadline ? parseTaskDateTime(`${taskB.deadline}T00:00:00`) : null;
-        const deadlineA = dateA ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
-        const deadlineB = dateB ? dateB.getTime() : Number.MAX_SAFE_INTEGER;
-        if (deadlineA !== deadlineB) {
-            return deadlineA - deadlineB;
-        }
-
-        const { startDate: startA, hasValidRange: hasScheduleA } = getTaskScheduleRange(taskA);
-        const { startDate: startB, hasValidRange: hasScheduleB } = getTaskScheduleRange(taskB);
-        const scheduleA = hasScheduleA ? startA.getTime() : Number.MAX_SAFE_INTEGER;
-        const scheduleB = hasScheduleB ? startB.getTime() : Number.MAX_SAFE_INTEGER;
-        if (scheduleA !== scheduleB) {
-            return scheduleA - scheduleB;
-        }
-
-        const priorityDiff = getPriorityRank(taskA.priority) - getPriorityRank(taskB.priority);
-        if (priorityDiff !== 0) {
-            return priorityDiff;
-        }
-
-        return (taskA.taskName || '').localeCompare(taskB.taskName || '');
-    });
 
     const getTasksForDate = (date) => {
         const dateStr = toDateKey(date);
@@ -631,7 +631,7 @@ function CalendarView({ user }) {
 
     const sidebarTasks = useMemo(() => {
         return [...visibleTasks].sort(sortByDeadlineSchedulePriority);
-    }, [sortByDeadlineSchedulePriority, visibleTasks]);
+    }, [visibleTasks]);
 
     const renderMonthView = () => {
         const daysInMonth = getDaysInMonth(currentDate);
