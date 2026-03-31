@@ -1,3 +1,5 @@
+import ConfirmPopoverButton from './ConfirmPopoverButton.jsx';
+
 function TaskListItem({
     task,
     isEditing = false,
@@ -62,9 +64,13 @@ function TaskListItem({
                                 </button>
                             )}
                             {onDelete && (
-                                <button type="button" className="btn-delete" onClick={() => onDelete(task.taskId)}>
-                                    Delete
-                                </button>
+                                <ConfirmPopoverButton
+                                    buttonClassName="btn-delete"
+                                    buttonLabel="Delete"
+                                    title="Delete task?"
+                                    message={<><strong>{task.taskName}</strong> will be permanently removed.</>}
+                                    onConfirm={() => onDelete(task.taskId)}
+                                />
                             )}
                         </div>
                     )}
@@ -84,4 +90,3 @@ function TaskListItem({
 }
 
 export default TaskListItem;
-

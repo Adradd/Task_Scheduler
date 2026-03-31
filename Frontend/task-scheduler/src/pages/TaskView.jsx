@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import bookIcon from '../assets/book.svg';
 import inboxIcon from '../assets/inbox.svg';
 import targetIcon from '../assets/target.svg';
+import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
+import useResizableSidebar from '../hooks/useResizableSidebar.js';
 import '../styles/TaskView.css';
 
 function TaskView({ user }) {
@@ -46,11 +48,11 @@ function TaskView({ user }) {
     const [newProjectName, setNewProjectName] = useState('');
     const [newProjectColor, setNewProjectColor] = useState('#3fb0ba');
     const [isCreatingProject, setIsCreatingProject] = useState(false);
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [showNewTaskForm, setShowNewTaskForm] = useState(false);
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
     const [newTaskAutoSchedule, setNewTaskAutoSchedule] = useState(false);
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
+    const { isResizing, sidebarWidth, startResizing } = useResizableSidebar();
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -290,9 +292,6 @@ function TaskView({ user }) {
     };
 
     const handleDelete = async (taskId) => {
-        if (!window.confirm('Are you sure you want to delete this task?')) {
-            return;
-        }
         try {
             setError(null);
             await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
@@ -328,9 +327,6 @@ function TaskView({ user }) {
     };
 
     const handleDeleteCompleted = async (taskId) => {
-        if (!window.confirm('Are you sure you want to delete this completed task?')) {
-            return;
-        }
         try {
             setError(null);
             await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
@@ -517,9 +513,6 @@ function TaskView({ user }) {
         if (!projectIdentifier) {
             return;
         }
-        if (!window.confirm(`Delete "${project.projectName}" and all associated tasks?`)) {
-            return;
-        }
 
         try {
             setError(null);
@@ -655,7 +648,18 @@ function TaskView({ user }) {
                     ? tasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
                     : tasks;
 
+    const filteredCompletedTasks = selectedFilter === 'overview'
+        ? completedTasks
+        : selectedFilter === 'inbox'
+            ? completedTasks.filter(task => !projectToProjectName(task.project))
+            : selectedFilter === 'today'
+                ? completedTasks.filter(task => task.deadline === todayKey)
+                : selectedFilter.startsWith('project:')
+                    ? completedTasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
+                    : completedTasks;
+
     const sortedTasks = sortTasks(filteredTasks);
+    const sortedCompletedTasks = sortTasks(filteredCompletedTasks);
     const selectedProjectName = selectedFilter.startsWith('project:') ? selectedFilter.replace('project:', '') : '';
     const selectedProjectObject = selectedProjectName
         ? allProjectObjects.find(project => project.projectName === selectedProjectName) || { projectName: selectedProjectName }
@@ -695,19 +699,11 @@ function TaskView({ user }) {
             <div className="task-content">
                 {error && <div className="error-message">{error}</div>}
 
-                <div className={`task-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-                    <aside className={`project-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-                        <button
-                            type="button"
-                            className="sidebar-collapse-button"
-                            onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        >
-                            {isSidebarCollapsed ? '>' : '<'}
-                        </button>
-
-                        {!isSidebarCollapsed && (
-                            <>
+                <div
+                    className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
+                    style={{ gridTemplateColumns: `${sidebarWidth}px 10px minmax(0, 1fr)` }}
+                >
+                    <aside className="project-sidebar">
                         <div className="project-sidebar-main">
                             <div className="sidebar-views">
                                 <button
@@ -828,9 +824,15 @@ function TaskView({ user }) {
                                 + Add Project
                             </button>
                         </div>
-                            </>
-                        )}
                     </aside>
+
+                    <div
+                        className="project-sidebar-resize-handle"
+                        onPointerDown={startResizing}
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize sidebar"
+                    />
 
                     <div className="task-main-panel">
                         <div className="task-section-header">
@@ -846,13 +848,13 @@ function TaskView({ user }) {
                                     {showNewTaskForm ? 'Close New Task' : '+ New Task'}
                                 </button>
                                 {selectedProjectObject && (
-                                    <button
-                                        type="button"
-                                        className="project-delete-header-button"
-                                        onClick={() => handleDeleteProject(selectedProjectObject)}
-                                    >
-                                        Delete Project
-                                    </button>
+                                    <ConfirmPopoverButton
+                                        buttonClassName="project-delete-header-button"
+                                        buttonLabel="Delete Project"
+                                        title="Delete project?"
+                                        message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
+                                        onConfirm={() => handleDeleteProject(selectedProjectObject)}
+                                    />
                                 )}
                             </div>
 
@@ -876,7 +878,7 @@ function TaskView({ user }) {
                                 </div>
                             )}
 
-                            {completedTasks.length > 0 && (
+                            {sortedCompletedTasks.length > 0 && (
                                 <div className="completed-tasks-toggle-wrap">
                                     <button
                                         type="button"
@@ -884,24 +886,24 @@ function TaskView({ user }) {
                                         onClick={() => setShowCompletedTasks(prev => !prev)}
                                     >
                                         {showCompletedTasks
-                                            ? `Hide Completed (${completedTasks.length})`
-                                            : `Show Completed (${completedTasks.length})`}
+                                            ? `Hide Completed (${sortedCompletedTasks.length})`
+                                            : `Show Completed (${sortedCompletedTasks.length})`}
                                     </button>
                                 </div>
                             )}
 
-                            {completedTasks.length > 0 && showCompletedTasks && (
+                            {sortedCompletedTasks.length > 0 && showCompletedTasks && (
                                 <div className="completed-tasks-section">
                                     <div className="completed-section-header">
                                         <div className="task-section-title">
                                             <span>Completed</span>
                                         </div>
                                         <div className="task-section-subtitle">
-                                            {completedTasks.length} completed task{completedTasks.length === 1 ? '' : 's'}
+                                            {sortedCompletedTasks.length} completed task{sortedCompletedTasks.length === 1 ? '' : 's'}
                                         </div>
                                     </div>
                                     <div className="completed-tasks-grid">
-                                        {completedTasks.map(task => (
+                                        {sortedCompletedTasks.map(task => (
                                             <div key={task.taskId} className="completed-task-card">
                                                 <div className="completed-task-main">
                                                     <h3 className="completed-task-title">{task.taskName}</h3>
@@ -924,12 +926,14 @@ function TaskView({ user }) {
                                                     >
                                                         Reopen
                                                     </button>
-                                                    <button
-                                                        className="btn-delete"
-                                                        onClick={() => handleDeleteCompleted(task.taskId)}
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                    <ConfirmPopoverButton
+                                                        buttonClassName="btn-delete"
+                                                        buttonLabel="Delete"
+                                                        popoverClassName="confirm-popover-left"
+                                                        title="Delete completed task?"
+                                                        message={<><strong>{task.taskName}</strong> will be permanently removed.</>}
+                                                        onConfirm={() => handleDeleteCompleted(task.taskId)}
+                                                    />
                                                 </div>
                                             </div>
                                         ))}

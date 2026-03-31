@@ -18,12 +18,12 @@
     align-items: stretch;
 }
 
-.task-layout-loading {
-    overflow: hidden;
+.task-layout.task-layout-resizable {
+    gap: 0;
 }
 
-.task-layout.sidebar-collapsed {
-    grid-template-columns: 56px minmax(0, 1fr);
+.task-layout-loading {
+    overflow: hidden;
 }
 
 .project-sidebar {
@@ -37,35 +37,34 @@
     overflow: hidden;
 }
 
-.project-sidebar.collapsed {
-    padding: 1rem 0.5rem;
-    align-items: center;
+.project-sidebar-resize-handle {
+    position: relative;
+    width: 10px;
+    cursor: col-resize;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.08) 0%,
+        rgba(255, 255, 255, 0.02) 100%
+    );
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.sidebar-collapse-button {
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #f4f1f2;
-    font-size: 1.15rem;
-    line-height: 1;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-    margin-bottom: 1rem;
-    flex: 0 0 auto;
+.project-sidebar-resize-handle::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 56px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.28);
+    transform: translate(-50%, -50%);
 }
 
-.sidebar-collapse-button:hover {
-    background: rgba(255, 255, 255, 0.16);
-}
-
-.project-sidebar.collapsed .sidebar-collapse-button {
-    margin-bottom: 0;
+.project-sidebar-resize-handle:hover,
+.task-layout.is-resizing .project-sidebar-resize-handle {
+    background: rgba(63, 176, 186, 0.12);
+    box-shadow: inset 1px 0 0 rgba(63, 176, 186, 0.28), inset -1px 0 0 rgba(63, 176, 186, 0.28);
 }
 
 .project-sidebar-eyebrow {
@@ -637,6 +636,107 @@
     letter-spacing: 0.5px;
 }
 
+.confirm-popover-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.confirm-popover {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 0.7rem);
+    transform: translateY(-50%);
+    z-index: 30;
+    min-width: 220px;
+    max-width: min(280px, calc(100vw - 2rem));
+    padding: 0.9rem;
+    border-radius: 12px;
+    background: #f7f2f3;
+    color: #2c2528;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(61, 56, 60, 0.15);
+    display: grid;
+    gap: 0.65rem;
+}
+
+.confirm-popover::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -7px;
+    width: 14px;
+    height: 14px;
+    background: #f7f2f3;
+    border-left: 1px solid rgba(61, 56, 60, 0.15);
+    border-bottom: 1px solid rgba(61, 56, 60, 0.15);
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.confirm-popover-left {
+    left: auto;
+    right: calc(100% + 0.7rem);
+}
+
+.confirm-popover-left::before {
+    left: auto;
+    right: -7px;
+    border-left: none;
+    border-bottom: none;
+    border-right: 1px solid rgba(61, 56, 60, 0.15);
+    border-top: 1px solid rgba(61, 56, 60, 0.15);
+}
+
+.confirm-popover-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6e5961;
+}
+
+.confirm-popover-message {
+    font-size: 0.92rem;
+    line-height: 1.4;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.confirm-popover-message strong {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.confirm-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+}
+
+.confirm-popover-button {
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 0.95rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.confirm-popover-button-secondary {
+    background: rgba(61, 56, 60, 0.08);
+    color: #43383d;
+}
+
+.confirm-popover-button-danger {
+    background: #b93845;
+    color: #fff8f8;
+}
+
 .task-tags-inline {
     margin-top: 0.35rem;
     color: #66a8ff;
@@ -774,17 +874,16 @@
         height: auto;
     }
 
-    .task-layout.sidebar-collapsed {
-        grid-template-columns: 1fr;
-    }
-
     .project-sidebar {
         height: auto;
     }
 
-    .project-sidebar.collapsed {
-        padding: 0.75rem 1rem;
-        align-items: flex-start;
+    .task-layout.task-layout-resizable {
+        grid-template-columns: 1fr !important;
+    }
+
+    .project-sidebar-resize-handle {
+        display: none;
     }
 
     .task-section-title {
@@ -819,6 +918,34 @@
 
     .task-editor-grid {
         grid-template-columns: 1fr;
+    }
+
+    .confirm-popover {
+        top: calc(100% + 0.55rem);
+        left: 0;
+        transform: none;
+    }
+
+    .confirm-popover::before {
+        top: -7px;
+        left: 1.1rem;
+        border-left: 1px solid rgba(61, 56, 60, 0.15);
+        border-top: 1px solid rgba(61, 56, 60, 0.15);
+        border-bottom: none;
+        transform: rotate(45deg);
+    }
+
+    .confirm-popover-left {
+        left: 0;
+        right: auto;
+    }
+
+    .confirm-popover-left::before {
+        left: 1.1rem;
+        right: auto;
+        border-right: none;
+        border-left: 1px solid rgba(61, 56, 60, 0.15);
+        border-top: 1px solid rgba(61, 56, 60, 0.15);
     }
 
     .project-create-actions {
@@ -962,6 +1089,33 @@
 .completed-task-actions {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
+}
+
+.completed-task-actions .confirm-popover-wrap {
+    display: inline-flex;
+    align-items: center;
+}
+
+.completed-task-actions button {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.completed-task-actions .btn-delete {
+    background-color: rgba(220, 53, 69, 0.18);
+    color: #ffd6db;
+}
+
+.completed-task-actions .btn-delete:hover {
+    background-color: rgba(220, 53, 69, 0.28);
 }
 
 /* Tag Input Styles */

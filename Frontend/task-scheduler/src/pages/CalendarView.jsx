@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
+import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
+import useResizableSidebar from '../hooks/useResizableSidebar.js';
 import '../styles/TaskView.css';
 import '../styles/CalendarView.css';
 
@@ -22,7 +24,6 @@ function CalendarView({ user }) {
     const [isEditingTask, setIsEditingTask] = useState(false);
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
     const [viewType, setViewType] = useState('month');
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [projectVisibility, setProjectVisibility] = useState({});
     const [availableProjects, setAvailableProjects] = useState([]);
     const [allProjectObjects, setAllProjectObjects] = useState([]);
@@ -32,6 +33,7 @@ function CalendarView({ user }) {
     const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
     const [showProjectFilters, setShowProjectFilters] = useState(false);
+    const { isResizing, sidebarWidth, startResizing } = useResizableSidebar();
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -246,7 +248,7 @@ function CalendarView({ user }) {
         return task.deadline || '';
     };
 
-    const sortByDeadlineSchedulePriority = (taskA, taskB) => {
+    const sortByDeadlineSchedulePriority = useCallback((taskA, taskB) => {
         const dateA = taskA.deadline ? parseTaskDateTime(`${taskA.deadline}T00:00:00`) : null;
         const dateB = taskB.deadline ? parseTaskDateTime(`${taskB.deadline}T00:00:00`) : null;
         const deadlineA = dateA ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
@@ -269,7 +271,7 @@ function CalendarView({ user }) {
         }
 
         return (taskA.taskName || '').localeCompare(taskB.taskName || '');
-    };
+    });
 
     const getTasksForDate = (date) => {
         const dateStr = toDateKey(date);
@@ -525,10 +527,6 @@ function CalendarView({ user }) {
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (!window.confirm('Are you sure you want to delete this task?')) {
-            return;
-        }
-
         try {
             setError(null);
             await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
@@ -627,26 +625,13 @@ function CalendarView({ user }) {
         setCurrentDate(nextDate);
     };
 
-    const periodLabel = useMemo(() => {
-        if (viewType === 'month') {
-            return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-        }
-        if (viewType === 'day') {
-            return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-        }
-        const weekStart = getWeekStart(currentDate);
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-    }, [currentDate, viewType]);
-
     const sectionTitle = 'Calendar Overview';
 
     const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed`;
 
     const sidebarTasks = useMemo(() => {
         return [...visibleTasks].sort(sortByDeadlineSchedulePriority);
-    }, [visibleTasks]);
+    }, [sortByDeadlineSchedulePriority, visibleTasks]);
 
     const renderMonthView = () => {
         const daysInMonth = getDaysInMonth(currentDate);
@@ -911,47 +896,47 @@ function CalendarView({ user }) {
     return (
         <div className="task-view-container calendar-view-container">
             <div className="task-content">
-                <div className={`task-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-                    <aside className={`project-sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-                        <button
-                            type="button"
-                            className="sidebar-collapse-button"
-                            onClick={() => setIsSidebarCollapsed((prev) => !prev)}
-                            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                        >
-                            {isSidebarCollapsed ? '>' : '<'}
-                        </button>
-
-                        {!isSidebarCollapsed && (
-                            <div className="project-sidebar-main">
-                                <div className="project-section">
-                                    <p className="project-sidebar-eyebrow">Tasks by Deadline</p>
-                                    <div className="calendar-sidebar-task-list">
-                                        {sidebarTasks.length > 0 ? sidebarTasks.map((task) => (
-                                            <TaskListItem
-                                                key={`sidebar-${task.taskId}`}
-                                                task={task}
-                                                className="calendar-sidebar-task"
-                                                getProjectName={getProjectName}
-                                                getTagNames={getTagNames}
-                                                onSelect={setSelectedTask}
-                                                showCheckbox={false}
-                                                showTags={false}
-                                                showActions={false}
-                                                showDateTime={false}
-                                                metaItems={[
-                                                    `Project: ${getProjectName(task.project) || 'Uncategorized'}`,
-                                                    `Priority: ${task.priority || 'No priority'}`,
-                                                    `Deadline: ${formatDeadlineLabel(task.deadline)}`,
-                                                ]}
-                                                metaSeparator=" | "
-                                            />
-                                        )) : <p className="project-empty-state">No active tasks in this filter.</p>}
-                                    </div>
+                <div
+                    className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
+                    style={{ gridTemplateColumns: `${sidebarWidth}px 10px minmax(0, 1fr)` }}
+                >
+                    <aside className="project-sidebar">
+                        <div className="project-sidebar-main">
+                            <div className="project-section">
+                                <p className="project-sidebar-eyebrow">Tasks by Deadline</p>
+                                <div className="calendar-sidebar-task-list">
+                                    {sidebarTasks.length > 0 ? sidebarTasks.map((task) => (
+                                        <TaskListItem
+                                            key={`sidebar-${task.taskId}`}
+                                            task={task}
+                                            className="calendar-sidebar-task"
+                                            getProjectName={getProjectName}
+                                            getTagNames={getTagNames}
+                                            onSelect={setSelectedTask}
+                                            showCheckbox={false}
+                                            showTags={false}
+                                            showActions={false}
+                                            showDateTime={false}
+                                            metaItems={[
+                                                `Project: ${getProjectName(task.project) || 'Uncategorized'}`,
+                                                `Priority: ${task.priority || 'No priority'}`,
+                                                `Deadline: ${formatDeadlineLabel(task.deadline)}`,
+                                            ]}
+                                            metaSeparator=" | "
+                                        />
+                                    )) : <p className="project-empty-state">No active tasks in this filter.</p>}
                                 </div>
                             </div>
-                        )}
+                        </div>
                     </aside>
+
+                    <div
+                        className="project-sidebar-resize-handle"
+                        onPointerDown={startResizing}
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize sidebar"
+                    />
 
                     <div className="task-main-panel">
                         {error && <div className="error-message">{error}</div>}
@@ -1046,7 +1031,13 @@ function CalendarView({ user }) {
                                 <div className="task-editor-actions calendar-modal-actions">
                                     <button type="button" className="btn-edit" onClick={startEditingSelectedTask}>Edit Task</button>
                                     <button type="button" className="btn-save" onClick={() => handleCompleteTask(selectedTask.taskId)}>Complete</button>
-                                    <button type="button" className="btn-delete" onClick={() => handleDeleteTask(selectedTask.taskId)}>Delete</button>
+                                    <ConfirmPopoverButton
+                                        buttonClassName="btn-delete"
+                                        buttonLabel="Delete"
+                                        title="Delete task?"
+                                        message={<><strong>{selectedTask.taskName}</strong> will be permanently removed.</>}
+                                        onConfirm={() => handleDeleteTask(selectedTask.taskId)}
+                                    />
                                 </div>
                             </>
                         )}
