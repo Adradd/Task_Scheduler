@@ -66,7 +66,16 @@
     padding: 0.65rem;
     box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
 }
-
+.btn-save
+{
+    background-color: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #d9d4d7;
+    border-radius: 8px;
+    padding: 0.55rem 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
 .month-year h2 {
     margin: 0;
     font-size: 1.35rem;
@@ -256,7 +265,7 @@
 .week-day-header {
     padding: 0.7rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    min-height: 56px;
+    height: 56px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -292,7 +301,15 @@
     position: relative;
 }
 
-.week-time-offset {
+.week-time-header-spacer {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.week-time-unscheduled-spacer {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.week-time-leading-tick-spacer {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -306,14 +323,6 @@
     padding-top: 0.08rem;
 }
 
-.week-time-label-end {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    height: auto;
-    transform: translateY(45%);
-    padding-top: 0;
-}
 
 .week-view-grid-timeline {
     align-items: start;

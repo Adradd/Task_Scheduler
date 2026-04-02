@@ -1,4 +1,5 @@
 package app.CalendarApp.repository;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -8,12 +9,19 @@ public class Account {
     @Id
     private String accountId;
     private String username;
+    @JsonIgnore
     private String password;
     private String email;
     private String dateCreated;
     private String role;
     private String startWorkingHours;
     private String endWorkingHours;
+    @JsonIgnore
+    private String googleRefreshToken;
+    @JsonIgnore
+    private String googleAccessToken;
+    @JsonIgnore
+    private String googleAccessTokenExpiresAt;
 
     public Account(String accountId, String username, String password, String email,
                    String dateCreated, String startWorkingHours, String endWorkingHours) {
@@ -74,5 +82,29 @@ public class Account {
     }
     public void setEndWorkingHours(String endWorkingHours) {
         this.endWorkingHours = endWorkingHours;
+    }
+
+    public String getGoogleRefreshToken() {
+        return googleRefreshToken;
+    }
+
+    public void setGoogleRefreshToken(String googleRefreshToken) {
+        this.googleRefreshToken = googleRefreshToken;
+    }
+
+    public String getGoogleAccessToken() {
+        return googleAccessToken;
+    }
+
+    public void setGoogleAccessToken(String googleAccessToken) {
+        this.googleAccessToken = googleAccessToken;
+    }
+
+    public String getGoogleAccessTokenExpiresAt() {
+        return googleAccessTokenExpiresAt;
+    }
+
+    public void setGoogleAccessTokenExpiresAt(String googleAccessTokenExpiresAt) {
+        this.googleAccessTokenExpiresAt = googleAccessTokenExpiresAt;
     }
 }

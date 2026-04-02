@@ -5,6 +5,7 @@ import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.TaskRepository;
+import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,13 @@ import java.util.List;
 public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
     private final TaskAutoSchedulerService autoSchedulerService;
+    private final GoogleCalendarService googleCalendarService;
 
     @Autowired
-    public TaskServiceImpl(TaskRepository taskRepository, TaskAutoSchedulerService autoSchedulerService) {
+    public TaskServiceImpl(TaskRepository taskRepository, TaskAutoSchedulerService autoSchedulerService, GoogleCalendarService googleCalendarService) {
         this.taskRepository = taskRepository;
         this.autoSchedulerService = autoSchedulerService;
+        this.googleCalendarService = googleCalendarService;
     }
 
     @Override
@@ -68,7 +71,8 @@ public class TaskServiceImpl implements TaskService {
         if (autoSchedule) {
             task = autoSchedulerService.scheduleTask(task, task.getOwner(), taskRepository.findAllByOwner(task.getOwner()));
         }
-        return taskRepository.save(task);
+        Task saved = taskRepository.save(task);
+        return syncTaskToGoogleCalendar(saved);
     }
 
     @Override
@@ -85,13 +89,20 @@ public class TaskServiceImpl implements TaskService {
         if (autoSchedule) {
             task = autoSchedulerService.scheduleTask(task, task.getOwner(), taskRepository.findAllByOwner(task.getOwner()));
         }
-        return taskRepository.save(task);
+        Task saved = taskRepository.save(task);
+        return syncTaskToGoogleCalendar(saved);
     }
 
     @Override
     public void deleteTask(String taskId) {
-        if (taskId == null || taskRepository.findTaskByTaskId(taskId) == null) {
+        Task existingTask = taskId == null ? null : taskRepository.findTaskByTaskId(taskId);
+        if (existingTask == null) {
             throw new IllegalArgumentException("Task does not exist");
+        }
+        try {
+            googleCalendarService.syncTaskDelete(existingTask);
+        } catch (Exception ignored) {
+            // Keep app data consistent even if external calendar sync fails.
         }
         taskRepository.deleteById(taskId);
     }
@@ -133,6 +144,21 @@ public class TaskServiceImpl implements TaskService {
         }
         if (!isUpdate && taskRepository.findTaskByTaskId(task.getTaskId()) != null) {
             throw new IllegalArgumentException("Task ID already exists");
+        }
+    }
+
+    private Task syncTaskToGoogleCalendar(Task task) {
+        try {
+            String previousEventId = task.getGoogleCalendarEventId();
+            Task syncedTask = googleCalendarService.syncTaskUpsert(task);
+            if (syncedTask != null && syncedTask.getGoogleCalendarEventId() != null
+                && !syncedTask.getGoogleCalendarEventId().equals(previousEventId)) {
+                return taskRepository.save(syncedTask);
+            }
+            return syncedTask;
+        } catch (Exception ignored) {
+            // Keep app data consistent even if external calendar sync fails.
+            return task;
         }
     }
 }

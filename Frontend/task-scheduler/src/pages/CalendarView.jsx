@@ -61,9 +61,12 @@ function CalendarView({ user }) {
     const DAY_VIEW_END_HOUR = 23;
     const DAY_VIEW_HOUR_HEIGHT = 52;
     const WEEK_VIEW_HOUR_HEIGHT = 32;
-    const WEEK_VIEW_TOP_OFFSET = 134;
+    const WEEK_VIEW_HEADER_HEIGHT = 56;
+    const WEEK_VIEW_UNSCHEDULED_HEIGHT = 78;
+    const WEEK_VIEW_TICK_OFFSET = 1;
 
     const [tasks, setTasks] = useState([]);
+    const [googleEvents, setGoogleEvents] = useState([]);
     const [completedTasks, setCompletedTasks] = useState([]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(true);
@@ -116,6 +119,27 @@ function CalendarView({ user }) {
         project: task?.project || null,
         tags: Array.isArray(task?.tags) ? task.tags : [],
     });
+
+    const normalizeGoogleEvent = (event) => {
+        const startDateTime = event?.start?.dateTime || '';
+        const endDateTime = event?.end?.dateTime || '';
+        const isAllDay = !startDateTime && Boolean(event?.start?.date);
+        const deadline = event?.start?.date || (startDateTime ? startDateTime.slice(0, 10) : '');
+
+        return {
+            taskId: `google_${event?.id || Math.random().toString(36).slice(2)}`,
+            taskName: event?.summary || '(Google Calendar Event)',
+            deadline,
+            startTime: isAllDay ? '' : startDateTime,
+            endTime: isAllDay ? '' : endDateTime,
+            priority: 'Google',
+            project: { projectName: 'Google Calendar', projectColor: '#1a73e8' },
+            tags: [],
+            comments: event?.description || '',
+            isGoogleEvent: true,
+            googleEventUrl: event?.htmlLink || '',
+        };
+    };
 
     const getProjectName = (project) => {
         if (!project) return '';
@@ -184,11 +208,16 @@ function CalendarView({ user }) {
             setLoading(true);
             setError(null);
 
-            const [activeRes, completedRes, projectsRes, tagsRes] = await Promise.all([
+            const googleEventsPromise = axios
+                .get(`${backendUrl}/api/integrations/google/events`, getAuthConfig())
+                .catch(() => ({ data: { linked: false, events: [] } }));
+
+            const [activeRes, completedRes, projectsRes, tagsRes, googleRes] = await Promise.all([
                 axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
+                googleEventsPromise,
             ]);
 
             setTasks((activeRes.data || []).map(normalizeTask));
@@ -196,11 +225,13 @@ function CalendarView({ user }) {
             const projects = projectsRes.data || [];
             const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
             const tags = tagsRes.data || [];
+            const externalEvents = (googleRes?.data?.events || []).map(normalizeGoogleEvent);
 
             setAvailableProjects(projectNames);
             setAllProjectObjects(projects);
             setAllTagObjects(tags);
             setAvailableTags(tags.map((tag) => tag.tagName).filter(Boolean));
+            setGoogleEvents(externalEvents);
         } catch (err) {
             setError('Failed to fetch calendar tasks: ' + (err.response?.data?.message || err.message));
         } finally {
@@ -255,6 +286,10 @@ function CalendarView({ user }) {
         });
     }, [projectVisibility, tasks]);
 
+    const calendarItems = useMemo(() => {
+        return [...visibleTasks, ...googleEvents];
+    }, [visibleTasks, googleEvents]);
+
     const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
     const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     const getWeekStart = (date) => {
@@ -275,7 +310,7 @@ function CalendarView({ user }) {
 
     const getTasksForDate = (date) => {
         const dateStr = toDateKey(date);
-        return visibleTasks
+        return calendarItems
             .filter((task) => getTaskDisplayDateKey(task) === dateStr)
             .sort(sortByDeadlineSchedulePriority);
     };
@@ -284,13 +319,6 @@ function CalendarView({ user }) {
         const period = hour >= 12 ? 'PM' : 'AM';
         const normalizedHour = hour % 12 === 0 ? 12 : hour % 12;
         return `${normalizedHour}${period}`;
-    };
-
-    const formatHourBoundaryLabel = (hour) => {
-        if (hour >= DAY_VIEW_END_HOUR + 1) {
-            return '11:59PM';
-        }
-        return formatHourLabel(hour);
     };
 
     const formatTimeLabel = (date) => {
@@ -334,7 +362,7 @@ function CalendarView({ user }) {
         const scheduledEntries = [];
         const unscheduledEntries = [];
 
-        visibleTasks.forEach((task) => {
+        calendarItems.forEach((task) => {
             const { startDate, endDate, hasValidRange } = getTaskScheduleRange(task);
 
             if (hasValidRange && toDateKey(startDate) === selectedDateKey) {
@@ -598,6 +626,9 @@ function CalendarView({ user }) {
     };
 
     const getTaskCalendarColor = (task) => {
+        if (task?.isGoogleEvent) {
+            return '#1a73e8';
+        }
         return getProjectColor(task?.project) || getPriorityColor(task?.priority);
     };
 
@@ -627,7 +658,7 @@ function CalendarView({ user }) {
 
     const sectionTitle = 'Calendar Overview';
 
-    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed`;
+    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed - ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
 
     const sidebarTasks = useMemo(() => {
         return [...visibleTasks].sort(sortByDeadlineSchedulePriority);
@@ -694,21 +725,24 @@ function CalendarView({ user }) {
     const renderWeekView = () => {
         const weekStart = getWeekStart(currentDate);
         const totalHours = DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR + 1;
-        const dayHeight = totalHours * WEEK_VIEW_HOUR_HEIGHT;
+        const tickOffsetPx = WEEK_VIEW_TICK_OFFSET * WEEK_VIEW_HOUR_HEIGHT;
+        const dayHeight = (totalHours + WEEK_VIEW_TICK_OFFSET) * WEEK_VIEW_HOUR_HEIGHT;
+        const weekTopOffset = WEEK_VIEW_HEADER_HEIGHT + WEEK_VIEW_UNSCHEDULED_HEIGHT + tickOffsetPx;
         const dayHours = Array.from({ length: totalHours }, (_, idx) => DAY_VIEW_START_HOUR + idx);
-        const weekHourBoundaries = Array.from({ length: totalHours + 1 }, (_, idx) => DAY_VIEW_START_HOUR + idx);
+        const weekHourBoundaries = Array.from({ length: totalHours + WEEK_VIEW_TICK_OFFSET + 1 }, (_, idx) => idx);
 
         return (
             <div className="week-view">
                 <div className="week-timeline-wrap">
-                    <div className="week-time-labels" style={{ height: `${dayHeight + WEEK_VIEW_TOP_OFFSET}px` }}>
-                        <div className="week-time-offset" style={{ height: `${WEEK_VIEW_TOP_OFFSET}px` }} aria-hidden="true" />
+                    <div className="week-time-labels" style={{ height: `${dayHeight + weekTopOffset}px` }}>
+                        <div className="week-time-header-spacer" style={{ height: `${WEEK_VIEW_HEADER_HEIGHT}px` }} aria-hidden="true" />
+                        <div className="week-time-unscheduled-spacer" style={{ height: `${WEEK_VIEW_UNSCHEDULED_HEIGHT}px` }} aria-hidden="true" />
+                        <div className="week-time-leading-tick-spacer" style={{ height: `${tickOffsetPx}px` }} aria-hidden="true" />
                         {dayHours.map((hour) => (
                             <div key={`week-hour-${hour}`} className="week-time-label" style={{ height: `${WEEK_VIEW_HOUR_HEIGHT}px` }}>
                                 {formatHourLabel(hour)}
                             </div>
                         ))}
-                        <div className="week-time-label week-time-label-end">{formatHourBoundaryLabel(DAY_VIEW_END_HOUR + 1)}</div>
                     </div>
 
                     <div className="week-view-grid week-view-grid-timeline">
@@ -756,7 +790,7 @@ function CalendarView({ user }) {
                                         ))}
 
                                         {dayData.showCurrentTime && (
-                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop}px` }} />
+                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop + tickOffsetPx}px` }} />
                                         )}
 
                                         {dayData.scheduledEntries.map((entry) => (
@@ -766,7 +800,7 @@ function CalendarView({ user }) {
                                                 className="week-timeline-task"
                                                 onClick={() => setSelectedTask(entry.task)}
                                                 style={{
-                                                    top: `${entry.top}px`,
+                                                    top: `${entry.top + tickOffsetPx}px`,
                                                     height: `${entry.height}px`,
                                                     left: `calc(${entry.leftPct}% + 2px)`,
                                                     width: `calc(${entry.widthPct}% - 4px)`,
@@ -991,9 +1025,9 @@ function CalendarView({ user }) {
                             </div>
                         </div>
 
-                        {visibleTasks.length === 0 && (
+                        {calendarItems.length === 0 && (
                             <div className="empty-task-state calendar-empty-state">
-                                <h3>No tasks in this calendar filter</h3>
+                                <h3>No calendar items in this view</h3>
                                 <p>Adjust the date, view, or project checkboxes.</p>
                             </div>
                         )}
@@ -1014,6 +1048,7 @@ function CalendarView({ user }) {
                         ) : (
                             <>
                                 <div className="task-details">
+                                    {selectedTask.isGoogleEvent ? <div className="detail-item"><strong>Source:</strong> Google Calendar</div> : null}
                                     <div className="detail-item"><strong>Deadline:</strong> {selectedTask.deadline || 'No date'}</div>
                                     <div className="detail-item"><strong>Time to Complete:</strong> {selectedTask.timeToComplete || 'No estimate'}</div>
                                     <div className="detail-item"><strong>Start:</strong> {selectedTask.startTime || 'Unscheduled'}</div>
@@ -1028,17 +1063,26 @@ function CalendarView({ user }) {
                                     <div className="detail-item"><strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ') || 'None'}</div>
                                     {selectedTask.comments ? <div className="detail-item"><strong>Comments:</strong> {selectedTask.comments}</div> : null}
                                 </div>
-                                <div className="task-editor-actions calendar-modal-actions">
-                                    <button type="button" className="btn-edit" onClick={startEditingSelectedTask}>Edit Task</button>
-                                    <button type="button" className="btn-save" onClick={() => handleCompleteTask(selectedTask.taskId)}>Complete</button>
-                                    <ConfirmPopoverButton
-                                        buttonClassName="btn-delete"
-                                        buttonLabel="Delete"
-                                        title="Delete task?"
-                                        message={<><strong>{selectedTask.taskName}</strong> will be permanently removed.</>}
-                                        onConfirm={() => handleDeleteTask(selectedTask.taskId)}
-                                    />
-                                </div>
+                                {selectedTask.isGoogleEvent ? (
+                                    <div className="task-editor-actions calendar-modal-actions">
+                                        {selectedTask.googleEventUrl ? (
+                                            <a href={selectedTask.googleEventUrl} target="_blank" rel="noreferrer" className="btn-save">Open in Google Calendar</a>
+                                        ) : null}
+                                        <button type="button" className="btn-edit" onClick={closeSelectedTaskModal}>Close</button>
+                                    </div>
+                                ) : (
+                                    <div className="task-editor-actions calendar-modal-actions">
+                                        <button type="button" className="btn-edit" onClick={startEditingSelectedTask}>Edit Task</button>
+                                        <button type="button" className="btn-save" onClick={() => handleCompleteTask(selectedTask.taskId)}>Complete</button>
+                                        <ConfirmPopoverButton
+                                            buttonClassName="btn-delete"
+                                            buttonLabel="Delete"
+                                            title="Delete task?"
+                                            message={<><strong>{selectedTask.taskName}</strong> will be permanently removed.</>}
+                                            onConfirm={() => handleDeleteTask(selectedTask.taskId)}
+                                        />
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>

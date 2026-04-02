@@ -108,7 +108,20 @@ public class TaskController {
 
     @DeleteMapping("/{taskId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Void> deleteTask(@PathVariable String taskId) {
+    public ResponseEntity<?> deleteTask(@PathVariable String taskId, Authentication authentication) {
+        Account account = resolveAccount(authentication);
+        if (account == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Authenticated account not found"));
+        }
+
+        Task task = taskService.findTaskByTaskId(taskId);
+        if (task == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (task.getOwner() == null || !account.getId().equals(task.getOwner().getId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "You can only delete your own tasks"));
+        }
+
         taskService.deleteTask(taskId);
         return ResponseEntity.noContent().build();
     }
@@ -127,17 +140,38 @@ public class TaskController {
 
     @PutMapping("/{taskId}/complete")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Task> markTaskAsComplete(@PathVariable String taskId) {
+    public ResponseEntity<?> markTaskAsComplete(@PathVariable String taskId, Authentication authentication) {
+        Account account = resolveAccount(authentication);
+        if (account == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Authenticated account not found"));
+        }
+
+        Task existing = taskService.findTaskByTaskId(taskId);
+        if (existing == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (existing.getOwner() == null || !account.getId().equals(existing.getOwner().getId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
+        }
+
         Task task = taskService.markTaskAsComplete(taskId);
         return ResponseEntity.ok(task);
     }
 
     @PutMapping("/{taskId}/reopen")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<Task> reopenTask(@PathVariable String taskId) {
+    public ResponseEntity<?> reopenTask(@PathVariable String taskId, Authentication authentication) {
+        Account account = resolveAccount(authentication);
+        if (account == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Authenticated account not found"));
+        }
+
         Task task = taskService.findTaskByTaskId(taskId);
         if (task == null) {
             return ResponseEntity.notFound().build();
+        }
+        if (task.getOwner() == null || !account.getId().equals(task.getOwner().getId())) {
+            return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
         }
         task.setIsCompleted(false);
         Task updated = taskService.updateTask(task);

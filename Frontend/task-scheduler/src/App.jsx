@@ -35,7 +35,7 @@ function App() {
     };
 
     const handleRegisterSuccess = () => {
-        // User will navigate to login after successful registration
+
     };
 
     const handleLogout = () => {

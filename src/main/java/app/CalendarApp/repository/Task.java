@@ -30,6 +30,7 @@ public class Task {
     private boolean isCompleted;
     private String startTime;
     private String endTime;
+    private String googleCalendarEventId;
     @Transient
     private boolean autoSchedule;
 
@@ -199,6 +200,14 @@ public class Task {
     }
     public void setStartTime(String startTime) {
         this.startTime = startTime;
+    }
+
+    public String getGoogleCalendarEventId() {
+        return googleCalendarEventId;
+    }
+
+    public void setGoogleCalendarEventId(String googleCalendarEventId) {
+        this.googleCalendarEventId = googleCalendarEventId;
     }
 
     public boolean isAutoSchedule() {

@@ -131,3 +131,36 @@
     background: #e0e0e0;
 }
 
+.google-calendar-actions {
+    margin-top: 10px;
+}
+
+.google-calendar-actions button {
+    width: 100%;
+    border-radius: 4px;
+    border: none;
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.connect-btn {
+    background: #1a73e8;
+    color: #fff;
+}
+
+.disconnect-btn {
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.google-message {
+    margin-top: 8px;
+    padding: 10px;
+    background: #eef4ff;
+    border-left: 4px solid #1a73e8;
+    border-radius: 4px;
+    color: #1f2937;
+}
+

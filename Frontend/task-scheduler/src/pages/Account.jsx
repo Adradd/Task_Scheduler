@@ -9,6 +9,9 @@ function Account({ user, onLogout }) {
     const [error, setError] = useState(null);
     const [editing, setEditing] = useState(false);
     const [formData, setFormData] = useState({});
+    const [googleCalendarLinked, setGoogleCalendarLinked] = useState(false);
+    const [googleCalendarLoading, setGoogleCalendarLoading] = useState(false);
+    const [googleCalendarMessage, setGoogleCalendarMessage] = useState('');
     const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -29,8 +32,29 @@ function Account({ user, onLogout }) {
     useEffect(() => {
         if (user) {
             fetchAccountDetails();
+            fetchGoogleCalendarStatus();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const googleStatus = queryParams.get('google');
+        const googleMessage = queryParams.get('googleMessage');
+
+        if (googleStatus === 'connected') {
+            setGoogleCalendarMessage('Google Calendar connected successfully.');
+            fetchGoogleCalendarStatus();
+        } else if (googleStatus === 'failed') {
+            setGoogleCalendarMessage(googleMessage || 'Google Calendar connection failed.');
+        }
+
+        if (googleStatus || googleMessage) {
+            const cleanUrl = `${window.location.pathname}`;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const fetchAccountDetails = async () => {
         try {
@@ -50,6 +74,15 @@ function Account({ user, onLogout }) {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchGoogleCalendarStatus = async () => {
+        try {
+            const res = await axios.get(`${backendUrl}/api/integrations/google/status`, getAuthConfig());
+            setGoogleCalendarLinked(Boolean(res.data?.linked));
+        } catch (err) {
+            console.error('Failed to fetch Google Calendar status', err);
         }
     };
 
@@ -82,6 +115,39 @@ function Account({ user, onLogout }) {
     const handleLogout = () => {
         onLogout();
         navigate('/login');
+    };
+
+    const handleConnectGoogleCalendar = async () => {
+        try {
+            setGoogleCalendarLoading(true);
+            setGoogleCalendarMessage('');
+            const res = await axios.get(`${backendUrl}/api/integrations/google/connect`, getAuthConfig());
+            if (!res.data?.authorizationUrl) {
+                setGoogleCalendarMessage('Failed to start Google Calendar connection.');
+                return;
+            }
+            window.location.href = res.data.authorizationUrl;
+        } catch (err) {
+            setGoogleCalendarMessage('Failed to start Google Calendar connection.');
+            console.error(err);
+        } finally {
+            setGoogleCalendarLoading(false);
+        }
+    };
+
+    const handleDisconnectGoogleCalendar = async () => {
+        try {
+            setGoogleCalendarLoading(true);
+            setGoogleCalendarMessage('');
+            await axios.delete(`${backendUrl}/api/integrations/google/disconnect`, getAuthConfig());
+            setGoogleCalendarLinked(false);
+            setGoogleCalendarMessage('Google Calendar disconnected.');
+        } catch (err) {
+            setGoogleCalendarMessage('Failed to disconnect Google Calendar.');
+            console.error(err);
+        } finally {
+            setGoogleCalendarLoading(false);
+        }
     };
 
     if (loading) {
@@ -145,7 +211,35 @@ function Account({ user, onLogout }) {
                             <p>{accountData.endWorkingHours || '17:00'}</p>
                         )}
                     </div>
+
+                    <div className="info-group">
+                        <label>Google Calendar</label>
+                        <p>{googleCalendarLinked ? 'Connected' : 'Not connected'}</p>
+                        <div className="google-calendar-actions">
+                            {!googleCalendarLinked ? (
+                                <button
+                                    type="button"
+                                    className="connect-btn"
+                                    onClick={handleConnectGoogleCalendar}
+                                    disabled={googleCalendarLoading}
+                                >
+                                    {googleCalendarLoading ? 'Connecting...' : 'Connect Google Calendar'}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="disconnect-btn"
+                                    onClick={handleDisconnectGoogleCalendar}
+                                    disabled={googleCalendarLoading}
+                                >
+                                    {googleCalendarLoading ? 'Disconnecting...' : 'Disconnect Google Calendar'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
                 </div>
+
+                {googleCalendarMessage && <div className="google-message">{googleCalendarMessage}</div>}
 
                 <div className="account-actions">
                     {!editing ? (
