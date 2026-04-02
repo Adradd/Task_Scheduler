@@ -7,8 +7,8 @@ function RadialProgress({
     strokeWidth,
     progress,
     trackColor = 'rgba(255, 255, 255, 0.15)',
-    progressGradientStart = '#ff5b6b',
-    progressGradientEnd = '#ff9a3c',
+    progressGradientStart = '#fff3f3',
+    progressGradientEnd = '#098aff',
 }) {
     const safeProgress = clampProgress(progress);
     const center = size / 2;
