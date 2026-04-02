@@ -2,6 +2,8 @@ package app.CalendarApp.controller;
 
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.GoogleCalendarProjectMapping;
+import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
 import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.ProjectService;
 import app.CalendarApp.service.TagService;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -22,13 +26,21 @@ public class TaskController {
     private final AccountService accountService;
     private final TagService tagService;
     private final ProjectService projectService;
+    private final GoogleCalendarProjectMappingRepository mappingRepository;
 
     @Autowired
-    public TaskController(TaskService taskService, AccountService accountService, TagService tagService, ProjectService projectService) {
+    public TaskController(
+        TaskService taskService,
+        AccountService accountService,
+        TagService tagService,
+        ProjectService projectService,
+        GoogleCalendarProjectMappingRepository mappingRepository
+    ) {
         this.taskService = taskService;
         this.accountService = accountService;
         this.tagService = tagService;
         this.projectService = projectService;
+        this.mappingRepository = mappingRepository;
     }
 
     @GetMapping
@@ -42,6 +54,7 @@ public class TaskController {
         List<Task> tasks = taskService.findAllTasksByOwner(account);
         // Filter to only return uncompleted tasks
         tasks.removeIf(Task::isCompleted);
+        filterDisabledGoogleCalendarTasks(account, tasks);
         return ResponseEntity.ok(tasks);
     }
 
@@ -135,7 +148,28 @@ public class TaskController {
             return ResponseEntity.notFound().build();
         }
         List<Task> completedTasks = taskService.findAllCompletedTasksByOwner(account);
+        filterDisabledGoogleCalendarTasks(account, completedTasks);
         return ResponseEntity.ok(completedTasks);
+    }
+
+    private void filterDisabledGoogleCalendarTasks(Account account, List<Task> tasks) {
+        if (account == null || account.getId() == null || tasks == null || tasks.isEmpty()) {
+            return;
+        }
+
+        Set<String> disabledCalendarIds = mappingRepository.findAllByAccountId(account.getId()).stream()
+            .filter(mapping -> mapping != null && !mapping.isEnabled())
+            .map(GoogleCalendarProjectMapping::getGoogleCalendarId)
+            .filter(calendarId -> calendarId != null && !calendarId.isBlank())
+            .collect(Collectors.toSet());
+
+        if (disabledCalendarIds.isEmpty()) {
+            return;
+        }
+
+        tasks.removeIf(task -> task != null
+            && task.isImportedFromGoogle()
+            && disabledCalendarIds.contains(task.getGoogleSourceCalendarId()));
     }
 
     @PutMapping("/{taskId}/complete")

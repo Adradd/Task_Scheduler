@@ -164,3 +164,131 @@
     color: #1f2937;
 }
 
+.google-mapping-section {
+    margin-top: 16px;
+}
+
+.google-mapping-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.google-mapping-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #d8d8d8;
+    border-radius: 6px;
+    background: #f8f8f8;
+}
+
+.google-mapping-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.google-mapping-row select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.google-mapping-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #333;
+    font-size: 14px;
+}
+
+.google-mapping-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.google-mapping-toggle-row button {
+    width: auto;
+    min-width: 96px;
+    padding: 8px 12px;
+}
+
+.mapping-toggle-btn {
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.mapping-toggle-btn:hover {
+    transform: translateY(-1px);
+}
+
+.mapping-toggle-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+}
+
+.mapping-toggle-btn-enable {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+}
+
+.mapping-toggle-btn-enable:hover {
+    box-shadow: 0 5px 12px rgba(76, 175, 80, 0.35);
+}
+
+.mapping-toggle-btn-disable {
+    background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+}
+
+.mapping-toggle-btn-disable:hover {
+    box-shadow: 0 5px 12px rgba(211, 47, 47, 0.35);
+}
+
+.google-mapping-status {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+
+.google-mapping-status.is-enabled {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.google-mapping-status.is-disabled {
+    color: #7f1d1d;
+    background: #fee2e2;
+}
+
+.google-mapping-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.google-mapping-actions button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.google-mapping-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+

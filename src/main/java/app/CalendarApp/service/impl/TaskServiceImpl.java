@@ -99,10 +99,12 @@ public class TaskServiceImpl implements TaskService {
         if (existingTask == null) {
             throw new IllegalArgumentException("Task does not exist");
         }
-        try {
-            googleCalendarService.syncTaskDelete(existingTask);
-        } catch (Exception ignored) {
-            // Keep app data consistent even if external calendar sync fails.
+        if (!existingTask.isImportedFromGoogle()) {
+            try {
+                googleCalendarService.syncTaskDelete(existingTask);
+            } catch (Exception ignored) {
+                // Keep app data consistent even if external calendar sync fails.
+            }
         }
         taskRepository.deleteById(taskId);
     }
@@ -148,6 +150,9 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private Task syncTaskToGoogleCalendar(Task task) {
+        if (task == null || task.isImportedFromGoogle()) {
+            return task;
+        }
         try {
             String previousEventId = task.getGoogleCalendarEventId();
             Task syncedTask = googleCalendarService.syncTaskUpsert(task);

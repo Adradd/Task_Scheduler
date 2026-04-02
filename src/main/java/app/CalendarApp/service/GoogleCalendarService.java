@@ -2,6 +2,7 @@ package app.CalendarApp.service;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
+import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.TaskRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -34,6 +36,7 @@ public class GoogleCalendarService {
     private static final String GOOGLE_OAUTH_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
     private static final String GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
     private static final String GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+    private static final String GOOGLE_CALENDAR_LIST_URL = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
     private static final DateTimeFormatter TASK_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
     private static final DateTimeFormatter DEADLINE_DMY = DateTimeFormatter.ofPattern("dd-MM-uuuu");
     private static final long OAUTH_STATE_TTL_SECONDS = 600;
@@ -84,11 +87,12 @@ public class GoogleCalendarService {
             .queryParam("response_type", "code")
             .queryParam("client_id", clientId)
             .queryParam("redirect_uri", redirectUri)
-            .queryParam("scope", "https://www.googleapis.com/auth/calendar.events")
+            .queryParam("scope", "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly")
             .queryParam("access_type", "offline")
             .queryParam("prompt", "consent")
             .queryParam("state", state)
-            .build(true)
+            .build()
+            .encode()
             .toUriString();
     }
 
@@ -235,6 +239,122 @@ public class GoogleCalendarService {
         }
 
         return toMapList(response.get("items"));
+    }
+
+    public List<Map<String, Object>> listCalendars(Account account) {
+        if (account == null || !isCalendarLinked(account)) {
+            return List.of();
+        }
+
+        String accessToken = ensureValidAccessToken(account);
+        Map<String, Object> response;
+        try {
+            response = restClient.get()
+                .uri(GOOGLE_CALENDAR_LIST_URL)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .body(Map.class);
+        } catch (RestClientResponseException ex) {
+            String responseBody = ex.getResponseBodyAsString();
+            if (ex.getStatusCode().value() == 403
+                && responseBody != null
+                && responseBody.contains("ACCESS_TOKEN_SCOPE_INSUFFICIENT")) {
+                throw new IllegalStateException("Google authorization is outdated. Disconnect and reconnect Google Calendar to grant additional calendar permissions.");
+            }
+            throw ex;
+        }
+
+        if (response == null) {
+            return List.of();
+        }
+
+        return toMapList(response.get("items"));
+    }
+
+    public List<Map<String, Object>> fetchEventsForCalendar(Account account, String calendarId, Instant timeMin, Instant timeMax) {
+        if (account == null || !isCalendarLinked(account) || calendarId == null || calendarId.isBlank()) {
+            return List.of();
+        }
+
+        String accessToken = ensureValidAccessToken(account);
+        String eventsUrl = UriComponentsBuilder
+            .fromUriString("https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events")
+            .buildAndExpand(URLEncoder.encode(calendarId, StandardCharsets.UTF_8))
+            .toUriString();
+
+        String requestUrl = UriComponentsBuilder.fromUriString(eventsUrl)
+            .queryParam("singleEvents", "true")
+            .queryParam("orderBy", "startTime")
+            .queryParam("timeMin", (timeMin != null ? timeMin : Instant.now().minusSeconds(30L * 24L * 60L * 60L)).toString())
+            .queryParam("timeMax", (timeMax != null ? timeMax : Instant.now().plusSeconds(180L * 24L * 60L * 60L)).toString())
+            .build(true)
+            .toUriString();
+
+        Map<String, Object> response = restClient.get()
+            .uri(requestUrl)
+            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+            .retrieve()
+            .body(Map.class);
+
+        if (response == null) {
+            return List.of();
+        }
+
+        return toMapList(response.get("items"));
+    }
+
+    public int importCalendarEventsToProject(Account account, Project project, String calendarId, Instant timeMin, Instant timeMax) {
+        if (account == null || project == null || calendarId == null || calendarId.isBlank()) {
+            return 0;
+        }
+
+        List<Map<String, Object>> events = fetchEventsForCalendar(account, calendarId, timeMin, timeMax);
+        int importedCount = 0;
+
+        for (Map<String, Object> event : events) {
+            String eventId = getText(event, "id");
+            if (eventId == null || eventId.isBlank()) {
+                continue;
+            }
+
+            String status = getText(event, "status");
+            if ("cancelled".equalsIgnoreCase(status)) {
+                continue;
+            }
+
+            Task existing = taskRepository.findTaskByOwnerAndGoogleSourceCalendarIdAndGoogleSourceEventId(account, calendarId, eventId);
+            Task task = existing != null ? existing : new Task();
+
+            if (task.getTaskId() == null || task.getTaskId().isBlank()) {
+                task.setTaskId("gcal_" + System.currentTimeMillis() + "_" + Math.abs(eventId.hashCode()));
+            }
+
+            task.setOwner(account);
+            task.setImportedFromGoogle(true);
+            task.setGoogleSourceCalendarId(calendarId);
+            task.setGoogleSourceEventId(eventId);
+            task.setTaskName(getText(event, "summary") != null ? getText(event, "summary") : "Google Calendar Event");
+            task.setComments(getText(event, "description"));
+            task.setProject(project);
+            task.setPriority("medium");
+            task.setTimeToComplete(task.getTimeToComplete() != null ? task.getTimeToComplete() : "1h 0m");
+            task.setIsCompleted(false);
+
+            Map<String, Object> startMap = getMap(event, "start");
+            Map<String, Object> endMap = getMap(event, "end");
+            String startDateTime = getText(startMap, "dateTime");
+            String endDateTime = getText(endMap, "dateTime");
+            String startDate = getText(startMap, "date");
+
+            task.setDeadline(startDate != null ? startDate : toTaskDate(startDateTime));
+            task.setStartTime(toTaskDateTime(startDateTime));
+            task.setEndTime(toTaskDateTime(endDateTime));
+
+            taskRepository.save(task);
+            importedCount++;
+        }
+
+        return importedCount;
     }
 
     private Map<String, Object> createEvent(String accessToken, Map<String, Object> payload) {
@@ -428,6 +548,46 @@ public class GoogleCalendarService {
             return Long.parseLong(String.valueOf(value));
         } catch (NumberFormatException ignored) {
             return fallback;
+        }
+    }
+
+    private Map<String, Object> getMap(Map<String, Object> data, String field) {
+        if (data == null) {
+            return Map.of();
+        }
+        Object value = data.get(field);
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+
+        Map<String, Object> converted = new HashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            if (entry.getKey() != null) {
+                converted.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
+        return converted;
+    }
+
+    private String toTaskDate(String rfc3339DateTime) {
+        if (rfc3339DateTime == null || rfc3339DateTime.isBlank()) {
+            return LocalDate.now().toString();
+        }
+        try {
+            return OffsetDateTime.parse(rfc3339DateTime).toLocalDate().toString();
+        } catch (DateTimeParseException ex) {
+            return LocalDate.now().toString();
+        }
+    }
+
+    private String toTaskDateTime(String rfc3339DateTime) {
+        if (rfc3339DateTime == null || rfc3339DateTime.isBlank()) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(rfc3339DateTime).toLocalDateTime().format(TASK_DATE_TIME_FORMAT);
+        } catch (DateTimeParseException ex) {
+            return null;
         }
     }
 

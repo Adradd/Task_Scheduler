@@ -130,6 +130,7 @@ function CalendarView({ user }) {
         const endDateTime = event?.end?.dateTime || '';
         const isAllDay = !startDateTime && Boolean(event?.start?.date);
         const deadline = event?.start?.date || (startDateTime ? startDateTime.slice(0, 10) : '');
+        const sourceCalendarName = event?.googleCalendarName || 'Google Calendar';
 
         return {
             taskId: `google_${event?.id || Math.random().toString(36).slice(2)}`,
@@ -138,11 +139,13 @@ function CalendarView({ user }) {
             startTime: isAllDay ? '' : startDateTime,
             endTime: isAllDay ? '' : endDateTime,
             priority: 'Google',
-            project: { projectName: 'Google Calendar', projectColor: '#1a73e8' },
+            project: { projectName: sourceCalendarName, projectColor: '#1a73e8' },
             tags: [],
             comments: event?.description || '',
             isGoogleEvent: true,
             googleEventUrl: event?.htmlLink || '',
+            googleCalendarId: event?.googleCalendarId || '',
+            googleCalendarName: sourceCalendarName,
         };
     };
 
@@ -216,13 +219,17 @@ function CalendarView({ user }) {
             const googleEventsPromise = axios
                 .get(`${backendUrl}/api/integrations/google/events`, getAuthConfig())
                 .catch(() => ({ data: { linked: false, events: [] } }));
+            const googleMappingsPromise = axios
+                .get(`${backendUrl}/api/integrations/google/project-mappings`, getAuthConfig())
+                .catch(() => ({ data: { mappings: [] } }));
 
-            const [activeRes, completedRes, projectsRes, tagsRes, googleRes] = await Promise.all([
+            const [activeRes, completedRes, projectsRes, tagsRes, googleRes, googleMappingsRes] = await Promise.all([
                 axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
                 googleEventsPromise,
+                googleMappingsPromise,
             ]);
 
             setTasks((activeRes.data || []).map(normalizeTask));
@@ -230,7 +237,19 @@ function CalendarView({ user }) {
             const projects = projectsRes.data || [];
             const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
             const tags = tagsRes.data || [];
-            const externalEvents = (googleRes?.data?.events || []).map(normalizeGoogleEvent);
+            const mappings = googleMappingsRes?.data?.mappings || [];
+            const hasMappingData = mappings.length > 0;
+            const enabledCalendarIds = new Set(
+                mappings
+                    .filter((mapping) => mapping?.enabled && mapping?.googleCalendarId)
+                    .map((mapping) => mapping.googleCalendarId)
+            );
+
+            const sourceGoogleEvents = googleRes?.data?.events || [];
+            const filteredGoogleEvents = hasMappingData
+                ? sourceGoogleEvents.filter((event) => enabledCalendarIds.has(event?.googleCalendarId))
+                : sourceGoogleEvents;
+            const externalEvents = filteredGoogleEvents.map(normalizeGoogleEvent);
 
             setAvailableProjects(projectNames);
             setAllProjectObjects(projects);

@@ -31,6 +31,9 @@ public class Task {
     private String startTime;
     private String endTime;
     private String googleCalendarEventId;
+    private String googleSourceCalendarId;
+    private String googleSourceEventId;
+    private boolean importedFromGoogle;
     @Transient
     private boolean autoSchedule;
 
@@ -208,6 +211,30 @@ public class Task {
 
     public void setGoogleCalendarEventId(String googleCalendarEventId) {
         this.googleCalendarEventId = googleCalendarEventId;
+    }
+
+    public String getGoogleSourceCalendarId() {
+        return googleSourceCalendarId;
+    }
+
+    public void setGoogleSourceCalendarId(String googleSourceCalendarId) {
+        this.googleSourceCalendarId = googleSourceCalendarId;
+    }
+
+    public String getGoogleSourceEventId() {
+        return googleSourceEventId;
+    }
+
+    public void setGoogleSourceEventId(String googleSourceEventId) {
+        this.googleSourceEventId = googleSourceEventId;
+    }
+
+    public boolean isImportedFromGoogle() {
+        return importedFromGoogle;
+    }
+
+    public void setImportedFromGoogle(boolean importedFromGoogle) {
+        this.importedFromGoogle = importedFromGoogle;
     }
 
     public boolean isAutoSchedule() {
