@@ -72,6 +72,7 @@ function CalendarView({ user }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [selectedTaskLoading, setSelectedTaskLoading] = useState(false);
     const [editData, setEditData] = useState({});
     const [isEditingTask, setIsEditingTask] = useState(false);
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
@@ -113,6 +114,10 @@ function CalendarView({ user }) {
             },
         };
     };
+
+    const getErrorMessage = (err, fallback) => (
+        err.response?.data?.error || err.response?.data?.message || err.message || fallback
+    );
 
     const normalizeTask = (task) => ({
         ...task,
@@ -237,6 +242,11 @@ function CalendarView({ user }) {
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchTaskDetails = async (taskId) => {
+        const res = await axios.get(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
+        return normalizeTask(res.data || {});
     };
 
     const taskCountByProject = useMemo(() => {
@@ -521,11 +531,48 @@ function CalendarView({ user }) {
         setShowEditProjectDropdown(false);
     };
 
-    const startEditingSelectedTask = (taskToEdit = selectedTask) => {
+    const loadSelectedTask = async (task) => {
+        if (!task) {
+            return;
+        }
+
+        if (task.isGoogleEvent) {
+            setSelectedTask(task);
+            return;
+        }
+
+        setSelectedTaskLoading(true);
+        setError(null);
+
+        try {
+            const refreshedTask = await fetchTaskDetails(task.taskId);
+            setSelectedTask(refreshedTask);
+        } catch (err) {
+            setSelectedTask(normalizeTask(task));
+            setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+        } finally {
+            setSelectedTaskLoading(false);
+        }
+    };
+
+    const startEditingSelectedTask = async (taskToEdit = selectedTask) => {
         if (!taskToEdit) {
             return;
         }
-        const normalized = normalizeTask(taskToEdit);
+
+        let normalized = normalizeTask(taskToEdit);
+        if (!taskToEdit.isGoogleEvent && taskToEdit.taskId) {
+            setSelectedTaskLoading(true);
+            setError(null);
+            try {
+                normalized = await fetchTaskDetails(taskToEdit.taskId);
+            } catch (err) {
+                setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+            } finally {
+                setSelectedTaskLoading(false);
+            }
+        }
+
         const tagNames = getTagNames(normalized.tags);
         setEditData({
             ...normalized,
@@ -567,9 +614,10 @@ function CalendarView({ user }) {
 
             setTasks((prev) => prev.map((task) => (task.taskId === updatedTask.taskId ? updatedTask : task)));
             setSelectedTask(updatedTask);
+            await fetchCalendarData();
             stopEditingSelectedTask();
         } catch (err) {
-            setError('Failed to update task: ' + (err.response?.data?.message || err.message));
+            setError(`Failed to update task: ${getErrorMessage(err, 'Unknown error')}`);
         }
     };
 
@@ -584,7 +632,7 @@ function CalendarView({ user }) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError('Failed to complete task: ' + (err.response?.data?.message || err.message));
+            setError(`Failed to complete task: ${getErrorMessage(err, 'Unknown error')}`);
         }
     };
 
@@ -597,7 +645,7 @@ function CalendarView({ user }) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
+            setError(`Failed to delete task: ${getErrorMessage(err, 'Unknown error')}`);
         }
     };
 
@@ -737,7 +785,7 @@ function CalendarView({ user }) {
                                                     key={task.taskId}
                                                     className="month-task-item"
                                                     style={{ borderLeft: `3px solid ${getTaskCalendarColor(task)}` }}
-                                                    onClick={() => setSelectedTask(task)}
+                                                    onClick={() => loadSelectedTask(task)}
                                                 >
                                                     <span className="month-task-title">{task.taskName}</span>
                                                     <span className="month-task-meta">{deadlineLabel} | {startLabel}</span>
@@ -802,7 +850,7 @@ function CalendarView({ user }) {
                                                         type="button"
                                                         key={`unscheduled-${task.taskId}`}
                                                         className="week-unscheduled-item"
-                                                        onClick={() => setSelectedTask(task)}
+                                                        onClick={() => loadSelectedTask(task)}
                                                         style={{ borderLeftColor: getTaskCalendarColor(task) }}
                                                     >
                                                         <span className="week-unscheduled-name">{task.taskName}</span>
@@ -830,7 +878,7 @@ function CalendarView({ user }) {
                                                 type="button"
                                                 key={entry.task.taskId}
                                                 className="week-timeline-task"
-                                                onClick={() => setSelectedTask(entry.task)}
+                                                onClick={() => loadSelectedTask(entry.task)}
                                                 style={{
                                                     top: `${entry.top + tickOffsetPx}px`,
                                                     height: `${entry.height}px`,
@@ -878,8 +926,8 @@ function CalendarView({ user }) {
                                     type="button"
                                     key={task.taskId}
                                     className="day-unscheduled-item"
-                                    onClick={() => setSelectedTask(task)}
-                                                        style={{ borderLeftColor: getTaskCalendarColor(task) }}
+                                    onClick={() => loadSelectedTask(task)}
+                                    style={{ borderLeftColor: getTaskCalendarColor(task) }}
                                 >
                                     <span className="day-unscheduled-name">{task.taskName}</span>
                                     <span className="day-unscheduled-meta">{task.priority || 'No priority'} - {task.timeToComplete || 'No estimate'}</span>
@@ -921,7 +969,7 @@ function CalendarView({ user }) {
                                 type="button"
                                 key={entry.task.taskId}
                                 className="day-task-block"
-                                onClick={() => setSelectedTask(entry.task)}
+                                onClick={() => loadSelectedTask(entry.task)}
                                 style={{
                                     top: `${entry.top}px`,
                                     height: `${entry.height}px`,
@@ -978,7 +1026,7 @@ function CalendarView({ user }) {
                                             className="calendar-sidebar-task"
                                             getProjectName={getProjectName}
                                             getTagNames={getTagNames}
-                                            onSelect={setSelectedTask}
+                                    onSelect={loadSelectedTask}
                                             showCheckbox={false}
                                             showTags={false}
                                             showActions={false}
@@ -1069,7 +1117,9 @@ function CalendarView({ user }) {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="modal-close" onClick={closeSelectedTaskModal}>x</button>
                         <h3>{selectedTask.taskName}</h3>
-                        {isEditingTask ? (
+                        {selectedTaskLoading ? (
+                            <div className="task-main-panel loading loading-panel">Loading task details...</div>
+                        ) : isEditingTask ? (
                             <TaskEditorPanel {...getCalendarEditorProps()} />
                         ) : (
                             <>
@@ -1098,7 +1148,7 @@ function CalendarView({ user }) {
                                     </div>
                                 ) : (
                                     <div className="task-editor-actions calendar-modal-actions">
-                                        <button type="button" className="btn-edit" onClick={startEditingSelectedTask}>Edit Task</button>
+                                        <button type="button" className="btn-edit" onClick={() => startEditingSelectedTask()}>Edit Task</button>
                                         <button type="button" className="btn-save" onClick={() => handleCompleteTask(selectedTask.taskId)}>Complete</button>
                                         <ConfirmPopoverButton
                                             buttonClassName="btn-delete"
