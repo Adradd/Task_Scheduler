@@ -440,6 +440,40 @@ function CalendarView({ user }) {
 
     const dayViewData = getScheduledEntriesForDate(currentDate, DAY_VIEW_HOUR_HEIGHT);
 
+    const sectionTitle = useMemo(() => {
+        if (viewType === 'day') {
+            return currentDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+            });
+        }
+
+        if (viewType === 'week') {
+            const weekStart = getWeekStart(currentDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+
+            const startLabel = weekStart.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+            });
+            const endLabel = weekEnd.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+
+            return `Week of ${startLabel} - ${endLabel}`;
+        }
+
+        return currentDate.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+        });
+    }, [currentDate, viewType]);
+
     const getFilteredTags = (inputValue, currentTags) => {
         const input = inputValue.split(',').pop().trim().toLowerCase();
         if (!input) return availableTags.filter((tag) => !currentTags.includes(tag));
@@ -655,8 +689,6 @@ function CalendarView({ user }) {
         }
         setCurrentDate(nextDate);
     };
-
-    const sectionTitle = 'Calendar Overview';
 
     const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed - ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
 
@@ -1025,12 +1057,6 @@ function CalendarView({ user }) {
                             </div>
                         </div>
 
-                        {calendarItems.length === 0 && (
-                            <div className="empty-task-state calendar-empty-state">
-                                <h3>No calendar items in this view</h3>
-                                <p>Adjust the date, view, or project checkboxes.</p>
-                            </div>
-                        )}
                         <div className="calendar-grid-wrap">
                             {viewType === 'month' ? renderMonthView() : viewType === 'week' ? renderWeekView() : renderDayView()}
                         </div>
