@@ -127,6 +127,30 @@ class TaskAutoSchedulerServiceTests {
     }
 
     @Test
+    void avoidsExternalBusyIntervalsDuringAutoScheduling() {
+        LocalDate targetDate = LocalDate.now().plusDays(1);
+        Account owner = createOwner("09:00", "17:00");
+        Task task = createTask("task_new", "High", targetDate.toString());
+        task.setTimeToComplete("1h 0m");
+
+        Task blockToday = createTask("task_today", "High", LocalDate.now().toString());
+        blockToday.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        blockToday.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(17, 0)));
+
+        List<TaskAutoSchedulerService.BusyInterval> googleBusy = List.of(
+            new TaskAutoSchedulerService.BusyInterval(
+                LocalDateTime.of(targetDate, LocalTime.of(9, 0)),
+                LocalDateTime.of(targetDate, LocalTime.of(10, 30))
+            )
+        );
+
+        Task scheduled = schedulerService.scheduleTask(task, owner, List.of(blockToday), googleBusy);
+
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(10, 30)), scheduled.getStartTime());
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(11, 30)), scheduled.getEndTime());
+    }
+
+    @Test
     void returnsNullTimesWhenDeadlineCannotBeMet() {
         Account owner = createOwner("09:00", "10:00");
         Task task = createTask("task_new", "High", LocalDate.now().toString());

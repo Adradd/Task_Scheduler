@@ -146,6 +146,8 @@ function CalendarView({ user }) {
         };
     };
 
+    const isGoogleReadOnlyTask = (task) => Boolean(task?.isGoogleEvent || task?.importedFromGoogle || task?.googleSourceEventId);
+
     const getProjectName = (project) => {
         if (!project) return '';
         if (typeof project === 'string') return project;
@@ -208,21 +210,59 @@ function CalendarView({ user }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+        fetchGoogleEventsForRange(currentDate, viewType);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentDate, viewType, user]);
+
+    const getGoogleEventRange = (date, activeViewType) => {
+        const base = new Date(date);
+        if (activeViewType === 'day') {
+            const start = new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 1);
+            return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+        }
+
+        if (activeViewType === 'week') {
+            const start = getWeekStart(base);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 7);
+            return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+        }
+
+        const start = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0);
+        const end = new Date(base.getFullYear(), base.getMonth() + 1, 1, 0, 0, 0, 0);
+        return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+    };
+
+    const fetchGoogleEventsForRange = async (date, activeViewType) => {
+        const { timeMin, timeMax } = getGoogleEventRange(date, activeViewType);
+        try {
+            const googleRes = await axios.get(`${backendUrl}/api/integrations/google/events`, {
+                ...getAuthConfig(),
+                params: { timeMin, timeMax },
+            });
+            const sourceGoogleEvents = googleRes?.data?.events || [];
+            setGoogleEvents(sourceGoogleEvents.map(normalizeGoogleEvent));
+        } catch (err) {
+            setGoogleEvents([]);
+        }
+    };
+
     const fetchCalendarData = async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const googleEventsPromise = axios
-                .get(`${backendUrl}/api/integrations/google/events`, getAuthConfig())
-                .catch(() => ({ data: { linked: false, events: [] } }));
-
-            const [activeRes, completedRes, projectsRes, tagsRes, googleRes] = await Promise.all([
+            const [activeRes, completedRes, projectsRes, tagsRes] = await Promise.all([
                 axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
-                googleEventsPromise,
             ]);
 
             setTasks((activeRes.data || []).map(normalizeTask));
@@ -230,14 +270,12 @@ function CalendarView({ user }) {
             const projects = projectsRes.data || [];
             const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
             const tags = tagsRes.data || [];
-            const sourceGoogleEvents = googleRes?.data?.events || [];
-            const externalEvents = sourceGoogleEvents.map(normalizeGoogleEvent);
 
             setAvailableProjects(projectNames);
             setAllProjectObjects(projects);
             setAllTagObjects(tags);
             setAvailableTags(tags.map((tag) => tag.tagName).filter(Boolean));
-            setGoogleEvents(externalEvents);
+            await fetchGoogleEventsForRange(currentDate, viewType);
         } catch (err) {
             setError('Failed to fetch calendar tasks: ' + (err.response?.data?.message || err.message));
         } finally {
@@ -537,7 +575,7 @@ function CalendarView({ user }) {
             return;
         }
 
-        if (task.isGoogleEvent) {
+        if (isGoogleReadOnlyTask(task)) {
             setSelectedTask(task);
             return;
         }
@@ -562,7 +600,12 @@ function CalendarView({ user }) {
         }
 
         let normalized = normalizeTask(taskToEdit);
-        if (!taskToEdit.isGoogleEvent && taskToEdit.taskId) {
+        if (isGoogleReadOnlyTask(taskToEdit)) {
+            setSelectedTask(taskToEdit);
+            return;
+        }
+
+        if (taskToEdit.taskId) {
             setSelectedTaskLoading(true);
             setError(null);
             try {
@@ -711,7 +754,7 @@ function CalendarView({ user }) {
     };
 
     const getTaskCalendarColor = (task) => {
-        if (task?.isGoogleEvent) {
+        if (isGoogleReadOnlyTask(task)) {
             return '#1a73e8';
         }
         return getProjectColor(task?.project) || getPriorityColor(task?.priority);
@@ -1127,7 +1170,7 @@ function CalendarView({ user }) {
                         ) : (
                             <>
                                 <div className="task-details">
-                                    {selectedTask.isGoogleEvent ? <div className="detail-item"><strong>Source:</strong> Google Calendar</div> : null}
+                                    {isGoogleReadOnlyTask(selectedTask) ? <div className="detail-item"><strong>Source:</strong> Google Calendar</div> : null}
                                     <div className="detail-item"><strong>Deadline:</strong> {selectedTask.deadline || 'No date'}</div>
                                     <div className="detail-item"><strong>Time to Complete:</strong> {selectedTask.timeToComplete || 'No estimate'}</div>
                                     <div className="detail-item"><strong>Start:</strong> {selectedTask.startTime || 'Unscheduled'}</div>
@@ -1142,7 +1185,7 @@ function CalendarView({ user }) {
                                     <div className="detail-item"><strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ') || 'None'}</div>
                                     {selectedTask.comments ? <div className="detail-item"><strong>Comments:</strong> {selectedTask.comments}</div> : null}
                                 </div>
-                                {selectedTask.isGoogleEvent ? (
+                                {isGoogleReadOnlyTask(selectedTask) ? (
                                     <div className="task-editor-actions calendar-modal-actions">
                                         {selectedTask.googleEventUrl ? (
                                             <a href={selectedTask.googleEventUrl} target="_blank" rel="noreferrer" className="btn-save">Open in Google Calendar</a>

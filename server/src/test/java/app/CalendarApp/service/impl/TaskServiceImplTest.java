@@ -1,6 +1,7 @@
 package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -23,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +42,9 @@ class TaskServiceImplTest {
     @Mock
     private GoogleCalendarService googleCalendarService;
 
+    @Mock
+    private GoogleCalendarProjectMappingRepository mappingRepository;
+
     @InjectMocks
     private TaskServiceImpl taskService;
 
@@ -54,7 +60,6 @@ class TaskServiceImplTest {
     @Test
     void createTaskSavesWithoutAutoScheduling() {
         when(taskRepository.save(task)).thenReturn(task);
-        when(googleCalendarService.syncTaskUpsert(task)).thenReturn(task);
 
         Task created = taskService.createTask(task, false);
 
@@ -67,14 +72,37 @@ class TaskServiceImplTest {
         Task scheduled = TestDataFactory.task("task-1", owner, "Plan sprint");
         scheduled.setStartTime(LocalDateTime.of(2026, 4, 9, 9, 0));
         when(taskRepository.findAllByOwner(owner)).thenReturn(List.of());
-        when(autoSchedulerService.scheduleTask(task, owner, List.of())).thenReturn(scheduled);
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(false);
+        when(autoSchedulerService.scheduleTask(task, owner, List.of(), List.of())).thenReturn(scheduled);
         when(taskRepository.save(scheduled)).thenReturn(scheduled);
-        when(googleCalendarService.syncTaskUpsert(scheduled)).thenReturn(scheduled);
 
         Task created = taskService.createTask(task, true);
 
         assertEquals(LocalDateTime.of(2026, 4, 9, 9, 0), created.getStartTime());
-        verify(autoSchedulerService).scheduleTask(task, owner, List.of());
+        verify(autoSchedulerService).scheduleTask(task, owner, List.of(), List.of());
+    }
+
+    @Test
+    void createTaskAutoSchedulesWithGoogleBusyIntervals() {
+        Task scheduled = TestDataFactory.task("task-1", owner, "Plan sprint");
+        scheduled.setStartTime(LocalDateTime.of(2026, 4, 9, 11, 0));
+        scheduled.setDeadline(LocalDate.of(2026, 4, 10));
+        task.setDeadline(LocalDate.of(2026, 4, 10));
+
+        when(taskRepository.findAllByOwner(owner)).thenReturn(List.of());
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(true);
+        when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of());
+        when(googleCalendarService.fetchEvents(eq(owner), any(), any())).thenReturn(List.of(Map.of(
+            "start", Map.of("dateTime", "2026-04-09T09:00:00Z"),
+            "end", Map.of("dateTime", "2026-04-09T10:00:00Z")
+        )));
+        when(autoSchedulerService.scheduleTask(eq(task), eq(owner), eq(List.of()), any())).thenReturn(scheduled);
+        when(taskRepository.save(scheduled)).thenReturn(scheduled);
+
+        Task created = taskService.createTask(task, true);
+
+        assertEquals(LocalDateTime.of(2026, 4, 9, 11, 0), created.getStartTime());
+        verify(autoSchedulerService).scheduleTask(eq(task), eq(owner), eq(List.of()), any());
     }
 
     @Test
@@ -118,9 +146,9 @@ class TaskServiceImplTest {
         scheduled.setStartTime(LocalDateTime.of(2026, 4, 9, 11, 0));
         when(taskRepository.findTaskByTaskId("task-1")).thenReturn(existing);
         when(taskRepository.findAllByOwner(owner)).thenReturn(List.of(existing));
-        when(autoSchedulerService.scheduleTask(task, owner, List.of(existing))).thenReturn(scheduled);
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(false);
+        when(autoSchedulerService.scheduleTask(task, owner, List.of(existing), List.of())).thenReturn(scheduled);
         when(taskRepository.save(scheduled)).thenReturn(scheduled);
-        when(googleCalendarService.syncTaskUpsert(scheduled)).thenReturn(scheduled);
 
         Task updated = taskService.updateTask(task, true);
 
@@ -138,38 +166,22 @@ class TaskServiceImplTest {
     }
 
     @Test
-    void createTaskResavesWhenGoogleUpsertReturnsNewEventId() {
-        Task saved = TestDataFactory.task("task-1", owner, "Plan sprint");
-        Task synced = TestDataFactory.task("task-1", owner, "Plan sprint");
-        synced.setGoogleCalendarEventId("event-123");
-        when(taskRepository.save(task)).thenReturn(saved);
-        when(googleCalendarService.syncTaskUpsert(saved)).thenReturn(synced);
-        when(taskRepository.save(synced)).thenReturn(synced);
-
-        Task created = taskService.createTask(task, false);
-
-        assertEquals("event-123", created.getGoogleCalendarEventId());
-        verify(taskRepository).save(synced);
-    }
-
-    @Test
-    void createTaskReturnsSavedTaskWhenGoogleSyncFails() {
+    void createTaskDoesNotSyncToGoogleCalendar() {
         when(taskRepository.save(task)).thenReturn(task);
-        when(googleCalendarService.syncTaskUpsert(task)).thenThrow(new RuntimeException("google down"));
 
         Task created = taskService.createTask(task, false);
 
         assertSame(task, created);
+        verify(googleCalendarService, never()).syncTaskUpsert(any());
     }
 
     @Test
-    void deleteTaskSyncsGoogleDeleteForNonImportedTasks() {
-        task.setGoogleCalendarEventId("event-1");
+    void deleteTaskDeletesWithoutGoogleSync() {
         when(taskRepository.findTaskByTaskId("task-1")).thenReturn(task);
 
         taskService.deleteTask("task-1");
 
-        verify(googleCalendarService).syncTaskDelete(task);
+        verify(googleCalendarService, never()).syncTaskDelete(any());
         verify(taskRepository).deleteById("task-1");
     }
 
@@ -181,16 +193,6 @@ class TaskServiceImplTest {
         taskService.deleteTask("task-1");
 
         verify(googleCalendarService, never()).syncTaskDelete(any());
-        verify(taskRepository).deleteById("task-1");
-    }
-
-    @Test
-    void deleteTaskStillDeletesWhenGoogleSyncFails() {
-        when(taskRepository.findTaskByTaskId("task-1")).thenReturn(task);
-        when(googleCalendarService.syncTaskDelete(task)).thenThrow(new RuntimeException("google down"));
-
-        taskService.deleteTask("task-1");
-
         verify(taskRepository).deleteById("task-1");
     }
 
@@ -213,15 +215,14 @@ class TaskServiceImplTest {
     }
 
     @Test
-    void updateTaskWithoutGoogleEventIdDoesNotResave() {
+    void updateTaskWithoutGoogleSync() {
         when(taskRepository.findTaskByTaskId("task-1")).thenReturn(task);
         when(taskRepository.save(task)).thenReturn(task);
-        when(googleCalendarService.syncTaskUpsert(task)).thenReturn(task);
 
         Task updated = taskService.updateTask(task, false);
 
         assertSame(task, updated);
-        verify(taskRepository, never()).save(eq((Task) null));
+        verify(googleCalendarService, never()).syncTaskUpsert(any());
         assertNull(updated.getGoogleCalendarEventId());
     }
 }

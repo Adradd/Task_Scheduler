@@ -124,6 +124,8 @@ function TaskView({ user }) {
         tags: Array.isArray(task?.tags) ? task.tags : []
     });
 
+    const isGoogleReadOnlyTask = (task) => Boolean(task?.importedFromGoogle || task?.googleSourceEventId);
+
     // Generate time options: 15 minute increments up to 3 hours, then 30 minute increments
     const generateTimeOptions = () => {
         const options = [];
@@ -229,6 +231,10 @@ function TaskView({ user }) {
     };
 
     const handleEdit = (task) => {
+        if (isGoogleReadOnlyTask(task)) {
+            setError('Google Calendar events are view-only and cannot be edited in this app.');
+            return;
+        }
         setShowNewTaskForm(false);
         setEditingId(task.taskId);
         const normalized = normalizeTask(task);
@@ -296,6 +302,11 @@ function TaskView({ user }) {
     const handleDelete = async (taskId) => {
         try {
             setError(null);
+            const targetTask = tasks.find(t => t.taskId === taskId);
+            if (isGoogleReadOnlyTask(targetTask)) {
+                setError('Google Calendar events are view-only and cannot be deleted in this app.');
+                return;
+            }
             await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
             setTasks(tasks.filter(t => t.taskId !== taskId));
         } catch (err) {
@@ -307,6 +318,11 @@ function TaskView({ user }) {
     const handleCompleteTask = async (taskId) => {
         try {
             setError(null);
+            const targetTask = tasks.find(t => t.taskId === taskId);
+            if (isGoogleReadOnlyTask(targetTask)) {
+                setError('Google Calendar events are view-only and cannot be updated in this app.');
+                return;
+            }
             const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
             setTasks(tasks.filter(t => t.taskId !== taskId));
             setCompletedTasks([...completedTasks, normalizeTask(res.data)]);
@@ -319,6 +335,11 @@ function TaskView({ user }) {
     const handleReopenTask = async (taskId) => {
         try {
             setError(null);
+            const targetTask = completedTasks.find(t => t.taskId === taskId);
+            if (isGoogleReadOnlyTask(targetTask)) {
+                setError('Google Calendar events are view-only and cannot be updated in this app.');
+                return;
+            }
             const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/reopen`, {}, getAuthConfig());
             setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
             setTasks([...tasks, normalizeTask(res.data)]);
@@ -331,6 +352,11 @@ function TaskView({ user }) {
     const handleDeleteCompleted = async (taskId) => {
         try {
             setError(null);
+            const targetTask = completedTasks.find(t => t.taskId === taskId);
+            if (isGoogleReadOnlyTask(targetTask)) {
+                setError('Google Calendar events are view-only and cannot be deleted in this app.');
+                return;
+            }
             await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
             setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
         } catch (err) {
@@ -581,6 +607,15 @@ function TaskView({ user }) {
             onToggleComplete={handleCompleteTask}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            canToggleComplete={!isGoogleReadOnlyTask(task)}
+            canEdit={!isGoogleReadOnlyTask(task)}
+            canDelete={!isGoogleReadOnlyTask(task)}
+            metaItems={[
+                projectToProjectName(task.project) || 'Uncategorized',
+                formatPriorityLabel(task.priority) || 'No priority',
+                ...(isGoogleReadOnlyTask(task) ? ['Google Calendar (read-only)'] : []),
+                task.comments || '',
+            ].filter(Boolean)}
         />
     );
 
@@ -921,20 +956,26 @@ function TaskView({ user }) {
                                                     <span>{task.timeToComplete || 'No estimate'}</span>
                                                 </div>
                                                 <div className="completed-task-actions">
-                                                    <button
-                                                        className="btn-reopen"
-                                                        onClick={() => handleReopenTask(task.taskId)}
-                                                    >
-                                                        Reopen
-                                                    </button>
-                                                    <ConfirmPopoverButton
-                                                        buttonClassName="btn-delete"
-                                                        buttonLabel="Delete"
-                                                        popoverClassName="confirm-popover-left"
-                                                        title="Delete completed task?"
-                                                        message={<><strong>{task.taskName}</strong> will be permanently removed.</>}
-                                                        onConfirm={() => handleDeleteCompleted(task.taskId)}
-                                                    />
+                                                    {!isGoogleReadOnlyTask(task) ? (
+                                                        <>
+                                                            <button
+                                                                className="btn-reopen"
+                                                                onClick={() => handleReopenTask(task.taskId)}
+                                                            >
+                                                                Reopen
+                                                            </button>
+                                                            <ConfirmPopoverButton
+                                                                buttonClassName="btn-delete"
+                                                                buttonLabel="Delete"
+                                                                popoverClassName="confirm-popover-left"
+                                                                title="Delete completed task?"
+                                                                message={<><strong>{task.taskName}</strong> will be permanently removed.</>}
+                                                                onConfirm={() => handleDeleteCompleted(task.taskId)}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <span className="completed-task-readonly">Google Calendar event (read-only)</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         ))}

@@ -75,6 +75,9 @@ public class TaskController {
             }
 
             task.setOwner(account);
+            task.setImportedFromGoogle(false);
+            task.setGoogleSourceCalendarId(null);
+            task.setGoogleSourceEventId(null);
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
                 task.setProject(projectService.ensureProjectExists(account, task.getProject()));
             } else {
@@ -104,8 +107,14 @@ public class TaskController {
             if (existing.getOwner() == null || !account.getId().equals(existing.getOwner().getId())) {
                 return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
             }
+            if (existing.isImportedFromGoogle()) {
+                return ResponseEntity.status(403).body(Map.of("error", "Google Calendar events are view-only and cannot be edited in this app"));
+            }
 
             task.setOwner(account);
+            task.setImportedFromGoogle(false);
+            task.setGoogleSourceCalendarId(existing.getGoogleSourceCalendarId());
+            task.setGoogleSourceEventId(existing.getGoogleSourceEventId());
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
                 task.setProject(projectService.ensureProjectExists(account, task.getProject()));
             } else {
@@ -133,6 +142,9 @@ public class TaskController {
         }
         if (task.getOwner() == null || !account.getId().equals(task.getOwner().getId())) {
             return ResponseEntity.status(403).body(Map.of("error", "You can only delete your own tasks"));
+        }
+        if (task.isImportedFromGoogle()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Google Calendar events are view-only and cannot be deleted in this app"));
         }
 
         taskService.deleteTask(taskId);
@@ -187,6 +199,9 @@ public class TaskController {
         if (existing.getOwner() == null || !account.getId().equals(existing.getOwner().getId())) {
             return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
         }
+        if (existing.isImportedFromGoogle()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Google Calendar events are view-only and cannot be updated in this app"));
+        }
 
         Task task = taskService.markTaskAsComplete(taskId);
         return ResponseEntity.ok(task);
@@ -206,6 +221,9 @@ public class TaskController {
         }
         if (task.getOwner() == null || !account.getId().equals(task.getOwner().getId())) {
             return ResponseEntity.status(403).body(Map.of("error", "You can only update your own tasks"));
+        }
+        if (task.isImportedFromGoogle()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Google Calendar events are view-only and cannot be updated in this app"));
         }
         task.setIsCompleted(false);
         Task updated = taskService.updateTask(task);

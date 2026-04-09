@@ -110,6 +110,17 @@ public class GoogleCalendarIntegrationController {
 			Instant parsedTimeMin = parseInstant(timeMin);
 			Instant parsedTimeMax = parseInstant(timeMax);
 
+			List<Map<String, Object>> primaryEvents = safeEvents(
+				googleCalendarService.fetchEvents(account, parsedTimeMin, parsedTimeMax)
+			).stream()
+				.map(event -> {
+					Map<String, Object> eventWithSource = new HashMap<>(event);
+					eventWithSource.put("googleCalendarId", "primary");
+					eventWithSource.put("googleCalendarName", "Google Calendar");
+					return eventWithSource;
+				})
+				.toList();
+
 			List<GoogleCalendarProjectMapping> mappings = mappingRepository.findAllByAccountId(account.getId());
 			Set<String> enabledCalendarIds = mappings.stream()
 				.filter(mapping -> mapping != null && mapping.isEnabled())
@@ -118,15 +129,6 @@ public class GoogleCalendarIntegrationController {
 				.collect(Collectors.toSet());
 
 			if (enabledCalendarIds.isEmpty()) {
-				List<Map<String, Object>> primaryEvents = googleCalendarService.fetchEvents(account, parsedTimeMin, parsedTimeMax)
-					.stream()
-					.map(event -> {
-						Map<String, Object> eventWithSource = new HashMap<>(event);
-						eventWithSource.put("googleCalendarId", "primary");
-						eventWithSource.put("googleCalendarName", "Google Calendar");
-						return eventWithSource;
-					})
-					.toList();
 				return ResponseEntity.ok(Map.of("linked", true, "events", primaryEvents));
 			}
 
@@ -138,9 +140,14 @@ public class GoogleCalendarIntegrationController {
 					(existing, replacement) -> existing
 				));
 
-			List<Map<String, Object>> events = new ArrayList<>();
+			List<Map<String, Object>> events = new ArrayList<>(primaryEvents);
 			for (String calendarId : enabledCalendarIds) {
-				List<Map<String, Object>> calendarEvents = googleCalendarService.fetchEventsForCalendar(account, calendarId, parsedTimeMin, parsedTimeMax);
+				if ("primary".equalsIgnoreCase(calendarId)) {
+					continue;
+				}
+				List<Map<String, Object>> calendarEvents = safeEvents(
+					googleCalendarService.fetchEventsForCalendar(account, calendarId, parsedTimeMin, parsedTimeMax)
+				);
 				for (Map<String, Object> event : calendarEvents) {
 					Map<String, Object> eventWithSource = new HashMap<>(event);
 					eventWithSource.put("googleCalendarId", calendarId);
@@ -232,32 +239,9 @@ public class GoogleCalendarIntegrationController {
 	@PostMapping("/import-mapped-calendars")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> importMappedCalendars(Authentication authentication) {
-		Account account = resolveAccount(authentication);
-		if (account == null) {
-			return ResponseEntity.status(401).body(Map.of("error", "Authenticated account not found"));
-		}
-
-		List<Project> projects = projectService.findAllByOwner(account);
-		Map<String, Project> projectsById = projects.stream()
-			.filter(project -> project.getProjectId() != null)
-			.collect(java.util.stream.Collectors.toMap(Project::getProjectId, project -> project, (a, b) -> a));
-
-		int importedCount = 0;
-		List<GoogleCalendarProjectMapping> mappings = mappingRepository.findAllByAccountId(account.getId());
-		for (GoogleCalendarProjectMapping mapping : mappings) {
-			if (mapping == null || !mapping.isEnabled() || mapping.getProjectId() == null || mapping.getGoogleCalendarId() == null) {
-				continue;
-			}
-
-			Project mappedProject = projectsById.get(mapping.getProjectId());
-			if (mappedProject == null) {
-				continue;
-			}
-
-			importedCount += googleCalendarService.importCalendarEventsToProject(account, mappedProject, mapping.getGoogleCalendarId(), null, null);
-		}
-
-		return ResponseEntity.ok(Map.of("importedCount", importedCount));
+		return ResponseEntity.status(403).body(Map.of(
+			"error", "Google Calendar import is disabled in view-only mode"
+		));
 	}
 
 	@GetMapping("/callback")
@@ -307,6 +291,10 @@ public class GoogleCalendarIntegrationController {
 		}
 		String text = String.valueOf(value).trim();
 		return text.isEmpty() ? null : text;
+	}
+
+	private List<Map<String, Object>> safeEvents(List<Map<String, Object>> events) {
+		return events != null ? events : List.of();
 	}
 
 	private boolean getBoolean(Map<?, ?> map, String key, boolean fallback) {

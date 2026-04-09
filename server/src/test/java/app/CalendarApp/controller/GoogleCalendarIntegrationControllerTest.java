@@ -209,19 +209,9 @@ class GoogleCalendarIntegrationControllerTest {
     }
 
     @Test
-    void importMappedCalendarsImportsOnlyEnabledMappedProjects() throws Exception {
-        Project project = TestDataFactory.project("proj-1", owner, "Work");
-        GoogleCalendarProjectMapping enabled = TestDataFactory.mapping("acc-1", "cal-1", true);
-        enabled.setProjectId("proj-1");
-        GoogleCalendarProjectMapping disabled = TestDataFactory.mapping("acc-1", "cal-2", false);
-        disabled.setProjectId("proj-1");
-        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
-        when(projectService.findAllByOwner(owner)).thenReturn(List.of(project));
-        when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of(enabled, disabled));
-        when(googleCalendarService.importCalendarEventsToProject(owner, project, "cal-1", null, null)).thenReturn(3);
-
+    void importMappedCalendarsIsDisabledInViewOnlyMode() throws Exception {
         mockMvc.perform(post("/api/integrations/google/import-mapped-calendars").principal(new TestingAuthenticationToken("jane", null, "ROLE_USER")))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.importedCount").value(3));
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").value("Google Calendar import is disabled in view-only mode"));
     }
 }

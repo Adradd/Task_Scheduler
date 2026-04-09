@@ -159,6 +159,35 @@ class TaskControllerTest {
     }
 
     @Test
+    void updateTaskRejectsImportedGoogleTasks() throws Exception {
+        Task imported = TestDataFactory.task("task-1", owner, "Google Event");
+        imported.setImportedFromGoogle(true);
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+        when(taskService.findTaskByTaskId("task-1")).thenReturn(imported);
+
+        mockMvc.perform(put("/api/tasks")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"taskId":"task-1","taskName":"Google Event","deadline":"2026-04-10","priority":"high"}
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").value("Google Calendar events are view-only and cannot be edited in this app"));
+    }
+
+    @Test
+    void deleteTaskRejectsImportedGoogleTasks() throws Exception {
+        Task imported = TestDataFactory.task("task-1", owner, "Google Event");
+        imported.setImportedFromGoogle(true);
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+        when(taskService.findTaskByTaskId("task-1")).thenReturn(imported);
+
+        mockMvc.perform(delete("/api/tasks/task-1").principal(new TestingAuthenticationToken("jane", null, "ROLE_USER")))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.error").value("Google Calendar events are view-only and cannot be deleted in this app"));
+    }
+
+    @Test
     void markTaskAsCompleteReturnsUnauthorizedWhenAccountMissing() throws Exception {
         mockMvc.perform(put("/api/tasks/task-1/complete").principal(new TestingAuthenticationToken("jane", null, "ROLE_USER")))
             .andExpect(status().isUnauthorized())

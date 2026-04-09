@@ -16,6 +16,9 @@ function TaskListItem({
     showCheckbox = true,
     showTags = true,
     showActions = true,
+    canToggleComplete = true,
+    canEdit = true,
+    canDelete = true,
     metaItems = null,
     metaSeparator = ' • ',
 }) {
@@ -31,7 +34,7 @@ function TaskListItem({
     return (
         <div className={`task-card ${className} ${isEditing ? 'editing' : ''}`.trim()}>
             <div className="task-row">
-                {showCheckbox && (
+                {showCheckbox && canToggleComplete && (
                     <input
                         type="checkbox"
                         className="task-checkbox"
@@ -59,12 +62,12 @@ function TaskListItem({
                     </div>
                     {showActions && (
                         <div className="task-row-actions">
-                            {onEdit && (
+                            {onEdit && canEdit && (
                                 <button type="button" className="btn-edit" onClick={() => onEdit(task)}>
                                     Edit
                                 </button>
                             )}
-                            {onDelete && (
+                            {onDelete && canDelete && (
                                 <ConfirmPopoverButton
                                     buttonClassName="btn-delete"
                                     buttonLabel="Delete"

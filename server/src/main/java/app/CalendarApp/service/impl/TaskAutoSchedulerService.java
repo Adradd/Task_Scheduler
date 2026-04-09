@@ -37,7 +37,19 @@ public class TaskAutoSchedulerService {
     private static final Pattern MINUTES_ONLY_PATTERN = Pattern.compile("(?i)^(\\d+)m$");
     private static final Pattern TASK_ID_TIMESTAMP_PATTERN = Pattern.compile("^task_(\\d+)$");
 
+    public record BusyInterval(LocalDateTime start, LocalDateTime end) {
+    }
+
     public Task scheduleTask(Task task, Account owner, Collection<Task> existingTasks) {
+        return scheduleTask(task, owner, existingTasks, List.of());
+    }
+
+    public Task scheduleTask(
+        Task task,
+        Account owner,
+        Collection<Task> existingTasks,
+        Collection<BusyInterval> externalBusyIntervals
+    ) {
         if (task == null || owner == null) {
             return task;
         }
@@ -64,7 +76,13 @@ public class TaskAutoSchedulerService {
             return task;
         }
 
-        Map<LocalDate, List<int[]>> occupiedByDate = buildOccupiedIntervals(existingTasks, task.getTaskId(), workStart, workEnd);
+        Map<LocalDate, List<int[]>> occupiedByDate = buildOccupiedIntervals(
+            existingTasks,
+            task.getTaskId(),
+            workStart,
+            workEnd,
+            externalBusyIntervals
+        );
 
         while (!scanDate.isAfter(deadlineDate)) {
             LocalDateTime dayStart = LocalDateTime.of(scanDate, workStart);
@@ -205,44 +223,72 @@ public class TaskAutoSchedulerService {
         }
     }
 
-    private Map<LocalDate, List<int[]>> buildOccupiedIntervals(Collection<Task> existingTasks, String currentTaskId, LocalTime workStart, LocalTime workEnd) {
+    private Map<LocalDate, List<int[]>> buildOccupiedIntervals(
+        Collection<Task> existingTasks,
+        String currentTaskId,
+        LocalTime workStart,
+        LocalTime workEnd,
+        Collection<BusyInterval> externalBusyIntervals
+    ) {
         Map<LocalDate, List<int[]>> occupiedByDate = new HashMap<>();
-        if (existingTasks == null) {
-            return occupiedByDate;
+        if (existingTasks != null) {
+            for (Task existingTask : existingTasks) {
+                if (existingTask == null || existingTask.isCompleted()) {
+                    continue;
+                }
+                if (currentTaskId != null && currentTaskId.equals(existingTask.getTaskId())) {
+                    continue;
+                }
+
+                addOccupiedDateTimeRange(occupiedByDate, existingTask.getStartTime(), existingTask.getEndTime(), workStart, workEnd);
+            }
         }
 
-        for (Task existingTask : existingTasks) {
-            if (existingTask == null || existingTask.isCompleted()) {
-                continue;
+        if (externalBusyIntervals != null) {
+            for (BusyInterval interval : externalBusyIntervals) {
+                if (interval == null) {
+                    continue;
+                }
+                addOccupiedDateTimeRange(occupiedByDate, interval.start(), interval.end(), workStart, workEnd);
             }
-            if (currentTaskId != null && currentTaskId.equals(existingTask.getTaskId())) {
-                continue;
+        }
+
+        return occupiedByDate;
+    }
+
+    private void addOccupiedDateTimeRange(
+        Map<LocalDate, List<int[]>> occupiedByDate,
+        LocalDateTime start,
+        LocalDateTime end,
+        LocalTime workStart,
+        LocalTime workEnd
+    ) {
+        if (start == null || end == null || !end.isAfter(start)) {
+            return;
+        }
+
+        LocalDate cursor = start.toLocalDate();
+        LocalDate last = end.toLocalDate();
+        while (!cursor.isAfter(last)) {
+            LocalDateTime segmentStart = cursor.equals(start.toLocalDate()) ? start : LocalDateTime.of(cursor, LocalTime.MIDNIGHT);
+            LocalDateTime segmentEnd = cursor.equals(end.toLocalDate()) ? end : LocalDateTime.of(cursor.plusDays(1), LocalTime.MIDNIGHT);
+
+            int startMinutes = segmentStart.getHour() * 60 + segmentStart.getMinute();
+            int endMinutes = segmentEnd.getHour() * 60 + segmentEnd.getMinute();
+            if (segmentEnd.toLocalDate().isAfter(cursor)) {
+                endMinutes = 24 * 60;
             }
 
-            LocalDateTime start = existingTask.getStartTime();
-            LocalDateTime end = existingTask.getEndTime();
-            if (start == null || end == null || !end.isAfter(start)) {
-                continue;
-            }
-            if (!start.toLocalDate().equals(end.toLocalDate())) {
-                continue;
-            }
-
-            LocalDate date = start.toLocalDate();
-            int startMinutes = start.getHour() * 60 + start.getMinute();
-            int endMinutes = end.getHour() * 60 + end.getMinute();
             int dayStart = workStart.getHour() * 60 + workStart.getMinute();
             int dayEnd = workEnd.getHour() * 60 + workEnd.getMinute();
 
             int clippedStart = Math.max(startMinutes, dayStart);
             int clippedEnd = Math.min(endMinutes, dayEnd);
-            if (clippedEnd <= clippedStart) {
-                continue;
+            if (clippedEnd > clippedStart) {
+                occupiedByDate.computeIfAbsent(cursor, key -> new ArrayList<>()).add(new int[]{clippedStart, clippedEnd});
             }
 
-            occupiedByDate.computeIfAbsent(date, key -> new ArrayList<>()).add(new int[]{clippedStart, clippedEnd});
+            cursor = cursor.plusDays(1);
         }
-
-        return occupiedByDate;
     }
 }
