@@ -46,7 +46,7 @@ public class GoogleCalendarIntegrationController {
 		AccountService accountService,
 		ProjectService projectService,
 		GoogleCalendarProjectMappingRepository mappingRepository,
-		@Value("${google.oauth.frontend-url:http://localhost:5173}") String frontendUrl
+		@Value("${google.oauth.frontend-url}") String frontendUrl
 	) {
 		this.googleCalendarService = googleCalendarService;
 		this.accountService = accountService;
@@ -308,5 +308,4 @@ public class GoogleCalendarIntegrationController {
 		return Boolean.parseBoolean(String.valueOf(value));
 	}
 }
-
 

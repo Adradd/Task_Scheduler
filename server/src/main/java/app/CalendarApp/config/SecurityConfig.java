@@ -1,6 +1,7 @@
 package app.CalendarApp.config;
 
 import app.CalendarApp.service.CustomOAuth2UserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +20,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${google.oauth.frontend-url}")
+    private String frontendUrl;
 
     private final CustomOAuth2UserService customOAuth2UserService;
 
@@ -58,7 +62,7 @@ public class SecurityConfig {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:5173")
+                        .allowedOrigins(frontendUrl)
                         .allowedMethods("GET", "POST", "PUT", "DELETE")
                         .allowedHeaders("*");
             }
