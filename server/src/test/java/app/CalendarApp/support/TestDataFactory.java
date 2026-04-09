@@ -5,7 +5,9 @@ import app.CalendarApp.repository.GoogleCalendarProjectMapping;
 import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
+import app.CalendarApp.repository.TaskPriority;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public final class TestDataFactory {
@@ -41,9 +43,9 @@ public final class TestDataFactory {
         task.setTaskId(id);
         task.setOwner(owner);
         task.setTaskName(name);
-        task.setDeadline("2026-04-10");
+        task.setDeadline(LocalDate.of(2026, 4, 10));
         task.setTimeToComplete("1h");
-        task.setPriority("high");
+        task.setPriority(TaskPriority.HIGH);
         task.setTags(List.of());
         return task;
     }

@@ -4,6 +4,7 @@ import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
+import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 import '../styles/CalendarView.css';
 
@@ -17,11 +18,6 @@ const parseTaskDateTime = (value) => {
         return null;
     }
     return parsed;
-};
-
-const getPriorityRank = (priority) => {
-    const priorityOrder = { High: 0, Medium: 1, Low: 2 };
-    return priorityOrder[priority] ?? 3;
 };
 
 const getTaskScheduleRange = (task) => {
@@ -121,6 +117,7 @@ function CalendarView({ user }) {
 
     const normalizeTask = (task) => ({
         ...task,
+        priority: normalizePriority(task?.priority),
         project: task?.project || null,
         tags: Array.isArray(task?.tags) ? task.tags : [],
     });
@@ -138,7 +135,7 @@ function CalendarView({ user }) {
             deadline,
             startTime: isAllDay ? '' : startDateTime,
             endTime: isAllDay ? '' : endDateTime,
-            priority: 'Google',
+            priority: 'google',
             project: { projectName: sourceCalendarName, projectColor: '#1a73e8' },
             tags: [],
             comments: event?.description || '',
@@ -715,12 +712,14 @@ function CalendarView({ user }) {
 
     const getPriorityColor = (priority) => {
         switch (priority) {
-            case 'High':
+            case 'high':
                 return '#dc3545';
-            case 'Medium':
+            case 'medium':
                 return '#f0ad4e';
-            case 'Low':
+            case 'low':
                 return '#28a745';
+            case 'google':
+                return '#1a73e8';
             default:
                 return '#3fb0ba';
         }
@@ -949,7 +948,7 @@ function CalendarView({ user }) {
                                     style={{ borderLeftColor: getTaskCalendarColor(task) }}
                                 >
                                     <span className="day-unscheduled-name">{task.taskName}</span>
-                                    <span className="day-unscheduled-meta">{task.priority || 'No priority'} - {task.timeToComplete || 'No estimate'}</span>
+                                    <span className="day-unscheduled-meta">{formatPriorityLabel(task.priority) || 'No priority'} - {task.timeToComplete || 'No estimate'}</span>
                                 </button>
                             ))}
                         </div>
@@ -1052,7 +1051,7 @@ function CalendarView({ user }) {
                                             showDateTime={false}
                                             metaItems={[
                                                 `Project: ${getProjectName(task.project) || 'Uncategorized'}`,
-                                                `Priority: ${task.priority || 'No priority'}`,
+                                                `Priority: ${formatPriorityLabel(task.priority) || 'No priority'}`,
                                                 `Deadline: ${formatDeadlineLabel(task.deadline)}`,
                                             ]}
                                             metaSeparator=" | "
@@ -1151,7 +1150,7 @@ function CalendarView({ user }) {
                                     <div className="detail-item">
                                         <strong>Priority:</strong>
                                         <span className="priority-badge" style={{ backgroundColor: getTaskCalendarColor(selectedTask) }}>
-                                            {selectedTask.priority || 'No priority'}
+                                            {formatPriorityLabel(selectedTask.priority) || 'No priority'}
                                         </span>
                                     </div>
                                     <div className="detail-item"><strong>Project:</strong> {getProjectName(selectedTask.project) || 'Uncategorized'}</div>

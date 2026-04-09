@@ -1,4 +1,5 @@
 import ConfirmPopoverButton from './ConfirmPopoverButton.jsx';
+import { formatPriorityLabel } from '../utils/taskFormatting.js';
 
 function TaskListItem({
     task,
@@ -22,7 +23,7 @@ function TaskListItem({
     const projectName = getProjectName(task.project) || 'Uncategorized';
     const taskMeta = (metaItems || [
         projectName,
-        task.priority || 'No priority',
+        formatPriorityLabel(task.priority) || 'No priority',
         task.comments || '',
     ]).filter(Boolean);
     const isSelectable = typeof onSelect === 'function';

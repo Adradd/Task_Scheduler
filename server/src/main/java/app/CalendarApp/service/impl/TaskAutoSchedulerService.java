@@ -2,15 +2,14 @@ package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Task;
+import app.CalendarApp.repository.TaskPriority;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
-import java.time.format.DateTimeParseException;
 import java.time.format.SignStyle;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
@@ -25,8 +24,6 @@ import java.util.regex.Pattern;
 
 @Service
 public class TaskAutoSchedulerService {
-    private static final DateTimeFormatter DEADLINE_ISO = DateTimeFormatter.ISO_LOCAL_DATE;
-    private static final DateTimeFormatter DEADLINE_DMY = DateTimeFormatter.ofPattern("dd-MM-uuuu");
     private static final DateTimeFormatter WORK_HOUR_24H = DateTimeFormatter.ofPattern("H:mm");
     private static final DateTimeFormatter WORK_HOUR_12H = new DateTimeFormatterBuilder()
         .parseCaseInsensitive()
@@ -35,12 +32,10 @@ public class TaskAutoSchedulerService {
         .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
         .appendText(ChronoField.AMPM_OF_DAY)
         .toFormatter(Locale.US);
-
     private static final Pattern HOURS_MINUTES_PATTERN = Pattern.compile("(?i)^(\\d+)h\\s*(\\d+)m$");
     private static final Pattern HOURS_ONLY_PATTERN = Pattern.compile("(?i)^(\\d+)\\s*hours?$");
     private static final Pattern MINUTES_ONLY_PATTERN = Pattern.compile("(?i)^(\\d+)m$");
     private static final Pattern TASK_ID_TIMESTAMP_PATTERN = Pattern.compile("^task_(\\d+)$");
-    private static final DateTimeFormatter TASK_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
 
     public Task scheduleTask(Task task, Account owner, Collection<Task> existingTasks) {
         if (task == null || owner == null) {
@@ -48,9 +43,13 @@ public class TaskAutoSchedulerService {
         }
 
         int durationMinutes = parseTimeToCompleteMinutes(task.getTimeToComplete());
-        LocalDate deadlineDate = parseDeadline(task.getDeadline());
+        LocalDate deadlineDate = task.getDeadline();
         LocalTime workStart = parseWorkingHour(owner.getStartWorkingHours(), LocalTime.of(9, 0));
         LocalTime workEnd = parseWorkingHour(owner.getEndWorkingHours(), LocalTime.of(17, 0));
+
+        if (deadlineDate == null) {
+            throw new IllegalArgumentException("Deadline is required for auto-scheduling");
+        }
 
         if (!workEnd.isAfter(workStart)) {
             throw new IllegalArgumentException("End working hour must be after start working hour");
@@ -98,8 +97,8 @@ public class TaskAutoSchedulerService {
                 if (dayEndMinutes - pointer >= durationMinutes) {
                     LocalDateTime scheduledStart = LocalDateTime.of(scanDate, LocalTime.of(pointer / 60, pointer % 60));
                     LocalDateTime scheduledEnd = scheduledStart.plusMinutes(durationMinutes);
-                    task.setStartTime(scheduledStart.format(TASK_DATE_TIME_FORMAT));
-                    task.setEndTime(scheduledEnd.format(TASK_DATE_TIME_FORMAT));
+                    task.setStartTime(scheduledStart.withSecond(0).withNano(0));
+                    task.setEndTime(scheduledEnd.withSecond(0).withNano(0));
                     return task;
                 }
             }
@@ -135,26 +134,6 @@ public class TaskAutoSchedulerService {
         }
 
         throw new IllegalArgumentException("Unsupported time format: " + timeToComplete);
-    }
-
-    public LocalDate parseDeadline(String deadline) {
-        if (deadline == null || deadline.trim().isEmpty()) {
-            throw new IllegalArgumentException("Deadline is required for auto-scheduling");
-        }
-
-        String normalized = deadline.trim();
-
-        try {
-            return LocalDate.parse(normalized, DEADLINE_ISO);
-        } catch (DateTimeParseException ignored) {
-            // Fall through to alternate format.
-        }
-
-        try {
-            return LocalDate.parse(normalized, DEADLINE_DMY);
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Deadline must be YYYY-MM-DD or DD-MM-YYYY");
-        }
     }
 
     public LocalTime parseWorkingHour(String workingHour, LocalTime fallback) {
@@ -194,24 +173,19 @@ public class TaskAutoSchedulerService {
         return ordered;
     }
 
-    private int priorityRank(String priority) {
+    private int priorityRank(TaskPriority priority) {
         if (priority == null) {
             return 3;
         }
-        return switch (priority.trim().toLowerCase(Locale.US)) {
-            case "high" -> 0;
-            case "medium" -> 1;
-            case "low" -> 2;
-            default -> 3;
+        return switch (priority) {
+            case HIGH -> 0;
+            case MEDIUM -> 1;
+            case LOW -> 2;
         };
     }
 
-    private LocalDate safeDeadline(String deadline) {
-        try {
-            return parseDeadline(deadline);
-        } catch (IllegalArgumentException ex) {
-            return LocalDate.MAX;
-        }
+    private LocalDate safeDeadline(LocalDate deadline) {
+        return deadline != null ? deadline : LocalDate.MAX;
     }
 
     private long creationOrder(String taskId) {
@@ -245,8 +219,8 @@ public class TaskAutoSchedulerService {
                 continue;
             }
 
-            LocalDateTime start = parseTaskDateTime(existingTask.getStartTime());
-            LocalDateTime end = parseTaskDateTime(existingTask.getEndTime());
+            LocalDateTime start = existingTask.getStartTime();
+            LocalDateTime end = existingTask.getEndTime();
             if (start == null || end == null || !end.isAfter(start)) {
                 continue;
             }
@@ -271,30 +245,4 @@ public class TaskAutoSchedulerService {
 
         return occupiedByDate;
     }
-
-    private LocalDateTime parseTaskDateTime(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return null;
-        }
-
-        String normalized = value.trim().replace(' ', 'T');
-        try {
-            return LocalDateTime.parse(normalized, TASK_DATE_TIME_FORMAT);
-        } catch (DateTimeParseException ignored) {
-            // Fall through to ISO parsing.
-        }
-
-        try {
-            return LocalDateTime.parse(normalized);
-        } catch (DateTimeParseException ignored) {
-            // Fall through to offset datetime parsing.
-        }
-
-        try {
-            return OffsetDateTime.parse(normalized).toLocalDateTime();
-        } catch (DateTimeParseException ignored) {
-            return null;
-        }
-    }
 }
-

@@ -7,6 +7,7 @@ import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
+import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 
 function TaskView({ user }) {
@@ -118,6 +119,7 @@ function TaskView({ user }) {
 
     const normalizeTask = (task) => ({
         ...task,
+        priority: normalizePriority(task?.priority),
         project: task?.project || null,
         tags: Array.isArray(task?.tags) ? task.tags : []
     });
@@ -595,9 +597,8 @@ function TaskView({ user }) {
                 const projectB = projectToProjectName(b.project).toLowerCase();
                 return projectA.localeCompare(projectB);
             } else if (sortBy === 'priority') {
-                const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-                const orderA = priorityOrder[a.priority] !== undefined ? priorityOrder[a.priority] : 3;
-                const orderB = priorityOrder[b.priority] !== undefined ? priorityOrder[b.priority] : 3;
+                const orderA = getPriorityRank(a.priority);
+                const orderB = getPriorityRank(b.priority);
                 return orderA - orderB;
             }
             return 0;
@@ -911,7 +912,7 @@ function TaskView({ user }) {
                                                         <span className="completed-project-name" title={projectToProjectName(task.project) || 'Uncategorized'}>
                                                             {projectToProjectName(task.project) || 'Uncategorized'}
                                                         </span>
-                                                        <span>{task.priority || 'No priority'}</span>
+                                                        <span>{formatPriorityLabel(task.priority) || 'No priority'}</span>
                                                         {task.comments ? <span>{task.comments}</span> : null}
                                                     </div>
                                                 </div>

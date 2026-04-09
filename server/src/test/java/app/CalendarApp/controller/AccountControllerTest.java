@@ -46,6 +46,7 @@ class AccountControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.accountId").value("acc-1"))
             .andExpect(jsonPath("$.username").value("jane"))
+            .andExpect(jsonPath("$.dateCreated").value("2026-04-08"))
             .andExpect(jsonPath("$.message").value("Account created successfully"));
     }
 
@@ -118,6 +119,21 @@ class AccountControllerTest {
             .andExpect(jsonPath("$.username").value("janedoe"))
             .andExpect(jsonPath("$.email").value("janedoe@example.com"))
             .andExpect(jsonPath("$.startWorkingHours").value("08:00"));
+    }
+
+    @Test
+    void updateAccountReturnsBadRequestForInvalidWorkingHourFormat() throws Exception {
+        Account existing = TestDataFactory.account("acc-1", "jane");
+        when(accountService.findAccountByAccountId("acc-1")).thenReturn(existing);
+        when(accountService.updateAccount(any(Account.class))).thenThrow(new IllegalArgumentException("Invalid working hour format"));
+
+        mockMvc.perform(put("/api/accounts/acc-1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"startWorkingHours":"8am"}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid working hour format"));
     }
 
     @Test

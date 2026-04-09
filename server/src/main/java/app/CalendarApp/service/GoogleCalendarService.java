@@ -1,6 +1,7 @@
 package app.CalendarApp.service;
 
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.AccountRepository;
 import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Task;
@@ -22,7 +23,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,8 +37,6 @@ public class GoogleCalendarService {
     private static final String GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
     private static final String GOOGLE_CALENDAR_EVENTS_URL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
     private static final String GOOGLE_CALENDAR_LIST_URL = "https://www.googleapis.com/calendar/v3/users/me/calendarList";
-    private static final DateTimeFormatter TASK_DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
-    private static final DateTimeFormatter DEADLINE_DMY = DateTimeFormatter.ofPattern("dd-MM-uuuu");
     private static final long OAUTH_STATE_TTL_SECONDS = 600;
 
     private final AccountRepository accountRepository;
@@ -336,7 +334,7 @@ public class GoogleCalendarService {
             task.setTaskName(getText(event, "summary") != null ? getText(event, "summary") : "Google Calendar Event");
             task.setComments(getText(event, "description"));
             task.setProject(project);
-            task.setPriority("medium");
+            task.setPriority(TaskPriority.MEDIUM);
             task.setTimeToComplete(task.getTimeToComplete() != null ? task.getTimeToComplete() : "1h 0m");
             task.setIsCompleted(false);
 
@@ -346,7 +344,7 @@ public class GoogleCalendarService {
             String endDateTime = getText(endMap, "dateTime");
             String startDate = getText(startMap, "date");
 
-            task.setDeadline(startDate != null ? startDate : toTaskDate(startDateTime));
+            task.setDeadline(startDate != null ? LocalDate.parse(startDate) : toTaskDate(startDateTime));
             task.setStartTime(toTaskDateTime(startDateTime));
             task.setEndTime(toTaskDateTime(endDateTime));
 
@@ -449,8 +447,8 @@ public class GoogleCalendarService {
         Map<String, Object> start = new HashMap<>();
         Map<String, Object> end = new HashMap<>();
 
-        LocalDateTime startDateTime = parseTaskDateTime(task.getStartTime());
-        LocalDateTime endDateTime = parseTaskDateTime(task.getEndTime());
+        LocalDateTime startDateTime = task.getStartTime();
+        LocalDateTime endDateTime = task.getEndTime();
 
         if (startDateTime != null && endDateTime != null && endDateTime.isAfter(startDateTime)) {
             ZoneId zoneId = ZoneId.of(defaultTimeZone);
@@ -459,7 +457,7 @@ public class GoogleCalendarService {
             end.put("dateTime", endDateTime.atZone(zoneId).toOffsetDateTime().toString());
             end.put("timeZone", defaultTimeZone);
         } else {
-            LocalDate deadline = parseDeadline(task.getDeadline());
+            LocalDate deadline = task.getDeadline();
             if (deadline == null) {
                 deadline = LocalDate.now();
             }
@@ -477,44 +475,10 @@ public class GoogleCalendarService {
         if (task.getComments() != null && !task.getComments().isBlank()) {
             builder.append(task.getComments().trim()).append("\n\n");
         }
-        builder.append("Priority: ").append(task.getPriority() != null ? task.getPriority() : "N/A").append("\n");
+        builder.append("Priority: ").append(task.getPriority() != null ? task.getPriority().getValue() : "N/A").append("\n");
         builder.append("Deadline: ").append(task.getDeadline() != null ? task.getDeadline() : "N/A").append("\n");
         builder.append("Time to complete: ").append(task.getTimeToComplete() != null ? task.getTimeToComplete() : "N/A");
         return builder.toString();
-    }
-
-    private LocalDate parseDeadline(String deadline) {
-        if (deadline == null || deadline.isBlank()) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(deadline);
-        } catch (DateTimeParseException ignored) {
-            // Fall through to alternate format.
-        }
-        try {
-            return LocalDate.parse(deadline, DEADLINE_DMY);
-        } catch (DateTimeParseException ignored) {
-            return null;
-        }
-    }
-
-    private LocalDateTime parseTaskDateTime(String dateTime) {
-        if (dateTime == null || dateTime.isBlank()) {
-            return null;
-        }
-
-        String normalized = dateTime.trim().replace(' ', 'T');
-        try {
-            return LocalDateTime.parse(normalized, TASK_DATE_TIME_FORMAT);
-        } catch (DateTimeParseException ignored) {
-            // Try ISO parser as fallback.
-        }
-        try {
-            return LocalDateTime.parse(normalized);
-        } catch (DateTimeParseException ignored) {
-            return null;
-        }
     }
 
     private Instant parseInstant(String value) {
@@ -569,23 +533,23 @@ public class GoogleCalendarService {
         return converted;
     }
 
-    private String toTaskDate(String rfc3339DateTime) {
+    private LocalDate toTaskDate(String rfc3339DateTime) {
         if (rfc3339DateTime == null || rfc3339DateTime.isBlank()) {
-            return LocalDate.now().toString();
+            return LocalDate.now();
         }
         try {
-            return OffsetDateTime.parse(rfc3339DateTime).toLocalDate().toString();
+            return OffsetDateTime.parse(rfc3339DateTime).toLocalDate();
         } catch (DateTimeParseException ex) {
-            return LocalDate.now().toString();
+            return LocalDate.now();
         }
     }
 
-    private String toTaskDateTime(String rfc3339DateTime) {
+    private LocalDateTime toTaskDateTime(String rfc3339DateTime) {
         if (rfc3339DateTime == null || rfc3339DateTime.isBlank()) {
             return null;
         }
         try {
-            return OffsetDateTime.parse(rfc3339DateTime).toLocalDateTime().format(TASK_DATE_TIME_FORMAT);
+            return OffsetDateTime.parse(rfc3339DateTime).toLocalDateTime().withSecond(0).withNano(0);
         } catch (DateTimeParseException ex) {
             return null;
         }
@@ -653,5 +617,3 @@ public class GoogleCalendarService {
     private record OAuthState(String accountId, Instant expiresAt) {
     }
 }
-
-

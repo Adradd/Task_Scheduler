@@ -1,11 +1,14 @@
 package app.CalendarApp.repository;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -19,17 +22,20 @@ public class Task {
     private Account owner;
 
     private String taskName;
-    private String deadline;
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate deadline;
     private String timeToComplete;
-    private String priority;
+    private TaskPriority priority;
     @DocumentReference(lazy = true)
     private Project project;
     @DocumentReference(lazy = true)
     private List<Tag> tags = new ArrayList<>();
     private String comments;
     private boolean isCompleted;
-    private String startTime;
-    private String endTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private LocalDateTime startTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private LocalDateTime endTime;
     private String googleCalendarEventId;
     private String googleSourceCalendarId;
     private String googleSourceEventId;
@@ -41,7 +47,7 @@ public class Task {
         // Required by persistence/deserialization frameworks.
     }
 
-    public Task(String taskId, Account owner, String taskName, String deadline, String timeToComplete, String priority, Project project, List<Tag> tags, String comments, String startTime) {
+    public Task(String taskId, Account owner, String taskName, LocalDate deadline, String timeToComplete, TaskPriority priority, Project project, List<Tag> tags, String comments, LocalDateTime startTime) {
         this.taskId = taskId;
         this.owner = owner;
         this.taskName = taskName;
@@ -77,11 +83,11 @@ public class Task {
         this.taskName = taskName;
     }
 
-    public String getDeadline() {
+    public LocalDate getDeadline() {
         return deadline;
     }
 
-    public void setDeadline(String deadline) {
+    public void setDeadline(LocalDate deadline) {
         this.deadline = deadline;
     }
 
@@ -101,11 +107,11 @@ public class Task {
         this.project = project;
     }
 
-    public String getPriority() {
+    public TaskPriority getPriority() {
         return priority;
     }
 
-    public void setPriority(String priority) {
+    public void setPriority(TaskPriority priority) {
         this.priority = priority;
     }
 
@@ -192,16 +198,16 @@ public class Task {
     public void setIsCompleted(boolean completed) {
         isCompleted = completed;
     }
-    public String getEndTime() {
+    public LocalDateTime getEndTime() {
         return endTime;
     }
-    public void setEndTime(String endTime) {
+    public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
     }
-    public String getStartTime() {
+    public LocalDateTime getStartTime() {
         return startTime;
     }
-    public void setStartTime(String startTime) {
+    public void setStartTime(LocalDateTime startTime) {
         this.startTime = startTime;
     }
 

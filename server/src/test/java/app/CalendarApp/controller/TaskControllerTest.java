@@ -178,4 +178,44 @@ class TaskControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.taskId").value("task-1"));
     }
+
+    @Test
+    void createTaskReturnsBadRequestForInvalidPriorityFormat() throws Exception {
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+
+        mockMvc.perform(post("/api/tasks")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "taskId": "task-1",
+                      "taskName": "Write tests",
+                      "deadline": "2026-04-10",
+                      "timeToComplete": "1h",
+                      "priority": "urgent"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid request payload"));
+    }
+
+    @Test
+    void createTaskReturnsBadRequestForInvalidDateFormat() throws Exception {
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+
+        mockMvc.perform(post("/api/tasks")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "taskId": "task-1",
+                      "taskName": "Write tests",
+                      "deadline": "04/10/2026",
+                      "timeToComplete": "1h",
+                      "priority": "high"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Invalid request payload"));
+    }
 }

@@ -45,10 +45,10 @@ public class AccountController {
             if (accountUpdates.getEmail() != null && !accountUpdates.getEmail().isEmpty()) {
                 existingAccount.setEmail(accountUpdates.getEmail());
             }
-            if (accountUpdates.getStartWorkingHours() != null && !accountUpdates.getStartWorkingHours().isEmpty()) {
+            if (accountUpdates.getStartWorkingHours() != null) {
                 existingAccount.setStartWorkingHours(accountUpdates.getStartWorkingHours());
             }
-            if (accountUpdates.getEndWorkingHours() != null && !accountUpdates.getEndWorkingHours().isEmpty()) {
+            if (accountUpdates.getEndWorkingHours() != null) {
                 existingAccount.setEndWorkingHours(accountUpdates.getEndWorkingHours());
             }
 

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
 @Service
@@ -42,7 +43,6 @@ public class AccountServiceImpl implements AccountService {
     public Account createAccount(Account account) {
         validateAccount(account, false);
         account.setPassword(passwordEncoder.encode(account.getPassword()));
-        // Set the date created to today's date in YYYY-MM-DD format
         account.setDateCreated(LocalDate.now().toString());
         return accountRepository.save(account);
     }
@@ -74,6 +74,9 @@ public class AccountServiceImpl implements AccountService {
         if (!EMAIL_PATTERN.matcher(account.getEmail()).matches()) {
             throw new IllegalArgumentException("Invalid email format");
         }
+        if (account.getRole() == null || account.getRole().isBlank()) {
+            account.setRole("user");
+        }
         if (!isUpdate && accountRepository.findAccountByUsername(account.getUsername()) != null) {
             throw new IllegalArgumentException("Username already exists");
         }
@@ -87,8 +90,14 @@ public class AccountServiceImpl implements AccountService {
 
         if (account.getStartWorkingHours() != null && !account.getStartWorkingHours().isBlank()
             && account.getEndWorkingHours() != null && !account.getEndWorkingHours().isBlank()) {
-            LocalTime start = LocalTime.parse(account.getStartWorkingHours());
-            LocalTime end = LocalTime.parse(account.getEndWorkingHours());
+            LocalTime start;
+            LocalTime end;
+            try {
+                start = LocalTime.parse(account.getStartWorkingHours());
+                end = LocalTime.parse(account.getEndWorkingHours());
+            } catch (DateTimeParseException ex) {
+                throw new IllegalArgumentException("Invalid working hour format");
+            }
             if (!end.isAfter(start)) {
                 throw new IllegalArgumentException("End working hours must be after start working hours");
             }

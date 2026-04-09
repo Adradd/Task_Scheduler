@@ -2,6 +2,7 @@ package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Task;
+import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.support.TestDataFactory;
@@ -12,6 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -62,7 +65,7 @@ class TaskServiceImplTest {
     @Test
     void createTaskAutoSchedulesBeforeSaving() {
         Task scheduled = TestDataFactory.task("task-1", owner, "Plan sprint");
-        scheduled.setStartTime("2026-04-09T09:00");
+        scheduled.setStartTime(LocalDateTime.of(2026, 4, 9, 9, 0));
         when(taskRepository.findAllByOwner(owner)).thenReturn(List.of());
         when(autoSchedulerService.scheduleTask(task, owner, List.of())).thenReturn(scheduled);
         when(taskRepository.save(scheduled)).thenReturn(scheduled);
@@ -70,7 +73,7 @@ class TaskServiceImplTest {
 
         Task created = taskService.createTask(task, true);
 
-        assertEquals("2026-04-09T09:00", created.getStartTime());
+        assertEquals(LocalDateTime.of(2026, 4, 9, 9, 0), created.getStartTime());
         verify(autoSchedulerService).scheduleTask(task, owner, List.of());
     }
 
@@ -93,24 +96,6 @@ class TaskServiceImplTest {
     }
 
     @Test
-    void createTaskRejectsInvalidDeadline() {
-        task.setDeadline("04/10/2026");
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> taskService.createTask(task, false));
-
-        assertEquals("Deadline must be in DD-MM-YYYY or YYYY-MM-DD format", exception.getMessage());
-    }
-
-    @Test
-    void createTaskRejectsInvalidPriority() {
-        task.setPriority("urgent");
-
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> taskService.createTask(task, false));
-
-        assertEquals("Priority must be low, medium, or high", exception.getMessage());
-    }
-
-    @Test
     void createTaskRejectsDuplicateTaskId() {
         when(taskRepository.findTaskByTaskId("task-1")).thenReturn(TestDataFactory.task("task-1", owner, "Existing"));
 
@@ -130,7 +115,7 @@ class TaskServiceImplTest {
     void updateTaskAutoSchedulesAndSyncs() {
         Task existing = TestDataFactory.task("task-1", owner, "Existing");
         Task scheduled = TestDataFactory.task("task-1", owner, "Existing");
-        scheduled.setStartTime("2026-04-09T11:00");
+        scheduled.setStartTime(LocalDateTime.of(2026, 4, 9, 11, 0));
         when(taskRepository.findTaskByTaskId("task-1")).thenReturn(existing);
         when(taskRepository.findAllByOwner(owner)).thenReturn(List.of(existing));
         when(autoSchedulerService.scheduleTask(task, owner, List.of(existing))).thenReturn(scheduled);
@@ -139,7 +124,17 @@ class TaskServiceImplTest {
 
         Task updated = taskService.updateTask(task, true);
 
-        assertEquals("2026-04-09T11:00", updated.getStartTime());
+        assertEquals(LocalDateTime.of(2026, 4, 9, 11, 0), updated.getStartTime());
+    }
+
+    @Test
+    void createTaskRejectsInvalidScheduleRange() {
+        task.setStartTime(LocalDateTime.of(2026, 4, 10, 12, 0));
+        task.setEndTime(LocalDateTime.of(2026, 4, 10, 11, 0));
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> taskService.createTask(task, false));
+
+        assertEquals("End time must be after start time", exception.getMessage());
     }
 
     @Test

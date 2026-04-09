@@ -4,12 +4,14 @@ import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.Task;
+import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -41,12 +43,12 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task findTaskByDeadline(String deadline) {
+    public Task findTaskByDeadline(LocalDate deadline) {
         return taskRepository.findTaskByDeadline(deadline);
     }
 
     @Override
-    public Task findTaskByPriority(String priority) {
+    public Task findTaskByPriority(TaskPriority priority) {
         return taskRepository.findTaskByPriority(priority);
     }
 
@@ -135,14 +137,8 @@ public class TaskServiceImpl implements TaskService {
         if (task.getOwner().getUsername() == null || task.getOwner().getUsername().trim().isEmpty()) {
             throw new IllegalArgumentException("Owner username is required");
         }
-        if (task.getDeadline() != null && !task.getDeadline().matches("\\d{2}-\\d{2}-\\d{4}|\\d{4}-\\d{2}-\\d{2}")) {
-            throw new IllegalArgumentException("Deadline must be in DD-MM-YYYY or YYYY-MM-DD format");
-        }
-        if (task.getPriority() != null &&
-            !(task.getPriority().equalsIgnoreCase("low") ||
-              task.getPriority().equalsIgnoreCase("medium") ||
-              task.getPriority().equalsIgnoreCase("high"))) {
-            throw new IllegalArgumentException("Priority must be low, medium, or high");
+        if (task.getStartTime() != null && task.getEndTime() != null && !task.getEndTime().isAfter(task.getStartTime())) {
+            throw new IllegalArgumentException("End time must be after start time");
         }
         if (!isUpdate && taskRepository.findTaskByTaskId(task.getTaskId()) != null) {
             throw new IllegalArgumentException("Task ID already exists");

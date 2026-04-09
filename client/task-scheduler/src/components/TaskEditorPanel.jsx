@@ -67,9 +67,9 @@ function TaskEditorPanel({
                         onChange={(e) => onChange('priority', e.target.value)}
                     >
                         <option value="">Select Priority</option>
-                        <option value="Low">Low</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
                     </select>
                 </div>
 
@@ -175,4 +175,3 @@ function TaskEditorPanel({
 }
 
 export default TaskEditorPanel;
-

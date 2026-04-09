@@ -3,7 +3,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-
 @Document("Account")
 public class Account {
     @Id
@@ -22,6 +21,10 @@ public class Account {
     private String googleAccessToken;
     @JsonIgnore
     private String googleAccessTokenExpiresAt;
+
+    public Account() {
+        this.role = "user";
+    }
 
     public Account(String accountId, String username, String password, String email,
                    String dateCreated, String startWorkingHours, String endWorkingHours) {

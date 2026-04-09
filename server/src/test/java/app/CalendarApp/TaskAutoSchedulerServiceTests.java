@@ -2,6 +2,7 @@ package app.CalendarApp;
 
 import app.CalendarApp.repository.Task;
 import app.CalendarApp.repository.Account;
+import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.service.impl.TaskAutoSchedulerService;
 import org.junit.jupiter.api.Test;
 
@@ -23,15 +24,6 @@ class TaskAutoSchedulerServiceTests {
         assertEquals(90, schedulerService.parseTimeToCompleteMinutes("1h 30m"));
         assertEquals(120, schedulerService.parseTimeToCompleteMinutes("2 hours"));
         assertEquals(45, schedulerService.parseTimeToCompleteMinutes("45m"));
-    }
-
-    @Test
-    void parsesDeadlinesAndWorkingHours() {
-        assertEquals(LocalDate.of(2026, 3, 19), schedulerService.parseDeadline("2026-03-19"));
-        assertEquals(LocalDate.of(2026, 3, 19), schedulerService.parseDeadline("19-03-2026"));
-
-        assertEquals(LocalTime.of(9, 0), schedulerService.parseWorkingHour("09:00", LocalTime.of(8, 0)));
-        assertEquals(LocalTime.of(13, 30), schedulerService.parseWorkingHour("1:30PM", LocalTime.of(8, 0)));
     }
 
     @Test
@@ -65,13 +57,13 @@ class TaskAutoSchedulerServiceTests {
         task.setTimeToComplete("1h 0m");
 
         Task occupied = createTask("task_busy", "Medium", targetDate.toString());
-        occupied.setStartTime(earliest.toString());
-        occupied.setEndTime(earliest.plusHours(1).toString());
+        occupied.setStartTime(earliest.withSecond(0).withNano(0));
+        occupied.setEndTime(earliest.plusHours(1).withSecond(0).withNano(0));
 
         Task scheduled = schedulerService.scheduleTask(task, owner, List.of(occupied));
 
-        assertEquals(earliest.plusHours(1).withSecond(0).withNano(0).toString(), scheduled.getStartTime());
-        assertEquals(earliest.plusHours(2).withSecond(0).withNano(0).toString(), scheduled.getEndTime());
+        assertEquals(earliest.plusHours(1).withSecond(0).withNano(0), scheduled.getStartTime());
+        assertEquals(earliest.plusHours(2).withSecond(0).withNano(0), scheduled.getEndTime());
     }
 
     @Test
@@ -83,18 +75,18 @@ class TaskAutoSchedulerServiceTests {
         task.setTimeToComplete("30m");
 
         Task completed = createTask("task_completed", "High", targetDate.toString());
-        completed.setStartTime(earliest.toString());
-        completed.setEndTime(earliest.plusHours(3).toString());
+        completed.setStartTime(earliest.withSecond(0).withNano(0));
+        completed.setEndTime(earliest.plusHours(3).withSecond(0).withNano(0));
         completed.setIsCompleted(true);
 
         Task sameTask = createTask("task_same", "High", targetDate.toString());
-        sameTask.setStartTime(earliest.toString());
-        sameTask.setEndTime(earliest.plusHours(3).toString());
+        sameTask.setStartTime(earliest.withSecond(0).withNano(0));
+        sameTask.setEndTime(earliest.plusHours(3).withSecond(0).withNano(0));
 
         Task scheduled = schedulerService.scheduleTask(task, owner, List.of(completed, sameTask));
 
-        assertEquals(earliest.withSecond(0).withNano(0).toString(), scheduled.getStartTime());
-        assertEquals(earliest.plusMinutes(30).withSecond(0).withNano(0).toString(), scheduled.getEndTime());
+        assertEquals(earliest.withSecond(0).withNano(0), scheduled.getStartTime());
+        assertEquals(earliest.plusMinutes(30).withSecond(0).withNano(0), scheduled.getEndTime());
     }
 
     @Test
@@ -105,17 +97,17 @@ class TaskAutoSchedulerServiceTests {
         task.setTimeToComplete("1h 0m");
 
         Task blockToday = createTask("task_today", "High", LocalDate.now().toString());
-        blockToday.setStartTime(LocalDate.now() + "T09:00");
-        blockToday.setEndTime(LocalDate.now() + "T17:00");
+        blockToday.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        blockToday.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(17, 0)));
 
         Task occupied = createTask("task_busy", "Medium", targetDate.toString());
-        occupied.setStartTime(targetDate + "T07:30");
-        occupied.setEndTime(targetDate + "T09:30");
+        occupied.setStartTime(LocalDateTime.of(targetDate, LocalTime.of(7, 30)));
+        occupied.setEndTime(LocalDateTime.of(targetDate, LocalTime.of(9, 30)));
 
         Task scheduled = schedulerService.scheduleTask(task, owner, List.of(blockToday, occupied));
 
-        assertEquals(targetDate + "T09:30", scheduled.getStartTime());
-        assertEquals(targetDate + "T10:30", scheduled.getEndTime());
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(9, 30)), scheduled.getStartTime());
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(10, 30)), scheduled.getEndTime());
     }
 
     @Test
@@ -125,13 +117,13 @@ class TaskAutoSchedulerServiceTests {
         task.setTimeToComplete("1h 0m");
 
         Task occupied = createTask("task_busy", "Medium", LocalDate.now().toString());
-        occupied.setStartTime(LocalDate.now() + "T09:00");
-        occupied.setEndTime(LocalDate.now() + "T10:00");
+        occupied.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        occupied.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(10, 0)));
 
         Task scheduled = schedulerService.scheduleTask(task, owner, List.of(occupied));
 
-        assertEquals(LocalDate.now().plusDays(1) + "T09:00", scheduled.getStartTime());
-        assertEquals(LocalDate.now().plusDays(1) + "T10:00", scheduled.getEndTime());
+        assertEquals(LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(9, 0)), scheduled.getStartTime());
+        assertEquals(LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(10, 0)), scheduled.getEndTime());
     }
 
     @Test
@@ -155,10 +147,6 @@ class TaskAutoSchedulerServiceTests {
             () -> schedulerService.scheduleTask(task, createOwner("09:00", "17:00"), List.of()));
         assertEquals("Unsupported time format: soon", badDuration.getMessage());
 
-        IllegalArgumentException badDeadline = assertThrows(IllegalArgumentException.class,
-            () -> schedulerService.parseDeadline("2026/03/19"));
-        assertEquals("Deadline must be YYYY-MM-DD or DD-MM-YYYY", badDeadline.getMessage());
-
         IllegalArgumentException nullDateTime = assertThrows(IllegalArgumentException.class,
             () -> schedulerService.roundUpToNextQuarterHour(null));
         assertEquals("Date time is required", nullDateTime.getMessage());
@@ -178,28 +166,28 @@ class TaskAutoSchedulerServiceTests {
         task.setTimeToComplete("45m");
 
         Task blockToday = createTask("task_today", "High", LocalDate.now().toString());
-        blockToday.setStartTime(LocalDate.now() + "T09:00");
-        blockToday.setEndTime(LocalDate.now() + "T17:00");
+        blockToday.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        blockToday.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(17, 0)));
 
         Task iso = createTask("task_iso", "High", targetDate.toString());
-        iso.setStartTime(targetDate + "T09:00:00");
-        iso.setEndTime(targetDate + "T09:45:00");
+        iso.setStartTime(LocalDateTime.of(targetDate, LocalTime.of(9, 0)));
+        iso.setEndTime(LocalDateTime.of(targetDate, LocalTime.of(9, 45)));
 
         Task offset = createTask("task_offset", "High", targetDate.toString());
-        offset.setStartTime(targetDate + "T10:00:00Z");
-        offset.setEndTime(targetDate + "T10:30:00Z");
+        offset.setStartTime(LocalDateTime.of(targetDate, LocalTime.of(10, 0)));
+        offset.setEndTime(LocalDateTime.of(targetDate, LocalTime.of(10, 30)));
 
         Task scheduled = schedulerService.scheduleTask(task, owner, List.of(blockToday, iso, offset));
 
-        assertEquals(targetDate + "T10:30", scheduled.getStartTime());
-        assertEquals(targetDate + "T11:15", scheduled.getEndTime());
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(10, 30)), scheduled.getStartTime());
+        assertEquals(LocalDateTime.of(targetDate, LocalTime.of(11, 15)), scheduled.getEndTime());
     }
 
     private Task createTask(String taskId, String priority, String deadline) {
         Task task = new Task();
         task.setTaskId(taskId);
-        task.setPriority(priority);
-        task.setDeadline(deadline);
+        task.setPriority(TaskPriority.fromValue(priority));
+        task.setDeadline(LocalDate.parse(deadline));
         return task;
     }
 
