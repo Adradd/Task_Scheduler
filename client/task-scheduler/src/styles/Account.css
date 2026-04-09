@@ -1,0 +1,294 @@
+.account-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 80px);
+    background-color: #454047;
+    padding: 20px;
+}
+
+.account-card {
+    background: #dedbe3;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    padding: 40px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.account-card h1 {
+    text-align: left;
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 28px;
+}
+
+.account-info {
+    margin-bottom: 30px;
+}
+
+.info-group {
+    margin-bottom: 20px;
+}
+
+.info-group label {
+    display: block;
+    color: #666;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.info-group p {
+    color: #333;
+    font-size: 16px;
+    margin: 0;
+    padding: 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.info-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.info-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.error-message {
+    background-color: #ffebee;
+    color: #d32f2f;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border-left: 4px solid #d32f2f;
+}
+
+.account-actions {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
+.account-actions button {
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.edit-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.edit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.logout-btn {
+    background: #f5f5f5;
+    color: #d32f2f;
+    border: 2px solid #d32f2f;
+}
+
+.logout-btn:hover {
+    background: #ffe0e0;
+}
+
+.save-btn {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    color: white;
+}
+
+.save-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+}
+
+.cancel-btn {
+    background: #f5f5f5;
+    color: #666;
+    border: 2px solid #e0e0e0;
+}
+
+.cancel-btn:hover {
+    background: #e0e0e0;
+}
+
+.google-calendar-actions {
+    margin-top: 10px;
+}
+
+.google-calendar-actions button {
+    width: 100%;
+    border-radius: 4px;
+    border: none;
+    padding: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.connect-btn {
+    background: #1a73e8;
+    color: #fff;
+}
+
+.disconnect-btn {
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ccc;
+}
+
+.google-message {
+    margin-top: 8px;
+    padding: 10px;
+    background: #eef4ff;
+    border-left: 4px solid #1a73e8;
+    border-radius: 4px;
+    color: #1f2937;
+}
+
+.google-mapping-section {
+    margin-top: 16px;
+}
+
+.google-mapping-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.google-mapping-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #d8d8d8;
+    border-radius: 6px;
+    background: #f8f8f8;
+}
+
+.google-mapping-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.google-mapping-row select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.google-mapping-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #333;
+    font-size: 14px;
+}
+
+.google-mapping-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.google-mapping-toggle-row button {
+    width: auto;
+    min-width: 96px;
+    padding: 8px 12px;
+}
+
+.mapping-toggle-btn {
+    border: none;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.mapping-toggle-btn:hover {
+    transform: translateY(-1px);
+}
+
+.mapping-toggle-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+}
+
+.mapping-toggle-btn-enable {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+}
+
+.mapping-toggle-btn-enable:hover {
+    box-shadow: 0 5px 12px rgba(76, 175, 80, 0.35);
+}
+
+.mapping-toggle-btn-disable {
+    background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+}
+
+.mapping-toggle-btn-disable:hover {
+    box-shadow: 0 5px 12px rgba(211, 47, 47, 0.35);
+}
+
+.google-mapping-status {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+
+.google-mapping-status.is-enabled {
+    color: #166534;
+    background: #dcfce7;
+}
+
+.google-mapping-status.is-disabled {
+    color: #7f1d1d;
+    background: #fee2e2;
+}
+
+.google-mapping-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.google-mapping-actions button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.google-mapping-actions button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
