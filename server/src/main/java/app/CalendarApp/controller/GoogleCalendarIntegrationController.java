@@ -118,7 +118,16 @@ public class GoogleCalendarIntegrationController {
 				.collect(Collectors.toSet());
 
 			if (enabledCalendarIds.isEmpty()) {
-				return ResponseEntity.ok(Map.of("linked", true, "events", List.of()));
+				List<Map<String, Object>> primaryEvents = googleCalendarService.fetchEvents(account, parsedTimeMin, parsedTimeMax)
+					.stream()
+					.map(event -> {
+						Map<String, Object> eventWithSource = new HashMap<>(event);
+						eventWithSource.put("googleCalendarId", "primary");
+						eventWithSource.put("googleCalendarName", "Google Calendar");
+						return eventWithSource;
+					})
+					.toList();
+				return ResponseEntity.ok(Map.of("linked", true, "events", primaryEvents));
 			}
 
 			Map<String, String> calendarNames = mappings.stream()

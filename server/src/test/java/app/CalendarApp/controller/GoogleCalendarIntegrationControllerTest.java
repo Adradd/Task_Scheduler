@@ -99,15 +99,18 @@ class GoogleCalendarIntegrationControllerTest {
     }
 
     @Test
-    void eventsReturnsEmptyWhenAllMappingsDisabled() throws Exception {
+    void eventsFallsBackToPrimaryCalendarWhenAllMappingsDisabled() throws Exception {
         when(accountService.findAccountByUsername("jane")).thenReturn(owner);
         when(googleCalendarService.isCalendarLinked(owner)).thenReturn(true);
         when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of(TestDataFactory.mapping("acc-1", "cal-1", false)));
+        when(googleCalendarService.fetchEvents(eq(owner), any(), any())).thenReturn(List.of(Map.of("id", "evt-primary")));
 
         mockMvc.perform(get("/api/integrations/google/events").principal(new TestingAuthenticationToken("jane", null, "ROLE_USER")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.linked").value(true))
-            .andExpect(jsonPath("$.events.length()").value(0));
+            .andExpect(jsonPath("$.events.length()").value(1))
+            .andExpect(jsonPath("$.events[0].id").value("evt-primary"))
+            .andExpect(jsonPath("$.events[0].googleCalendarId").value("primary"));
     }
 
     @Test

@@ -216,17 +216,13 @@ function CalendarView({ user }) {
             const googleEventsPromise = axios
                 .get(`${backendUrl}/api/integrations/google/events`, getAuthConfig())
                 .catch(() => ({ data: { linked: false, events: [] } }));
-            const googleMappingsPromise = axios
-                .get(`${backendUrl}/api/integrations/google/project-mappings`, getAuthConfig())
-                .catch(() => ({ data: { mappings: [] } }));
 
-            const [activeRes, completedRes, projectsRes, tagsRes, googleRes, googleMappingsRes] = await Promise.all([
+            const [activeRes, completedRes, projectsRes, tagsRes, googleRes] = await Promise.all([
                 axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
                 axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
                 googleEventsPromise,
-                googleMappingsPromise,
             ]);
 
             setTasks((activeRes.data || []).map(normalizeTask));
@@ -234,19 +230,8 @@ function CalendarView({ user }) {
             const projects = projectsRes.data || [];
             const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
             const tags = tagsRes.data || [];
-            const mappings = googleMappingsRes?.data?.mappings || [];
-            const hasMappingData = mappings.length > 0;
-            const enabledCalendarIds = new Set(
-                mappings
-                    .filter((mapping) => mapping?.enabled && mapping?.googleCalendarId)
-                    .map((mapping) => mapping.googleCalendarId)
-            );
-
             const sourceGoogleEvents = googleRes?.data?.events || [];
-            const filteredGoogleEvents = hasMappingData
-                ? sourceGoogleEvents.filter((event) => enabledCalendarIds.has(event?.googleCalendarId))
-                : sourceGoogleEvents;
-            const externalEvents = filteredGoogleEvents.map(normalizeGoogleEvent);
+            const externalEvents = sourceGoogleEvents.map(normalizeGoogleEvent);
 
             setAvailableProjects(projectNames);
             setAllProjectObjects(projects);

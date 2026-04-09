@@ -288,11 +288,19 @@ public class GoogleCalendarService {
             .build(true)
             .toUriString();
 
-        Map<String, Object> response = restClient.get()
-            .uri(requestUrl)
-            .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-            .retrieve()
-            .body(Map.class);
+        Map<String, Object> response;
+        try {
+            response = restClient.get()
+                .uri(requestUrl)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .retrieve()
+                .body(Map.class);
+        } catch (RestClientResponseException ex) {
+            if (ex.getStatusCode().value() == 404) {
+                return List.of();
+            }
+            throw ex;
+        }
 
         if (response == null) {
             return List.of();
