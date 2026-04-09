@@ -14,6 +14,8 @@ const PHASE_LABELS = {
     long_break: 'long_break',
 };
 
+const STORAGE_KEY = 'pomodoroTimerState';
+
 function toMs(minutes) {
     return minutes * 60 * 1000;
 }
@@ -35,6 +37,89 @@ function getDurationMsForPhase(phase, config) {
         return toMs(config.shortBreakMinutes);
     }
     return toMs(config.longBreakMinutes);
+}
+
+function getDefaultState(config) {
+    const initialDurationMs = getDurationMsForPhase(PHASE_LABELS.focus, config);
+
+    return {
+        phase: PHASE_LABELS.focus,
+        remainingMs: initialDurationMs,
+        durationMs: initialDurationMs,
+        completedFocusCount: 0,
+        isRunning: false,
+        expanded: false,
+    };
+}
+
+function readStoredState(config) {
+    if (typeof window === 'undefined') {
+        return {
+            state: getDefaultState(config),
+            startTimestamp: 0,
+            remainingAtLastStart: getDurationMsForPhase(PHASE_LABELS.focus, config),
+        };
+    }
+
+    const fallbackState = getDefaultState(config);
+
+    try {
+        const rawValue = window.localStorage.getItem(STORAGE_KEY);
+        if (!rawValue) {
+            return {
+                state: fallbackState,
+                startTimestamp: 0,
+                remainingAtLastStart: fallbackState.remainingMs,
+            };
+        }
+
+        const parsed = JSON.parse(rawValue);
+        const phase = Object.values(PHASE_LABELS).includes(parsed?.phase) ? parsed.phase : PHASE_LABELS.focus;
+        const durationMs = Number.isFinite(parsed?.durationMs)
+            ? parsed.durationMs
+            : getDurationMsForPhase(phase, config);
+        const remainingMs = Number.isFinite(parsed?.remainingMs)
+            ? Math.max(0, parsed.remainingMs)
+            : durationMs;
+
+        return {
+            state: {
+                phase,
+                remainingMs,
+                durationMs,
+                completedFocusCount: Number.isInteger(parsed?.completedFocusCount) ? parsed.completedFocusCount : 0,
+                isRunning: false,
+                expanded: Boolean(parsed?.expanded),
+            },
+            startTimestamp: 0,
+            remainingAtLastStart: remainingMs,
+        };
+    } catch {
+        return {
+            state: fallbackState,
+            startTimestamp: 0,
+            remainingAtLastStart: fallbackState.remainingMs,
+        };
+    }
+}
+
+function writeStoredState(state) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        phase: state.phase,
+        remainingMs: state.remainingMs,
+        durationMs: state.durationMs,
+        completedFocusCount: state.completedFocusCount,
+        expanded: state.expanded,
+    }));
+}
+
+function persistAndReturnState(nextState) {
+    writeStoredState(nextState);
+    return nextState;
 }
 
 function getNextPhaseState(currentState, config) {
@@ -88,20 +173,39 @@ function getNextPhaseState(currentState, config) {
 
 export function PomodoroProvider({ children, config, onPhaseChange, onCycleComplete }) {
     const normalizedConfig = useMemo(() => normalizeConfig(config), [config]);
-    const initialDurationMs = getDurationMsForPhase(PHASE_LABELS.focus, normalizedConfig);
+    const initialSnapshotRef = useRef(null);
+    if (initialSnapshotRef.current === null) {
+        initialSnapshotRef.current = readStoredState(normalizedConfig);
+    }
 
-    const [state, setState] = useState({
-        phase: PHASE_LABELS.focus,
-        remainingMs: initialDurationMs,
-        durationMs: initialDurationMs,
-        completedFocusCount: 0,
-        isRunning: false,
-        expanded: false,
-    });
+    const [state, setState] = useState(() => initialSnapshotRef.current.state);
 
-    const startTimestampRef = useRef(0);
-    const remainingAtLastStartRef = useRef(initialDurationMs);
+    const startTimestampRef = useRef(initialSnapshotRef.current.startTimestamp);
+    const remainingAtLastStartRef = useRef(initialSnapshotRef.current.remainingAtLastStart);
     const phaseTransitionLockRef = useRef(false);
+
+    useEffect(() => {
+        writeStoredState(state);
+    }, [state]);
+
+    useEffect(() => {
+        setState((prev) => {
+            const nextDurationMs = getDurationMsForPhase(prev.phase, normalizedConfig);
+            const nextRemainingMs = Math.min(prev.remainingMs, nextDurationMs);
+
+            if (prev.durationMs === nextDurationMs && prev.remainingMs === nextRemainingMs) {
+                return prev;
+            }
+
+            remainingAtLastStartRef.current = nextRemainingMs;
+
+            return persistAndReturnState({
+                ...prev,
+                durationMs: nextDurationMs,
+                remainingMs: nextRemainingMs,
+            });
+        });
+    }, [normalizedConfig]);
 
     const advancePhase = useCallback(() => {
         setState((prev) => {
@@ -114,7 +218,7 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
                 onCycleComplete();
             }
 
-            return nextState;
+            return persistAndReturnState(nextState);
         });
 
         startTimestampRef.current = 0;
@@ -156,10 +260,10 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
             remainingAtLastStartRef.current = prev.remainingMs;
             phaseTransitionLockRef.current = false;
 
-            return {
+            return persistAndReturnState({
                 ...prev,
                 isRunning: true,
-            };
+            });
         });
     }, []);
 
@@ -169,17 +273,22 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
                 return prev;
             }
 
-            const elapsed = Date.now() - startTimestampRef.current;
-            const nextRemaining = Math.max(0, remainingAtLastStartRef.current - elapsed);
+            const hasValidStartTimestamp = Number.isFinite(startTimestampRef.current) && startTimestampRef.current > 0;
+            const elapsed = hasValidStartTimestamp ? Math.max(0, Date.now() - startTimestampRef.current) : 0;
+            const baseRemaining = Number.isFinite(remainingAtLastStartRef.current) && remainingAtLastStartRef.current > 0
+                ? remainingAtLastStartRef.current
+                : prev.remainingMs;
+            const computedRemaining = Math.max(0, baseRemaining - elapsed);
+            const nextRemaining = hasValidStartTimestamp ? computedRemaining : Math.max(0, prev.remainingMs);
             startTimestampRef.current = 0;
             remainingAtLastStartRef.current = nextRemaining;
             phaseTransitionLockRef.current = false;
 
-            return {
+            return persistAndReturnState({
                 ...prev,
                 isRunning: false,
                 remainingMs: nextRemaining,
-            };
+            });
         });
     }, []);
 
@@ -190,12 +299,12 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
             remainingAtLastStartRef.current = nextDurationMs;
             phaseTransitionLockRef.current = false;
 
-            return {
+            return persistAndReturnState({
                 ...prev,
                 isRunning: false,
                 durationMs: nextDurationMs,
                 remainingMs: nextDurationMs,
-            };
+            });
         });
     }, [normalizedConfig]);
 
@@ -205,10 +314,10 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
     }, [advancePhase]);
 
     const setExpanded = useCallback((value) => {
-        setState((prev) => ({
-            ...prev,
-            expanded: value,
-        }));
+        setState((prev) => persistAndReturnState({
+                ...prev,
+                expanded: value,
+            }));
     }, []);
 
     const value = useMemo(() => {
