@@ -46,8 +46,15 @@
 }
 
 .form-group input:focus {
-    outline: none;
     border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+}
+
+.form-group input:focus-visible,
+.submit-btn:focus-visible,
+.register-link .link-btn:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.25);
+    outline-offset: 2px;
 }
 
 .form-group input.input-error {
@@ -81,7 +88,7 @@
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
     margin-top: 10px;
 }
 
@@ -115,4 +122,3 @@
 .register-link .link-btn:hover {
     color: #764ba2;
 }
-

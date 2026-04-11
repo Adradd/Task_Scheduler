@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import bookIcon from '../assets/book.svg';
 import inboxIcon from '../assets/inbox.svg';
 import targetIcon from '../assets/target.svg';
@@ -7,21 +6,50 @@ import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
-import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
+import useTaskData from '../hooks/useTaskData.js';
+import { extractApiErrorMessage } from '../utils/api.js';
+import {
+    buildTimeOptions,
+    formatTags,
+    getTagNames,
+    isGoogleReadOnlyTask,
+    parseTagInput,
+    projectNameToProjectObject,
+    projectToProjectColor,
+    projectToProjectName,
+    tagNameToTagObject,
+} from '../utils/taskAdapters.js';
+import { getTodayKey } from '../utils/dateFormatters.js';
+import { formatPriorityLabel, getPriorityRank } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 
+const PROJECT_COLOR_OPTIONS = [
+    '#dc2626', '#ef4444', '#f43f5e', '#ec4899',
+    '#f97316', '#f59e0b', '#eab308', '#84cc16',
+    '#65a30d', '#22c55e', '#10b981', '#14b8a6',
+    '#06b6d4', '#0ea5e9', '#0576f3', '#1d4ed8',
+    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+];
+
 function TaskView({ user }) {
-    const PROJECT_COLOR_OPTIONS = [
-        '#dc2626', '#ef4444', '#f43f5e', '#ec4899',
-        '#f97316', '#f59e0b', '#eab308', '#84cc16',
-        '#65a30d', '#22c55e', '#10b981', '#14b8a6',
-        '#06b6d4', '#0ea5e9', '#0576f3', '#1d4ed8',
-        '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-    ];
-    const [tasks, setTasks] = useState([]);
-    const [completedTasks, setCompletedTasks] = useState([]);
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const {
+        tasks,
+        completedTasks,
+        availableTags,
+        allTagObjects,
+        availableProjects,
+        allProjectObjects,
+        error,
+        setError,
+        loading,
+        createTask,
+        updateTask,
+        deleteTask,
+        completeTask,
+        reopenTask,
+        createProject,
+        deleteProject,
+    } = useTaskData(user);
     const [editingId, setEditingId] = useState(null);
     const [editData, setEditData] = useState({});
     const [sortBy] = useState('deadline'); // 'deadline', 'project', 'priority'
@@ -34,10 +62,6 @@ function TaskView({ user }) {
         tags: [],
         comments: ''
     });
-    const [availableTags, setAvailableTags] = useState([]);
-    const [allTagObjects, setAllTagObjects] = useState([]);
-    const [availableProjects, setAvailableProjects] = useState([]);
-    const [allProjectObjects, setAllProjectObjects] = useState([]);
     const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
     const [showNewTaskProjectDropdown, setShowNewTaskProjectDropdown] = useState(false);
@@ -55,180 +79,8 @@ function TaskView({ user }) {
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
     const { isResizing, sidebarWidth, startResizing } = useResizableSidebar();
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
-
-    // Extract tag names from Tag objects
-    const getTagNames = (tags) => {
-        if (!Array.isArray(tags)) return [];
-        return tags.map(tag => {
-            if (typeof tag === 'string') return tag;
-            return tag?.tagName || '';
-        }).filter(Boolean);
-    };
-
-    // Convert tag names to Tag objects
-    const tagNameToTagObject = (tagName) => {
-        const found = allTagObjects.find(t => t.tagName?.toLowerCase() === tagName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { tagName: tagName.trim() };
-    };
-
-    const parseTagInput = (value) => {
-        if (!value) return [];
-        return [...new Set(value.split(',').map(tag => tag.trim()).filter(Boolean))];
-    };
-
-    const formatTags = (tags) => {
-        if (!Array.isArray(tags) || tags.length === 0) return '';
-        const tagNames = getTagNames(tags);
-        return tagNames.join(', ');
-    };
-
-    const projectToProjectName = (project) => {
-        if (!project) return '';
-        if (typeof project === 'string') return project;
-        return project?.projectName || '';
-    };
-
-    const projectToProjectColor = (project) => {
-        if (!project || typeof project === 'string') return '#3fb0ba';
-        const color = project?.projectColor;
-        if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color.trim())) {
-            return color.trim().toLowerCase();
-        }
-        return '#3fb0ba';
-    };
-
-    const projectToProjectId = (project) => {
-        if (!project || typeof project === 'string') return '';
-        return project?.projectId || project?.id || project?._id || '';
-    };
-
-    const projectNameToProjectObject = (projectName) => {
-        if (!projectName || !projectName.trim()) {
-            return null;
-        }
-        const found = allProjectObjects.find(p => p.projectName?.toLowerCase() === projectName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { projectName: projectName.trim() };
-    };
-
-    const normalizeTask = (task) => ({
-        ...task,
-        priority: normalizePriority(task?.priority),
-        project: task?.project || null,
-        tags: Array.isArray(task?.tags) ? task.tags : []
-    });
-
-    const isGoogleReadOnlyTask = (task) => Boolean(task?.importedFromGoogle || task?.googleSourceEventId);
-
-    // Generate time options: 15 minute increments up to 3 hours, then 30 minute increments
-    const generateTimeOptions = () => {
-        const options = [];
-
-        // 15-minute increments from 15 minutes to 3 hours (180 minutes)
-        for (let minutes = 15; minutes <= 180; minutes += 15) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const label = mins === 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : `${hours}h ${mins}m`;
-            options.push({ value: `${hours}h ${mins}m`, label });
-        }
-
-        // 30-minute increments from 3.5 hours to 8 hours (210 to 480 minutes)
-        for (let minutes = 210; minutes <= 480; minutes += 30) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const label = mins === 0 ? `${hours} hours` : `${hours}h ${mins}m`;
-            options.push({ value: `${hours}h ${mins}m`, label });
-        }
-
-        return options;
-    };
-
-    const timeOptions = generateTimeOptions();
-
-    const todayKey = (() => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    })();
-
-    // Create auth config from stored credentials
-    const getAuthConfig = () => { // TODO: split out & use shared code
-        const authToken = sessionStorage.getItem('authToken');
-        if (authToken) {
-            return {
-                headers: {
-                    'Authorization': 'Basic ' + authToken
-                }
-            };
-        }
-        return {};
-    };
-
-    // Fetch all tasks on component mount and when user changes
-    useEffect(() => {
-        if (user) {
-            fetchTasks();
-            fetchCompletedTasks();
-            fetchAvailableTags();
-            fetchAvailableProjects();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
-
-    const fetchAvailableTags = async () => {
-        try {
-            const res = await axios.get(`${backendUrl}/api/tags`, getAuthConfig());
-            const tags = res.data || [];
-            setAllTagObjects(tags);
-            setAvailableTags(tags.map(tag => tag.tagName));
-        } catch (err) {
-            console.error('Failed to fetch tags:', err);
-        }
-    };
-
-    const fetchAvailableProjects = async () => {
-        try {
-            const res = await axios.get(`${backendUrl}/api/projects`, getAuthConfig());
-            const projects = res.data || [];
-            setAllProjectObjects(projects);
-            setAvailableProjects([...new Set(projects.map(project => project.projectName).filter(Boolean))]);
-        } catch (err) {
-            console.error('Failed to fetch projects:', err);
-        }
-    };
-
-    const fetchTasks = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const res = await axios.get(`${backendUrl}/api/tasks`, getAuthConfig());
-            setTasks((res.data || []).map(normalizeTask));
-        } catch (err) {
-            setError('Failed to fetch tasks: ' + (err.response?.data?.message || err.message));
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCompletedTasks = async () => {
-        try {
-            setError(null);
-            const res = await axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig());
-            setCompletedTasks((res.data || []).map(normalizeTask));
-        } catch (err) {
-            setError('Failed to fetch completed tasks: ' + (err.response?.data?.message || err.message));
-            console.error(err);
-        }
-    };
+    const timeOptions = buildTimeOptions();
+    const todayKey = getTodayKey();
 
     const handleEdit = (task) => {
         if (isGoogleReadOnlyTask(task)) {
@@ -237,7 +89,7 @@ function TaskView({ user }) {
         }
         setShowNewTaskForm(false);
         setEditingId(task.taskId);
-        const normalized = normalizeTask(task);
+        const normalized = task;
         // Convert Tag objects to tag name strings for editing
         const tagNames = getTagNames(normalized.tags);
         const editDataWithNames = {
@@ -250,29 +102,23 @@ function TaskView({ user }) {
         setEditTaskAutoSchedule(false);
     };
 
-    const handleSaveEdit = async (taskId) => {
+    const handleSaveEdit = async () => {
         try {
             setError(null);
-            // Convert tag names to Tag objects
-            const tagObjects = (editData.tags || []).map(tagName => tagNameToTagObject(tagName));
+            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName, allTagObjects));
             const dataToSend = {
                 ...editData,
-                project: projectNameToProjectObject(editData.project || ''),
+                project: projectNameToProjectObject(editData.project || '', allProjectObjects),
                 tags: tagObjects,
                 autoSchedule: editTaskAutoSchedule
             };
 
-            const res = await axios.put(`${backendUrl}/api/tasks`, dataToSend, getAuthConfig());
-            const updatedTask = normalizeTask(res.data || editData);
-            setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
+            await updateTask(dataToSend);
             setEditingId(null);
             setEditData({});
             setEditTaskAutoSchedule(false);
-            fetchAvailableTags();
-            fetchAvailableProjects();
         } catch (err) {
-            setError('Failed to update task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to update task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -307,11 +153,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be deleted in this app.');
                 return;
             }
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setTasks(tasks.filter(t => t.taskId !== taskId));
+            await deleteTask(taskId);
         } catch (err) {
-            setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -323,12 +167,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be updated in this app.');
                 return;
             }
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
-            setTasks(tasks.filter(t => t.taskId !== taskId));
-            setCompletedTasks([...completedTasks, normalizeTask(res.data)]);
+            await completeTask(taskId);
         } catch (err) {
-            setError('Failed to complete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to complete task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -340,12 +181,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be updated in this app.');
                 return;
             }
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/reopen`, {}, getAuthConfig());
-            setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
-            setTasks([...tasks, normalizeTask(res.data)]);
+            await reopenTask(taskId);
         } catch (err) {
-            setError('Failed to reopen task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to reopen task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -357,11 +195,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be deleted in this app.');
                 return;
             }
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
+            await deleteTask(taskId);
         } catch (err) {
-            setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -382,8 +218,7 @@ function TaskView({ user }) {
 
         try {
             setError(null);
-            // Convert tag names to Tag objects
-            const tagObjects = newTask.tags.map(tagName => tagNameToTagObject(tagName));
+            const tagObjects = newTask.tags.map((tagName) => tagNameToTagObject(tagName, allTagObjects));
 
             const taskToCreate = {
                 taskId: `task_${Date.now()}`,
@@ -391,20 +226,16 @@ function TaskView({ user }) {
                 deadline: newTask.deadline,
                 timeToComplete: newTask.timeToComplete,
                 priority: newTask.priority,
-                project: projectNameToProjectObject(newTask.project),
+                project: projectNameToProjectObject(newTask.project, allProjectObjects),
                 tags: tagObjects,
                 comments: newTask.comments,
                 autoSchedule: newTaskAutoSchedule
             };
 
-            const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, getAuthConfig());
-            setTasks([...tasks, normalizeTask(res.data)]);
+            await createTask(taskToCreate);
             resetNewTaskForm();
-            fetchAvailableTags();
-            fetchAvailableProjects();
         } catch (err) {
-            setError('Failed to create task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to create task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -507,30 +338,18 @@ function TaskView({ user }) {
         try {
             setIsCreatingProject(true);
             setError(null);
-            const res = await axios.post(
-                `${backendUrl}/api/projects`,
-                { projectName: trimmedName, projectColor: newProjectColor },
-                getAuthConfig()
-            );
-            const createdProject = res.data;
+            const createdProject = await createProject({
+                projectName: trimmedName,
+                projectColor: newProjectColor,
+            });
             const createdProjectName = createdProject?.projectName || trimmedName;
-
-            setAllProjectObjects(prev => {
-                const exists = prev.some(project => project.projectName?.toLowerCase() === createdProjectName.toLowerCase());
-                return exists ? prev : [...prev, createdProject];
-            });
-            setAvailableProjects(prev => {
-                const nextProjects = prev.includes(createdProjectName) ? prev : [...prev, createdProjectName];
-                return nextProjects.sort((a, b) => a.localeCompare(b));
-            });
             setSelectedFilter(`project:${createdProjectName}`);
             setNewTask(prev => ({ ...prev, project: createdProjectName }));
             setNewProjectName('');
             setNewProjectColor('#3fb0ba');
             setShowNewProjectInput(false);
         } catch (err) {
-            setError('Failed to create project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to create project: ' + extractApiErrorMessage(err));
         } finally {
             setIsCreatingProject(false);
         }
@@ -544,25 +363,17 @@ function TaskView({ user }) {
 
         try {
             setError(null);
-            await axios.delete(`${backendUrl}/api/projects/${encodeURIComponent(projectIdentifier)}`, getAuthConfig());
-
-            setAllProjectObjects(prev => prev.filter(currentProject =>
-                currentProject.projectId !== project.projectId && currentProject.projectName !== project.projectName
-            ));
-            setAvailableProjects(prev => prev.filter(projectName => projectName !== project.projectName));
-            setTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
-            setCompletedTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
+            await deleteProject(project);
 
             if (selectedFilter === `project:${project.projectName}`) {
                 setSelectedFilter('overview');
             }
         } catch (err) {
-            setError('Failed to delete project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete project: ' + extractApiErrorMessage(err));
         }
     };
 
-    const getEditorProps = (isNewTask = false, taskId = null) => {
+    const getEditorProps = (isNewTask = false) => {
         const taskData = isNewTask ? newTask : editData;
         const projectDropdownVisible = isNewTask ? showNewTaskProjectDropdown : showEditProjectDropdown;
         const tagDropdownVisible = isNewTask ? showNewTaskTagDropdown : showEditTagDropdown;
@@ -587,7 +398,7 @@ function TaskView({ user }) {
             onTagSelect: (tagName) => handleTagSelect(tagName, isNewTask),
             onRemoveTag: (tagName) => removeTag(tagName, isNewTask),
             onAutoScheduleChange: (checked) => (isNewTask ? setNewTaskAutoSchedule(checked) : setEditTaskAutoSchedule(checked)),
-            onSave: () => (isNewTask ? handleCreateTask() : handleSaveEdit(taskId)),
+            onSave: () => (isNewTask ? handleCreateTask() : handleSaveEdit()),
             onCancel: () => (isNewTask ? resetNewTaskForm() : handleCancel()),
         };
     };
@@ -643,14 +454,14 @@ function TaskView({ user }) {
 
     if (loading) {
         return (
-            <div className="task-view-container">
+            <main className="task-view-container">
                 <div className="task-content">
                     <div className="task-layout task-layout-loading">
                         <aside className="project-sidebar task-loading-sidebar" />
-                        <div className="task-main-panel loading loading-panel">Loading tasks...</div>
+                        <div className="task-main-panel loading loading-panel">Loading tasks…</div>
                     </div>
                 </div>
-            </div>
+            </main>
         );
     }
 
@@ -730,10 +541,9 @@ function TaskView({ user }) {
                 : 'Pick another section or create a new task below.';
 
     return (
-        <div className="task-view-container">
-            {/* Content Section */}
+        <main className="task-view-container">
             <div className="task-content">
-                {error && <div className="error-message">{error}</div>}
+                {error && <div className="error-message" role="alert">{error}</div>}
 
                 <div
                     className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
@@ -805,7 +615,8 @@ function TaskView({ user }) {
                                         type="text"
                                         value={newProjectName}
                                         onChange={(e) => setNewProjectName(e.target.value)}
-                                        placeholder="New project name"
+                                        placeholder="New project name…"
+                                        aria-label="New project name"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleCreateProject();
@@ -835,7 +646,7 @@ function TaskView({ user }) {
                                     </div>
                                     <div className="project-create-actions">
                                         <button type="button" className="project-create-button" onClick={handleCreateProject} disabled={isCreatingProject}>
-                                            {isCreatingProject ? 'Saving...' : 'Create'}
+                                            {isCreatingProject ? 'Saving…' : 'Create'}
                                         </button>
                                         <button
                                             type="button"
@@ -986,7 +797,7 @@ function TaskView({ user }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
 

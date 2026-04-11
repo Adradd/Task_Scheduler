@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Login.css';
+import { extractApiErrorMessage } from '../utils/api.js';
 
 function Login({ onLoginSuccess }) {
     const [formData, setFormData] = useState({
@@ -59,39 +60,23 @@ function Login({ onLoginSuccess }) {
                 password: formData.password
             });
 
-            console.log('Login response:', response.data);
-
-            // Store auth credentials in sessionStorage (cleared when the tab/browser is closed)
-            sessionStorage.setItem('authToken', btoa(`${formData.username}:${formData.password}`));
-            sessionStorage.setItem('username', response.data.username);
-            sessionStorage.setItem('accountId', response.data.accountId);
-            sessionStorage.setItem('role', response.data.role);
-
-            // Call the callback to update parent state
             if (typeof onLoginSuccess === 'function') {
-                onLoginSuccess(response.data);
-            } else {
-                console.error('onLoginSuccess is not a function:', onLoginSuccess);
+                onLoginSuccess({
+                    userData: response.data,
+                    credentials: {
+                        username: formData.username,
+                        password: formData.password,
+                    },
+                });
             }
 
-            // Navigate to task view
             navigate('/task-view');
         } catch (err) {
-            console.error('Login error:', err);
-            console.error('Error response:', err.response);
-            console.error('Backend URL:', backendUrl);
-
             let errorMessage = 'Login failed. Please try again.';
-
-            if (err.response) {
-                // Backend responded with error
-                errorMessage = err.response.data?.error || err.response.statusText || 'Server error';
-            } else if (err.request) {
-                // Request was made but no response
+            if (err.request && !err.response) {
                 errorMessage = 'No response from server. Is the backend running on ' + backendUrl + '?';
-            } else {
-                // Other error
-                errorMessage = err.message;
+            } else if (err.response) {
+                errorMessage = extractApiErrorMessage(err, 'Server error');
             }
 
             setErrors({ submit: errorMessage });
@@ -101,24 +86,28 @@ function Login({ onLoginSuccess }) {
     };
 
     return (
-        <div className="login-container">
-            <div className="login-card">
-                <h1>Login</h1>
-                {errors.submit && <div className="error-message">{errors.submit}</div>}
+        <main className="login-container">
+            <section className="login-card" aria-labelledby="login-title">
+                <h1 id="login-title">Login</h1>
+                {errors.submit && <div className="error-message" role="alert">{errors.submit}</div>}
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="form-group">
                         <label htmlFor="username">Username</label>
                         <input
                             type="text"
                             id="username"
                             name="username"
+                            autoComplete="username"
+                            spellCheck={false}
                             value={formData.username}
                             onChange={handleChange}
-                            placeholder="Enter username"
+                            placeholder="Enter username…"
                             className={errors.username ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.username)}
+                            aria-describedby={errors.username ? 'login-username-error' : undefined}
                         />
-                        {errors.username && <span className="field-error">{errors.username}</span>}
+                        {errors.username && <span id="login-username-error" className="field-error">{errors.username}</span>}
                     </div>
 
                     <div className="form-group">
@@ -127,26 +116,28 @@ function Login({ onLoginSuccess }) {
                             type="password"
                             id="password"
                             name="password"
+                            autoComplete="current-password"
                             value={formData.password}
                             onChange={handleChange}
-                            placeholder="Enter password"
+                            placeholder="Enter password…"
                             className={errors.password ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.password)}
+                            aria-describedby={errors.password ? 'login-password-error' : undefined}
                         />
-                        {errors.password && <span className="field-error">{errors.password}</span>}
+                        {errors.password && <span id="login-password-error" className="field-error">{errors.password}</span>}
                     </div>
 
                     <button type="submit" className="submit-btn" disabled={loading}>
-                        {loading ? 'Logging in...' : 'Login'}
+                        {loading ? 'Logging In…' : 'Login'}
                     </button>
                 </form>
 
                 <div className="register-link">
                     <p>Don't have an account? <button type="button" onClick={() => navigate('/register')} className="link-btn">Create one</button></p>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
     );
 }
 
 export default Login;
-

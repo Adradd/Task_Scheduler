@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { usePomodoro } from './pomodoroContext.js';
 
 const PHASE_HINTS = {
@@ -15,8 +14,7 @@ function formatClock(ms) {
 }
 
 function PomodoroFloatingWidget() {
-    const { phase, remainingMs, expanded, isRunning, setExpanded } = usePomodoro();
-
+    const { phase, remainingMs, expanded, setExpanded } = usePomodoro();
 
     return (
         <button

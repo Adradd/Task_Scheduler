@@ -28,6 +28,19 @@
     border-color: rgba(255, 255, 255, 0.3);
 }
 
+.calendar-nav-button:focus-visible,
+.view-btn:focus-visible,
+.month-task-item:focus-visible,
+.week-unscheduled-item:focus-visible,
+.week-timeline-task:focus-visible,
+.day-unscheduled-item:focus-visible,
+.day-task-block:focus-visible,
+.calendar-sidebar-title-button:focus-visible,
+.modal-close:focus-visible {
+    outline: 3px solid rgba(63, 176, 186, 0.45);
+    outline-offset: 2px;
+}
+
 .calendar-nav-button-primary {
     background: #3fb0ba;
     color: #0f1419;
@@ -100,6 +113,7 @@
     padding: 0.55rem 0.9rem;
     font-weight: 600;
     cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .view-btn.active {
@@ -188,6 +202,11 @@
     display: grid;
     gap: 0.15rem;
     cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.month-task-item:hover {
+    background: #413c42;
 }
 
 .month-task-title {
@@ -653,6 +672,7 @@
     color: #f4f1f2;
     font-size: 1.2rem;
     cursor: pointer;
+    line-height: 1;
 }
 
 .task-details {

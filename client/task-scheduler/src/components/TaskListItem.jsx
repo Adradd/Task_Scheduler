@@ -41,23 +41,29 @@ function TaskListItem({
                         checked={task.isCompleted || false}
                         onChange={() => onToggleComplete?.(task.taskId)}
                         title="Mark task as complete"
+                        aria-label={`Mark ${task.taskName} as complete`}
                     />
                 )}
 
                 <div className="task-main-copy">
                     {isSelectable ? (
-                        <button type="button" className="calendar-sidebar-title-button" onClick={() => onSelect(task)}>
+                        <button
+                            type="button"
+                            className="calendar-sidebar-title-button"
+                            onClick={() => onSelect(task)}
+                            title={task.taskName}
+                        >
                             {task.taskName}
                         </button>
                     ) : (
-                        <h3 className="task-title">{task.taskName}</h3>
+                        <h3 className="task-title" title={task.taskName}>{task.taskName}</h3>
                     )}
                     {showTags && (
-                        <div className="task-tags-inline">
+                        <div className="task-tags-inline" title={taskTagNames.join(', ')}>
                             {taskTagNames.length > 0 ? taskTagNames.join(' • ') : 'No tags'}
                         </div>
                     )}
-                    <div className="task-meta-inline">
+                    <div className="task-meta-inline" title={taskMeta.join(metaSeparator)}>
                         {taskMeta.join(metaSeparator)}
                     </div>
                     {showActions && (

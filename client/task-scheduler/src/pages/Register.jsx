@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Register.css';
+import { extractApiErrorMessage } from '../utils/api.js';
 
-function Register() {
+function Register({ onRegisterSuccess }) {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -20,7 +21,6 @@ function Register() {
     const validateForm = () => {
         const newErrors = {};
 
-        // Username validation
         if (!formData.username.trim()) {
             newErrors.username = 'Username is required';
         } else if (formData.username.length < 3) {
@@ -29,14 +29,12 @@ function Register() {
             newErrors.username = 'Username can only contain letters, numbers, and underscores';
         }
 
-        // Email validation
         if (!formData.email.trim()) {
             newErrors.email = 'Email is required';
         } else if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email address';
         }
 
-        // Password validation
         if (!formData.password) {
             newErrors.password = 'Password is required';
         } else if (formData.password.length < 8) {
@@ -47,7 +45,6 @@ function Register() {
             newErrors.password = 'Password must contain at least one number';
         }
 
-        // Confirm password validation
         if (!formData.confirmPassword) {
             newErrors.confirmPassword = 'Please confirm your password';
         } else if (formData.password !== formData.confirmPassword) {
@@ -63,7 +60,6 @@ function Register() {
             ...prev,
             [name]: value
         }));
-        // Clear error for this field when user starts typing
         if (errors[name]) {
             setErrors(prev => ({
                 ...prev,
@@ -99,13 +95,13 @@ function Register() {
                 confirmPassword: ''
             });
             setErrors({});
+            onRegisterSuccess?.();
 
-            // Redirect to login after 2 seconds
             setTimeout(() => {
                 navigate('/login');
             }, 2000);
         } catch (err) {
-            const errorMessage = err.response?.data?.error || 'Registration failed. Please try again.';
+            const errorMessage = extractApiErrorMessage(err, 'Registration failed. Please try again.');
             setErrors({ submit: errorMessage });
         } finally {
             setLoading(false);
@@ -113,25 +109,29 @@ function Register() {
     };
 
     return (
-        <div className="register-container">
-            <div className="register-card">
-                <h1>Create Account</h1>
-                {successMessage && <div className="success-message">{successMessage}</div>}
-                {errors.submit && <div className="error-message">{errors.submit}</div>}
+        <main className="register-container">
+            <section className="register-card" aria-labelledby="register-title">
+                <h1 id="register-title">Create Account</h1>
+                {successMessage && <div className="success-message" role="status" aria-live="polite">{successMessage}</div>}
+                {errors.submit && <div className="error-message" role="alert">{errors.submit}</div>}
 
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="form-group">
                         <label htmlFor="username">Username</label>
                         <input
                             type="text"
                             id="username"
                             name="username"
+                            autoComplete="username"
+                            spellCheck={false}
                             value={formData.username}
                             onChange={handleChange}
-                            placeholder="Enter username"
+                            placeholder="Enter username…"
                             className={errors.username ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.username)}
+                            aria-describedby={errors.username ? 'register-username-error' : undefined}
                         />
-                        {errors.username && <span className="field-error">{errors.username}</span>}
+                        {errors.username && <span id="register-username-error" className="field-error">{errors.username}</span>}
                     </div>
 
                     <div className="form-group">
@@ -140,12 +140,16 @@ function Register() {
                             type="email"
                             id="email"
                             name="email"
+                            autoComplete="email"
+                            spellCheck={false}
                             value={formData.email}
                             onChange={handleChange}
-                            placeholder="Enter email"
+                            placeholder="Enter email…"
                             className={errors.email ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.email)}
+                            aria-describedby={errors.email ? 'register-email-error' : undefined}
                         />
-                        {errors.email && <span className="field-error">{errors.email}</span>}
+                        {errors.email && <span id="register-email-error" className="field-error">{errors.email}</span>}
                     </div>
 
                     <div className="form-group">
@@ -154,13 +158,16 @@ function Register() {
                             type="password"
                             id="password"
                             name="password"
+                            autoComplete="new-password"
                             value={formData.password}
                             onChange={handleChange}
-                            placeholder="Enter password"
+                            placeholder="Enter password…"
                             className={errors.password ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.password)}
+                            aria-describedby={errors.password ? 'register-password-error register-password-help' : 'register-password-help'}
                         />
-                        {errors.password && <span className="field-error">{errors.password}</span>}
-                        <p className="password-requirements">
+                        {errors.password && <span id="register-password-error" className="field-error">{errors.password}</span>}
+                        <p id="register-password-help" className="password-requirements">
                             Password must have: 8+ characters, uppercase, lowercase, and a number
                         </p>
                     </div>
@@ -171,22 +178,24 @@ function Register() {
                             type="password"
                             id="confirmPassword"
                             name="confirmPassword"
+                            autoComplete="new-password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
-                            placeholder="Confirm password"
+                            placeholder="Confirm password…"
                             className={errors.confirmPassword ? 'input-error' : ''}
+                            aria-invalid={Boolean(errors.confirmPassword)}
+                            aria-describedby={errors.confirmPassword ? 'register-confirm-password-error' : undefined}
                         />
-                        {errors.confirmPassword && <span className="field-error">{errors.confirmPassword}</span>}
+                        {errors.confirmPassword && <span id="register-confirm-password-error" className="field-error">{errors.confirmPassword}</span>}
                     </div>
 
                     <button type="submit" className="submit-btn" disabled={loading}>
-                        {loading ? 'Creating Account...' : 'Create Account'}
+                        {loading ? 'Creating Account…' : 'Create Account'}
                     </button>
                 </form>
-            </div>
-        </div>
+            </section>
+        </main>
     );
 }
 
 export default Register;
-

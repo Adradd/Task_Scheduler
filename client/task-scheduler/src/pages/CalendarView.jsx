@@ -3,8 +3,32 @@ import { useEffect, useMemo, useState } from 'react';
 import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
+import useTaskData from '../hooks/useTaskData.js';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
-import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
+import { extractApiErrorMessage } from '../utils/api.js';
+import { createAuthConfig } from '../utils/authSession.js';
+import {
+    buildTimeOptions,
+    formatTags,
+    getTagNames,
+    isGoogleReadOnlyTask,
+    parseTagInput,
+    projectNameToProjectObject,
+    projectToProjectName,
+    tagNameToTagObject,
+} from '../utils/taskAdapters.js';
+import {
+    formatDate,
+    formatFullDateLabel,
+    formatHourLabel,
+    formatMonthDayLabel,
+    formatMonthYearLabel,
+    formatSelectedDayLabel,
+    formatTimeLabel,
+    getTodayKey,
+    toDateKey,
+} from '../utils/dateFormatters.js';
+import { formatPriorityLabel, getPriorityRank } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 import '../styles/CalendarView.css';
 
@@ -61,12 +85,24 @@ function CalendarView({ user }) {
     const WEEK_VIEW_UNSCHEDULED_HEIGHT = 78;
     const WEEK_VIEW_TICK_OFFSET = 1;
 
-    const [tasks, setTasks] = useState([]);
+    const {
+        tasks,
+        completedTasks,
+        availableProjects,
+        allProjectObjects,
+        availableTags,
+        allTagObjects,
+        error,
+        setError,
+        loading,
+        refetchAll,
+        fetchTaskDetails,
+        updateTask,
+        completeTask,
+        deleteTask,
+    } = useTaskData(user);
     const [googleEvents, setGoogleEvents] = useState([]);
-    const [completedTasks, setCompletedTasks] = useState([]);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
     const [selectedTaskLoading, setSelectedTaskLoading] = useState(false);
     const [editData, setEditData] = useState({});
@@ -74,10 +110,6 @@ function CalendarView({ user }) {
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
     const [viewType, setViewType] = useState('month');
     const [projectVisibility, setProjectVisibility] = useState({});
-    const [availableProjects, setAvailableProjects] = useState([]);
-    const [allProjectObjects, setAllProjectObjects] = useState([]);
-    const [availableTags, setAvailableTags] = useState([]);
-    const [allTagObjects, setAllTagObjects] = useState([]);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
     const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
@@ -86,41 +118,6 @@ function CalendarView({ user }) {
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-
-    const toDateKey = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const getAuthConfig = () => {
-        const authToken = sessionStorage.getItem('authToken');
-        if (!authToken) {
-            return {};
-        }
-
-        return {
-            headers: {
-                Authorization: `Basic ${authToken}`,
-            },
-        };
-    };
-
-    const getErrorMessage = (err, fallback) => (
-        err.response?.data?.error || err.response?.data?.message || err.message || fallback
-    );
-
-    const normalizeTask = (task) => ({
-        ...task,
-        priority: normalizePriority(task?.priority),
-        project: task?.project || null,
-        tags: Array.isArray(task?.tags) ? task.tags : [],
-    });
 
     const normalizeGoogleEvent = (event) => {
         const startDateTime = event?.start?.dateTime || '';
@@ -130,7 +127,7 @@ function CalendarView({ user }) {
         const sourceCalendarName = event?.googleCalendarName || 'Google Calendar';
 
         return {
-            taskId: `google_${event?.id || Math.random().toString(36).slice(2)}`,
+            taskId: `google_${event?.id || `${sourceCalendarName}_${deadline || 'event'}`}`,
             taskName: event?.summary || '(Google Calendar Event)',
             deadline,
             startTime: isAllDay ? '' : startDateTime,
@@ -145,70 +142,8 @@ function CalendarView({ user }) {
             googleCalendarName: sourceCalendarName,
         };
     };
-
-    const isGoogleReadOnlyTask = (task) => Boolean(task?.isGoogleEvent || task?.importedFromGoogle || task?.googleSourceEventId);
-
-    const getProjectName = (project) => {
-        if (!project) return '';
-        if (typeof project === 'string') return project;
-        return project.projectName || '';
-    };
-
-    const getTagNames = (tags) => {
-        if (!Array.isArray(tags)) return [];
-        return tags
-            .map((tag) => (typeof tag === 'string' ? tag : tag?.tagName || ''))
-            .filter(Boolean);
-    };
-
-    const formatTags = (tags) => {
-        const names = getTagNames(tags);
-        return names.join(', ');
-    };
-
-    const parseTagInput = (value) => {
-        if (!value) return [];
-        return [...new Set(value.split(',').map((tag) => tag.trim()).filter(Boolean))];
-    };
-
-    const tagNameToTagObject = (tagName) => {
-        const found = allTagObjects.find((tag) => tag.tagName?.toLowerCase() === tagName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { tagName: tagName.trim() };
-    };
-
-    const projectNameToProjectObject = (projectName) => {
-        if (!projectName || !projectName.trim()) {
-            return null;
-        }
-        const found = allProjectObjects.find((project) => project.projectName?.toLowerCase() === projectName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { projectName: projectName.trim() };
-    };
-
-    const todayKey = useMemo(() => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }, []);
-
-    const selectedDayLabel = useMemo(() => {
-        return currentDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-    }, [currentDate]);
-
-    useEffect(() => {
-        if (!user) {
-            return;
-        }
-        fetchCalendarData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    const todayKey = useMemo(() => getTodayKey(), []);
+    const selectedDayLabel = useMemo(() => formatSelectedDayLabel(currentDate), [currentDate]);
 
     useEffect(() => {
         if (!user) {
@@ -243,54 +178,19 @@ function CalendarView({ user }) {
         const { timeMin, timeMax } = getGoogleEventRange(date, activeViewType);
         try {
             const googleRes = await axios.get(`${backendUrl}/api/integrations/google/events`, {
-                ...getAuthConfig(),
+                ...createAuthConfig(),
                 params: { timeMin, timeMax },
             });
             const sourceGoogleEvents = googleRes?.data?.events || [];
             setGoogleEvents(sourceGoogleEvents.map(normalizeGoogleEvent));
-        } catch (err) {
+        } catch {
             setGoogleEvents([]);
         }
     };
 
-    const fetchCalendarData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const [activeRes, completedRes, projectsRes, tagsRes] = await Promise.all([
-                axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
-            ]);
-
-            setTasks((activeRes.data || []).map(normalizeTask));
-            setCompletedTasks((completedRes.data || []).map(normalizeTask));
-            const projects = projectsRes.data || [];
-            const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
-            const tags = tagsRes.data || [];
-
-            setAvailableProjects(projectNames);
-            setAllProjectObjects(projects);
-            setAllTagObjects(tags);
-            setAvailableTags(tags.map((tag) => tag.tagName).filter(Boolean));
-            await fetchGoogleEventsForRange(currentDate, viewType);
-        } catch (err) {
-            setError('Failed to fetch calendar tasks: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchTaskDetails = async (taskId) => {
-        const res = await axios.get(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-        return normalizeTask(res.data || {});
-    };
-
     const taskCountByProject = useMemo(() => {
         return tasks.reduce((counts, task) => {
-            const projectName = getProjectName(task.project);
+            const projectName = projectToProjectName(task.project);
             if (!projectName) {
                 return counts;
             }
@@ -327,7 +227,7 @@ function CalendarView({ user }) {
 
     const visibleTasks = useMemo(() => {
         return tasks.filter((task) => {
-            const projectName = getProjectName(task.project);
+            const projectName = projectToProjectName(task.project);
             if (!projectName) {
                 return true;
             }
@@ -364,25 +264,11 @@ function CalendarView({ user }) {
             .sort(sortByDeadlineSchedulePriority);
     };
 
-    const formatHourLabel = (hour) => {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const normalizedHour = hour % 12 === 0 ? 12 : hour % 12;
-        return `${normalizedHour}${period}`;
-    };
-
-    const formatTimeLabel = (date) => {
-        const hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const normalizedHour = hours % 12 === 0 ? 12 : hours % 12;
-        return `${normalizedHour}:${minutes}${period}`;
-    };
-
     const formatDeadlineLabel = (deadline) => {
         if (!deadline) return 'No deadline';
         const parsed = parseTaskDateTime(`${deadline}T00:00:00`);
         if (!parsed) return deadline;
-        return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return formatMonthDayLabel(parsed);
     };
 
     const normalizeProjectColor = (color) => {
@@ -491,12 +377,7 @@ function CalendarView({ user }) {
 
     const sectionTitle = useMemo(() => {
         if (viewType === 'day') {
-            return currentDate.toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-            });
+            return formatFullDateLabel(currentDate);
         }
 
         if (viewType === 'week') {
@@ -504,23 +385,13 @@ function CalendarView({ user }) {
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekStart.getDate() + 6);
 
-            const startLabel = weekStart.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-            });
-            const endLabel = weekEnd.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-            });
+            const startLabel = formatMonthDayLabel(weekStart);
+            const endLabel = formatDate(weekEnd, { month: 'short', day: 'numeric', year: 'numeric' });
 
-            return `Week of ${startLabel} - ${endLabel}`;
+            return `Week of ${startLabel} – ${endLabel}`;
         }
 
-        return currentDate.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-        });
+        return formatMonthYearLabel(currentDate);
     }, [currentDate, viewType]);
 
     const getFilteredTags = (inputValue, currentTags) => {
@@ -587,8 +458,8 @@ function CalendarView({ user }) {
             const refreshedTask = await fetchTaskDetails(task.taskId);
             setSelectedTask(refreshedTask);
         } catch (err) {
-            setSelectedTask(normalizeTask(task));
-            setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+            setSelectedTask(task);
+            setError(`Failed to fetch task details: ${extractApiErrorMessage(err)}`);
         } finally {
             setSelectedTaskLoading(false);
         }
@@ -599,7 +470,7 @@ function CalendarView({ user }) {
             return;
         }
 
-        let normalized = normalizeTask(taskToEdit);
+        let normalized = taskToEdit;
         if (isGoogleReadOnlyTask(taskToEdit)) {
             setSelectedTask(taskToEdit);
             return;
@@ -611,7 +482,7 @@ function CalendarView({ user }) {
             try {
                 normalized = await fetchTaskDetails(taskToEdit.taskId);
             } catch (err) {
-                setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+                setError(`Failed to fetch task details: ${extractApiErrorMessage(err)}`);
             } finally {
                 setSelectedTaskLoading(false);
             }
@@ -620,7 +491,7 @@ function CalendarView({ user }) {
         const tagNames = getTagNames(normalized.tags);
         setEditData({
             ...normalized,
-            project: getProjectName(normalized.project),
+            project: projectToProjectName(normalized.project),
             tags: tagNames,
         });
         setSelectedTask(normalized);
@@ -645,73 +516,51 @@ function CalendarView({ user }) {
 
         try {
             setError(null);
-            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName));
+            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName, allTagObjects));
             const payload = {
                 ...editData,
-                project: projectNameToProjectObject(editData.project || ''),
+                project: projectNameToProjectObject(editData.project || '', allProjectObjects),
                 tags: tagObjects,
                 autoSchedule: editTaskAutoSchedule,
             };
 
-            const res = await axios.put(`${backendUrl}/api/tasks`, payload, getAuthConfig());
-            const updatedTask = normalizeTask(res.data || payload);
-
-            setTasks((prev) => prev.map((task) => (task.taskId === updatedTask.taskId ? updatedTask : task)));
+            const updatedTask = await updateTask(payload);
             setSelectedTask(updatedTask);
-            await fetchCalendarData();
+            await refetchAll();
             stopEditingSelectedTask();
         } catch (err) {
-            setError(`Failed to update task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to update task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const handleCompleteTask = async (taskId) => {
         try {
             setError(null);
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
-            const completedTask = normalizeTask(res.data || {});
-            setTasks((prev) => prev.filter((task) => task.taskId !== taskId));
-            setCompletedTasks((prev) => [...prev, completedTask]);
+            await completeTask(taskId);
             if (selectedTask?.taskId === taskId) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError(`Failed to complete task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to complete task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const handleDeleteTask = async (taskId) => {
         try {
             setError(null);
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setTasks((prev) => prev.filter((task) => task.taskId !== taskId));
+            await deleteTask(taskId);
             if (selectedTask?.taskId === taskId) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError(`Failed to delete task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to delete task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const getCalendarEditorProps = () => ({
         mode: 'edit',
         taskData: editData,
-        timeOptions: [
-            ...Array.from({ length: 12 }, (_, i) => {
-                const minutes = (i + 1) * 15;
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                const label = mins === 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : `${hours}h ${mins}m`;
-                return { value: `${hours}h ${mins}m`, label };
-            }),
-            ...Array.from({ length: 10 }, (_, i) => {
-                const minutes = 210 + (i * 30);
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                const label = mins === 0 ? `${hours} hours` : `${hours}h ${mins}m`;
-                return { value: `${hours}h ${mins}m`, label };
-            }),
-        ],
+        timeOptions: buildTimeOptions(),
         projectDropdownVisible: showEditProjectDropdown,
         tagDropdownVisible: showEditTagDropdown,
         tagInputValue: editTaskTagInput,
@@ -784,7 +633,7 @@ function CalendarView({ user }) {
         setCurrentDate(nextDate);
     };
 
-    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed - ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
+    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} • ${completedTasks.length} completed • ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
 
     const sidebarTasks = useMemo(() => {
         return [...visibleTasks].sort(sortByDeadlineSchedulePriority);
@@ -956,7 +805,7 @@ function CalendarView({ user }) {
         return (
             <div className="day-view">
                 <div className="day-view-topbar">
-                    <div className="day-view-month">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
+                    <div className="day-view-month">{formatMonthYearLabel(currentDate)}</div>
                     <div className="day-view-current-day">{selectedDayLabel}</div>
                     <div className="day-view-spacer" aria-hidden="true" />
                 </div>
@@ -1042,19 +891,19 @@ function CalendarView({ user }) {
 
     if (loading) {
         return (
-            <div className="task-view-container">
+            <main className="task-view-container">
                 <div className="task-content">
                     <div className="task-layout task-layout-loading">
                         <aside className="project-sidebar task-loading-sidebar" />
-                        <div className="task-main-panel loading loading-panel">Loading calendar...</div>
+                        <div className="task-main-panel loading loading-panel">Loading calendar…</div>
                     </div>
                 </div>
-            </div>
+            </main>
         );
     }
 
     return (
-        <div className="task-view-container calendar-view-container">
+        <main className="task-view-container calendar-view-container">
             <div className="task-content">
                 <div
                     className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
@@ -1070,15 +919,15 @@ function CalendarView({ user }) {
                                             key={`sidebar-${task.taskId}`}
                                             task={task}
                                             className="calendar-sidebar-task"
-                                            getProjectName={getProjectName}
+                                            getProjectName={projectToProjectName}
                                             getTagNames={getTagNames}
-                                    onSelect={loadSelectedTask}
+                                            onSelect={loadSelectedTask}
                                             showCheckbox={false}
                                             showTags={false}
                                             showActions={false}
                                             showDateTime={false}
                                             metaItems={[
-                                                `Project: ${getProjectName(task.project) || 'Uncategorized'}`,
+                                                `Project: ${projectToProjectName(task.project) || 'Uncategorized'}`,
                                                 `Priority: ${formatPriorityLabel(task.priority) || 'No priority'}`,
                                                 `Deadline: ${formatDeadlineLabel(task.deadline)}`,
                                             ]}
@@ -1099,7 +948,7 @@ function CalendarView({ user }) {
                     />
 
                     <div className="task-main-panel">
-                        {error && <div className="error-message">{error}</div>}
+                        {error && <div className="error-message" role="alert">{error}</div>}
 
                         <div className="task-section-header calendar-section-header">
                             <div className="task-title-group">
@@ -1160,11 +1009,11 @@ function CalendarView({ user }) {
 
             {selectedTask && (
                 <div className="modal-overlay" onClick={closeSelectedTaskModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="modal-close" onClick={closeSelectedTaskModal}>x</button>
-                        <h3>{selectedTask.taskName}</h3>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="calendar-task-modal-title">
+                        <button type="button" className="modal-close" onClick={closeSelectedTaskModal} aria-label="Close task details">×</button>
+                        <h3 id="calendar-task-modal-title">{selectedTask.taskName}</h3>
                         {selectedTaskLoading ? (
-                            <div className="task-main-panel loading loading-panel">Loading task details...</div>
+                            <div className="task-main-panel loading loading-panel">Loading task details…</div>
                         ) : isEditingTask ? (
                             <TaskEditorPanel {...getCalendarEditorProps()} />
                         ) : (
@@ -1181,7 +1030,7 @@ function CalendarView({ user }) {
                                             {formatPriorityLabel(selectedTask.priority) || 'No priority'}
                                         </span>
                                     </div>
-                                    <div className="detail-item"><strong>Project:</strong> {getProjectName(selectedTask.project) || 'Uncategorized'}</div>
+                                    <div className="detail-item"><strong>Project:</strong> {projectToProjectName(selectedTask.project) || 'Uncategorized'}</div>
                                     <div className="detail-item"><strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ') || 'None'}</div>
                                     {selectedTask.comments ? <div className="detail-item"><strong>Comments:</strong> {selectedTask.comments}</div> : null}
                                 </div>
@@ -1210,7 +1059,7 @@ function CalendarView({ user }) {
                     </div>
                 </div>
             )}
-        </div>
+        </main>
     );
 }
 

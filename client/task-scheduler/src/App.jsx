@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'
 import './styles/App.css'
 import './styles/Pomodoro.css'
@@ -12,26 +11,13 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { PomodoroProvider } from './components/pomodoro/PomodoroProvider.jsx';
 import PomodoroFloatingWidget from './components/pomodoro/PomodoroFloatingWidget.jsx';
 import PomodoroFullTimer from './components/pomodoro/PomodoroFullTimer.jsx';
+import useAuthSession from './hooks/useAuthSession.js';
 
 function App() {
-    const [user, setUser] = useState(() => {
-        const storedUsername = sessionStorage.getItem('username');
-        if (!storedUsername) {
-            return null;
-        }
+    const { user, isAuthenticated, login, logout } = useAuthSession();
 
-        return {
-            username: storedUsername,
-            accountId: sessionStorage.getItem('accountId'),
-            role: sessionStorage.getItem('role')
-        };
-    });
-    const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(sessionStorage.getItem('username')));
-
-    const handleLoginSuccess = (userData) => {
-        console.log('Login successful, user data:', userData);
-        setUser(userData);
-        setIsAuthenticated(true);
+    const handleLoginSuccess = ({ credentials, userData }) => {
+        login(userData, credentials);
     };
 
     const handleRegisterSuccess = () => {
@@ -39,12 +25,7 @@ function App() {
     };
 
     const handleLogout = () => {
-        sessionStorage.removeItem('authToken');
-        sessionStorage.removeItem('username');
-        sessionStorage.removeItem('accountId');
-        sessionStorage.removeItem('role');
-        setIsAuthenticated(false);
-        setUser(null);
+        logout();
     };
 
     return (
@@ -76,8 +57,9 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
 
     return (
         <>
+            <a className="skip-link" href="#app-main-content">Skip to Content</a>
             {showNavbar && (
-                <nav className="navbar">
+                <nav className="navbar" aria-label="Primary">
                     <ul className="nav-list">
                         <li className="nav-item">
                             <Link to="/task-view" className={location.pathname === '/task-view' ? 'active' : ''}>Tasks</Link>
@@ -95,7 +77,7 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                 </nav>
             )}
 
-            <div className="content">
+            <main id="app-main-content" className="content">
                 <Routes>
                     <Route path="/" element={<Home isAuthenticated={isAuthenticated} />} />
                     <Route path="/task-view" element={<ProtectedRoute isAuthenticated={isAuthenticated}><TaskView user={user} /></ProtectedRoute>} />
@@ -104,7 +86,7 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                     <Route path="/login" element={<Login onLoginSuccess={onLoginSuccess} />} />
                     <Route path="/register" element={<Register onRegisterSuccess={onRegisterSuccess} />} />
                 </Routes>
-            </div>
+            </main>
 
             {showPomodoro && <PomodoroFloatingWidget />}
             {showPomodoro && <PomodoroFullTimer />}

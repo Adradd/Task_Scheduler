@@ -173,15 +173,11 @@ function getNextPhaseState(currentState, config) {
 
 export function PomodoroProvider({ children, config, onPhaseChange, onCycleComplete }) {
     const normalizedConfig = useMemo(() => normalizeConfig(config), [config]);
-    const initialSnapshotRef = useRef(null);
-    if (initialSnapshotRef.current === null) {
-        initialSnapshotRef.current = readStoredState(normalizedConfig);
-    }
+    const initialSnapshot = useMemo(() => readStoredState(normalizedConfig), [normalizedConfig]);
+    const [state, setState] = useState(() => initialSnapshot.state);
 
-    const [state, setState] = useState(() => initialSnapshotRef.current.state);
-
-    const startTimestampRef = useRef(initialSnapshotRef.current.startTimestamp);
-    const remainingAtLastStartRef = useRef(initialSnapshotRef.current.remainingAtLastStart);
+    const startTimestampRef = useRef(initialSnapshot.startTimestamp);
+    const remainingAtLastStartRef = useRef(initialSnapshot.remainingAtLastStart);
     const phaseTransitionLockRef = useRef(false);
 
     useEffect(() => {

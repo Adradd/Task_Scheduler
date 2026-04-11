@@ -109,6 +109,22 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
+.sidebar-view-button:focus-visible,
+.project-nav-item:focus-visible,
+.project-create-button:focus-visible,
+.project-add-footer-button:focus-visible,
+.new-task-button:focus-visible,
+.completed-tasks-toggle:focus-visible,
+.task-row-actions button:focus-visible,
+.task-editor-actions button:focus-visible,
+.tag-remove:focus-visible,
+.tag-dropdown-item:focus-visible,
+.project-color-option:focus-visible,
+.project-sidebar-resize-handle:focus-visible {
+    outline: 3px solid rgba(63, 176, 186, 0.45);
+    outline-offset: 2px;
+}
+
 .sidebar-view-button.active {
     background: rgba(255, 255, 255, 0.12);
 }
@@ -138,7 +154,6 @@
 }
 
 .project-create-panel input:focus {
-    outline: none;
     border-color: #3fb0ba;
     box-shadow: 0 0 0 3px rgba(63, 176, 186, 0.18);
 }
@@ -586,7 +601,7 @@
     border-radius: 8px;
     font-size: 0.95rem;
     font-family: inherit;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
     background-color: rgba(255, 255, 255, 0.96);
 }
 
@@ -600,7 +615,6 @@
 .task-field input:focus,
 .task-field select:focus,
 .task-field textarea:focus {
-    outline: none;
     border-color: #0653b5;
     background-color: white;
     box-shadow: 0 0 0 3px rgba(3, 83, 181, 0.1);
@@ -631,7 +645,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1072,7 +1086,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1104,7 +1118,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1156,7 +1170,7 @@
     font-size: 16px;
     line-height: 1;
     padding: 0;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .tag-remove:hover {
@@ -1169,6 +1183,7 @@
     top: 100%;
     left: 0;
     right: 0;
+    list-style: none;
     background: white;
     border: 2px solid #3fb0ba;
     border-radius: 6px;
@@ -1177,14 +1192,19 @@
     overflow-y: auto;
     z-index: 1000;
     margin-top: 4px;
+    padding: 0;
 }
 
 .tag-dropdown-item {
+    width: 100%;
+    border: none;
+    background: transparent;
     padding: 0.75rem 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     font-size: 0.95rem;
     border-bottom: 1px solid #f0f0f0;
+    text-align: left;
 }
 
 .tag-dropdown-item:last-child {

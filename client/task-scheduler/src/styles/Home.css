@@ -37,7 +37,7 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.3s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -50,6 +50,11 @@
 .title-section .cta-button:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.title-section .cta-button:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.8);
+    outline-offset: 4px;
 }
 
 /* Feature Sections */
@@ -95,7 +100,7 @@
     padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .task-features .feature-card {
@@ -123,4 +128,3 @@
     line-height: 1.6;
     margin: 0;
 }
-
