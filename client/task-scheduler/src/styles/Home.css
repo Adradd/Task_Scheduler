@@ -1,12 +1,14 @@
 .home-container {
     font-family: Inter, sans-serif;
-    color: #333;
+    color: #f4f1f2;
+    background: #454047;
+    min-height: calc(100vh - 80px);
 }
 
 /* Hero Section */
 .title-section {
-    background: linear-gradient(135deg, #3fb0ba 0%, #0653b5 100%);
-    color: white;
+    background: linear-gradient(160deg, #3d383c 0%, #302c31 100%);
+    color: #f4f1f2;
     padding: 6rem 2rem;
     text-align: center;
     min-height: 30vh;
@@ -26,7 +28,7 @@
 .subtitle {
     font-size: 1.25rem;
     margin: 0 0 2rem 0;
-    opacity: 0.95;
+    color: rgba(244, 241, 242, 0.82);
     max-width: 600px;
 }
 
@@ -43,13 +45,14 @@
 }
 
 .title-section .cta-button {
-    background-color: white;
-    color: #000000;
+    background-color: #0576f3;
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(5, 118, 243, 0.25);
 }
 
 .title-section .cta-button:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 14px 28px rgba(5, 118, 243, 0.34);
 }
 
 .title-section .cta-button:focus-visible {
@@ -66,24 +69,24 @@
 }
 
 .task-features {
-    background-color: #f9f9f9;
+    background-color: #454047;
 }
 
 .calendar-features {
-    background-color: white;
+    background-color: #454047;
 }
 
 .task-features h2,
 .calendar-features h2 {
     font-size: 2rem;
     margin: 0 0 1rem 0;
-    color: #333;
+    color: #f4f1f2;
 }
 
 .task-features > p,
 .calendar-features > p {
     font-size: 1.1rem;
-    color: #666;
+    color: rgba(244, 241, 242, 0.78);
     margin: 0 0 2rem 0;
     max-width: 600px;
 }
@@ -96,25 +99,26 @@
 }
 
 .feature-card {
-    background: white;
+    background: #dedbe3;
     padding: 2rem;
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .task-features .feature-card {
-    border-top: 4px solid #4CAF50;
+    border-top: 4px solid #3fb0ba;
 }
 
 .calendar-features .feature-card {
-    border-top: 4px solid #2196F3;
-    background-color: #f9f9f9;
+    border-top: 4px solid #0576f3;
+    background-color: #dedbe3;
 }
 
 .feature-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.26);
 }
 
 .feature-card h3 {

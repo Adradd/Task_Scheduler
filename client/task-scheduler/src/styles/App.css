@@ -1,14 +1,16 @@
 html, body {
   margin: 0;
   font-family: Inter, serif;
+  background: #454047;
 }
 
 body {
-  background: #D9D9D9;
+  background: #454047;
 }
 
 #root {
   min-height: 100vh;
+  background: #454047;
 }
 
 .skip-link {
