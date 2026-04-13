@@ -1,7 +1,7 @@
 import ConfirmPopoverButton from './ConfirmPopoverButton.jsx';
 import { formatPriorityLabel } from '../utils/taskFormatting.js';
 
-function TaskListItem({
+export default function TaskListItem ({
     task,
     isEditing = false,
     editorPanel = null,
@@ -98,5 +98,3 @@ function TaskListItem({
         </div>
     );
 }
-
-export default TaskListItem;

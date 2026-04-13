@@ -5,6 +5,8 @@
     min-height: calc(100vh - 80px);
     background-color: #454047;
     padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .account-card {
@@ -14,6 +16,17 @@
     padding: 40px;
     width: 100%;
     max-width: 500px;
+    margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+    .account-container {
+        padding: 16px;
+    }
+
+    .account-card {
+        padding: 24px;
+    }
 }
 
 .account-card h1 {

@@ -31,7 +31,7 @@ const PROJECT_COLOR_OPTIONS = [
     '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
 ];
 
-function TaskView({ user }) {
+export default function TaskView ({ user }) {
     const {
         tasks,
         completedTasks,
@@ -800,5 +800,3 @@ function TaskView({ user }) {
         </main>
     );
 }
-
-export default TaskView;

@@ -13,7 +13,7 @@ import PomodoroFloatingWidget from './components/pomodoro/PomodoroFloatingWidget
 import PomodoroFullTimer from './components/pomodoro/PomodoroFullTimer.jsx';
 import useAuthSession from './hooks/useAuthSession.js';
 
-function App() {
+export default function App () {
     const { user, isAuthenticated, login, logout } = useAuthSession();
 
     const handleLoginSuccess = ({ credentials, userData }) => {
@@ -93,5 +93,3 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
         </>
     )
 }
-
-export default App

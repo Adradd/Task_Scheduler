@@ -4,7 +4,7 @@ import axios from 'axios';
 import '../styles/Register.css';
 import { extractApiErrorMessage } from '../utils/api.js';
 
-function Register({ onRegisterSuccess }) {
+export default function Register ({ onRegisterSuccess }) {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -197,5 +197,3 @@ function Register({ onRegisterSuccess }) {
         </main>
     );
 }
-
-export default Register;

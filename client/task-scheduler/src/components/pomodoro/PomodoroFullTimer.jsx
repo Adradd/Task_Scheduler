@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { usePomodoro } from './pomodoroContext.js';
 import RadialProgress from './RadialProgress.jsx';
 
@@ -15,7 +15,7 @@ function formatClock(ms) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function PomodoroFullTimer() {
+export default function PomodoroFullTimer () {
     const {
         phase,
         remainingMs,
@@ -40,15 +40,37 @@ function PomodoroFullTimer() {
 
     const cycleIndex = phase === 'focus' ? completedFocusCount + 1 : completedFocusCount;
 
+    useEffect(() => {
+        if (!expanded) {
+            return undefined;
+        }
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setExpanded(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [expanded, setExpanded]);
+
     if (!expanded) {
         return null;
     }
 
     return (
-        <div className="pomodoro-overlay" onClick={() => setExpanded(false)}>
-            <div className="pomodoro-card" onClick={(event) => event.stopPropagation()}>
-                <div className="pomodoro-card-glow" />
-
+        <div className="pomodoro-panel-shell">
+            <section
+                id="pomodoro-expanded-panel"
+                className="pomodoro-card pomodoro-card-expanded"
+                role="dialog"
+                aria-modal="false"
+                aria-label="Pomodoro timer"
+            >
                 <header className="pomodoro-card-header">
                     <h2>Pomodoro</h2>
                     <button
@@ -78,9 +100,7 @@ function PomodoroFullTimer() {
                     <button type="button" className="pomodoro-button" onClick={resetPhase}>Reset</button>
                     <button type="button" className="pomodoro-button" onClick={skipPhase}>Skip</button>
                 </div>
-            </div>
+            </section>
         </div>
     );
 }
-
-export default PomodoroFullTimer;

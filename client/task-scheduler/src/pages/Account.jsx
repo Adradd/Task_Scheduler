@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Account.css';
+import '../styles/TaskView.css';
 import { extractApiErrorMessage } from '../utils/api.js';
 import { createAuthConfig, getStoredAccountId } from '../utils/authSession.js';
 
-function Account({ user, onLogout }) {
+export default function Account ({ user, onLogout }) {
     const [accountData, setAccountData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -135,7 +136,16 @@ function Account({ user, onLogout }) {
     };
 
     if (loading) {
-        return <main className="account-container"><p>Loading account details…</p></main>;
+        return (
+            <main className="task-view-container">
+                <div className="task-content">
+                    <div className="task-layout task-layout-loading">
+                        <aside className="project-sidebar task-loading-sidebar" />
+                        <div className="task-main-panel loading loading-panel">Loading account…</div>
+                    </div>
+                </div>
+            </main>
+        );
     }
 
     if (!accountData) {
@@ -244,5 +254,3 @@ function Account({ user, onLogout }) {
         </main>
     );
 }
-
-export default Account;

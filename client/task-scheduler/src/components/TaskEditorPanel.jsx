@@ -1,6 +1,6 @@
 import { useId } from 'react';
 
-function TaskEditorPanel({
+export default function TaskEditorPanel ({
     mode,
     taskData,
     timeOptions,
@@ -207,5 +207,3 @@ function TaskEditorPanel({
         </div>
     );
 }
-
-export default TaskEditorPanel;

@@ -76,7 +76,7 @@ const sortByDeadlineSchedulePriority = (taskA, taskB) => {
     return (taskA.taskName || '').localeCompare(taskB.taskName || '');
 };
 
-function CalendarView({ user }) {
+export default function CalendarView ({ user }) {
     const DAY_VIEW_START_HOUR = 0;
     const DAY_VIEW_END_HOUR = 23;
     const DAY_VIEW_HOUR_HEIGHT = 52;
@@ -1062,5 +1062,3 @@ function CalendarView({ user }) {
         </main>
     );
 }
-
-export default CalendarView;

@@ -13,15 +13,25 @@ function formatClock(ms) {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function PomodoroFloatingWidget() {
+export default function PomodoroFloatingWidget () {
     const { phase, remainingMs, expanded, setExpanded } = usePomodoro();
+    const handleWidgetClick = () => {
+        if (expanded) {
+            setExpanded(false);
+            return;
+        }
+
+        setExpanded(true);
+    };
 
     return (
         <button
             type="button"
             className={`pomodoro-floating-widget ${expanded ? 'is-expanded' : ''}`}
-            onClick={() => setExpanded(true)}
-            aria-label="Open Pomodoro timer"
+            onClick={handleWidgetClick}
+            aria-label={expanded ? 'Close Pomodoro timer' : 'Open Pomodoro timer'}
+            aria-expanded={expanded}
+            aria-controls="pomodoro-expanded-panel"
         >
             <span className="pomodoro-floating-time">{formatClock(remainingMs)}</span>
             <span className="pomodoro-floating-meta">
@@ -30,5 +40,3 @@ function PomodoroFloatingWidget() {
         </button>
     );
 }
-
-export default PomodoroFloatingWidget;

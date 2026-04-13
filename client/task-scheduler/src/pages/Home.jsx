@@ -1,7 +1,7 @@
 import '../styles/Home.css';
 import { useNavigate } from 'react-router-dom';
 
-function Home({ isAuthenticated }) {
+export default function Home ({ isAuthenticated }) {
     const navigate = useNavigate();
 
     const handleGetStarted = () => {
@@ -60,5 +60,3 @@ function Home({ isAuthenticated }) {
         </main>
     )
 }
-
-export default Home

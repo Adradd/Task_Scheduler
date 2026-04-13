@@ -4,7 +4,7 @@ import axios from 'axios';
 import '../styles/Login.css';
 import { extractApiErrorMessage } from '../utils/api.js';
 
-function Login({ onLoginSuccess }) {
+export default function Login ({ onLoginSuccess }) {
     const [formData, setFormData] = useState({
         username: '',
         password: ''
@@ -139,5 +139,3 @@ function Login({ onLoginSuccess }) {
         </main>
     );
 }
-
-export default Login;

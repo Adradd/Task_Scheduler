@@ -2,7 +2,8 @@
     position: fixed;
     right: 24px;
     bottom: 24px;
-    z-index: 900;
+    z-index: 1000;
+    box-sizing: border-box;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 16px;
     background: linear-gradient(145deg, #16161d 0%, #101015 100%);
@@ -66,44 +67,34 @@
     color: #6ed9ff;
 }
 
-.pomodoro-overlay {
+.pomodoro-panel-shell {
     position: fixed;
-    inset: 0;
     z-index: 980;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: rgba(10, 10, 14, 0.72);
-    backdrop-filter: blur(3px);
+    right: 24px;
+    bottom: 112px;
+    left: auto;
+    width: min(380px, calc(100vw - 48px));
+    max-width: calc(100vw - 48px);
+    box-sizing: border-box;
 }
 
 .pomodoro-card {
     position: relative;
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-    border: none;
-    padding: 2.25rem 1.5rem;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 1.4rem 1.25rem 1.2rem;
     background: linear-gradient(170deg, #101016 0%, #08090e 100%);
     color: #fff2ef;
-    box-shadow: none;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.42);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
 }
 
-.pomodoro-card-glow {
-    position: absolute;
-    width: 240px;
-    height: 240px;
-    border-radius: 50%;
-    left: 50%;
-    top: 47%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(circle, rgb(138, 194, 211) 0%, rgba(71, 163, 255, 0.36) 32%, rgba(255, 92, 65, 0) 70%);
-    filter: blur(24px);
-    pointer-events: none;
+.pomodoro-card-expanded {
+    min-height: 440px;
 }
 
 .pomodoro-card-header {
@@ -112,8 +103,7 @@
     justify-content: space-between;
     position: relative;
     z-index: 1;
-    width: min(680px, 100%);
-    margin: 0 auto;
+    width: 100%;
 }
 
 .pomodoro-card-header h2 {
@@ -170,9 +160,7 @@
     font-size: 0.84rem;
     position: relative;
     z-index: 1;
-    width: min(680px, 100%);
-    margin-left: auto;
-    margin-right: auto;
+    width: 100%;
 }
 
 .pomodoro-actions-row {
@@ -181,8 +169,8 @@
     gap: 0.7rem;
     position: relative;
     z-index: 1;
-    width: min(680px, 100%);
-    margin: 0 auto;
+    width: 100%;
+    margin-top: auto;
 }
 
 .pomodoro-button {
@@ -217,6 +205,14 @@
     .pomodoro-floating-widget {
         right: 16px;
         bottom: 16px;
+    }
+
+    .pomodoro-panel-shell {
+        right: 16px;
+        left: 16px;
+        bottom: 100px;
+        width: auto;
+        max-width: none;
     }
 
     .pomodoro-card {
