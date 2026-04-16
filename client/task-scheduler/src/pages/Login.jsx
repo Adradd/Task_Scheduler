@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Login.css';
 import { extractApiErrorMessage } from '../utils/api.js';
@@ -13,7 +13,9 @@ export default function Login ({ onLoginSuccess }) {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const authMessage = location.state?.authMessage || '';
 
     const validateForm = () => {
         const newErrors = {};
@@ -89,6 +91,7 @@ export default function Login ({ onLoginSuccess }) {
         <main className="login-container">
             <section className="login-card" aria-labelledby="login-title">
                 <h1 id="login-title">Login</h1>
+                {authMessage ? <div className="auth-message" role="status">{authMessage}</div> : null}
                 {errors.submit && <div className="error-message" role="alert">{errors.submit}</div>}
 
                 <form onSubmit={handleSubmit} noValidate>

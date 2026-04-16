@@ -306,8 +306,24 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
 
     const skipPhase = useCallback(() => {
         phaseTransitionLockRef.current = true;
-        advancePhase();
-    }, [advancePhase]);
+
+        setState((prev) => {
+            const { nextState, phaseChangedTo, cycleComplete } = getNextPhaseState(prev, normalizedConfig);
+
+            if (onPhaseChange) {
+                onPhaseChange(phaseChangedTo);
+            }
+            if (cycleComplete && onCycleComplete) {
+                onCycleComplete();
+            }
+
+            return persistAndReturnState(nextState);
+        });
+
+        startTimestampRef.current = 0;
+        remainingAtLastStartRef.current = 0;
+        phaseTransitionLockRef.current = false;
+    }, [normalizedConfig, onCycleComplete, onPhaseChange]);
 
     const setExpanded = useCallback((value) => {
         setState((prev) => persistAndReturnState({

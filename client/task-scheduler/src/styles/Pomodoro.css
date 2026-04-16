@@ -3,13 +3,15 @@
     right: 24px;
     bottom: 24px;
     z-index: 1000;
+    transform: none;
     box-sizing: border-box;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 16px;
     background: linear-gradient(145deg, #16161d 0%, #101015 100%);
     color: #fef4f2;
-    min-width: 164px;
+    width: 172px;
     min-height: 72px;
+    max-width: calc(100vw - 32px);
     padding: 0.75rem 0.9rem;
     display: grid;
     justify-items: center;
@@ -17,6 +19,7 @@
     gap: 0.18rem;
     text-align: center;
     cursor: pointer;
+    overflow: hidden;
     /*box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35), 0 0 18px rgb(138, 194, 211);*/
 }
 

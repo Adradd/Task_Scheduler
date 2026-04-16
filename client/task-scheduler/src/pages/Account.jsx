@@ -18,6 +18,28 @@ export default function Account ({ user, onLogout }) {
     const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+    const formatWorkingHourLabel = (value) => {
+        if (!value || typeof value !== 'string') {
+            return '';
+        }
+
+        const match = value.match(/^(\d{2}):(\d{2})$/);
+        if (!match) {
+            return value;
+        }
+
+        const [, hoursRaw, minutesRaw] = match;
+        const hours = Number(hoursRaw);
+        const minutes = Number(minutesRaw);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return value;
+        }
+
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = (hours % 12) || 12;
+        return `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+    };
+
     useEffect(() => {
         if (user) {
             fetchAccountDetails();
@@ -189,7 +211,7 @@ export default function Account ({ user, onLogout }) {
                                 onChange={handleChange}
                             />
                         ) : (
-                            <p>{accountData.startWorkingHours || '09:00'}</p>
+                            <p>{formatWorkingHourLabel(accountData.startWorkingHours || '09:00')}</p>
                         )}
                     </div>
 
@@ -203,7 +225,7 @@ export default function Account ({ user, onLogout }) {
                                 onChange={handleChange}
                             />
                         ) : (
-                            <p>{accountData.endWorkingHours || '17:00'}</p>
+                            <p>{formatWorkingHourLabel(accountData.endWorkingHours || '17:00')}</p>
                         )}
                     </div>
 

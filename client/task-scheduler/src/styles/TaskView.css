@@ -130,8 +130,10 @@
 }
 
 .sidebar-view-icon {
-    width: 1rem;
-    height: 1rem;
+    width: 1rem !important;
+    height: 1rem !important;
+    min-width: 1rem;
+    min-height: 1rem;
     flex: 0 0 auto;
     object-fit: contain;
 }
@@ -527,6 +529,11 @@
     padding: 1rem 0;
 }
 
+.task-card-overdue {
+    border-left: 3px solid rgba(220, 53, 69, 0.8);
+    padding-left: 0.7rem;
+}
+
 .task-checkbox {
     margin-top: 0.15rem;
     width: 20px;
@@ -627,6 +634,13 @@
 .task-field textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+.task-field-warning {
+    margin: 0.45rem 0 0;
+    color: #ffd6a0;
+    font-size: 0.82rem;
+    line-height: 1.35;
 }
 
 .task-row-actions,
@@ -755,6 +769,22 @@
     margin-top: 0.35rem;
     color: #66a8ff;
     font-size: 0.86rem;
+}
+
+.task-overdue-pill {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.35rem;
+    background: rgba(220, 53, 69, 0.2);
+    color: #ffd6db;
+    border: 1px solid rgba(220, 53, 69, 0.42);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.5rem;
+    width: fit-content;
 }
 
 .task-meta-inline {

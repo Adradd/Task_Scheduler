@@ -4,7 +4,6 @@ export default function TaskEditorPanel ({
     mode,
     taskData,
     timeOptions,
-    projectDropdownVisible,
     tagDropdownVisible,
     tagInputValue,
     filteredProjects,
@@ -15,7 +14,6 @@ export default function TaskEditorPanel ({
     onProjectBlur,
     onTagFocus,
     onTagBlur,
-    onProjectSelect,
     onTagSelect,
     onRemoveTag,
     onAutoScheduleChange,
@@ -24,6 +22,8 @@ export default function TaskEditorPanel ({
 }) {
     const currentTags = taskData.tags || [];
     const isNewTask = mode === 'create';
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const isPastDeadline = Boolean(taskData.deadline && taskData.deadline < todayKey);
     const fieldPrefix = useId();
     const ids = {
         autoSchedule: `${fieldPrefix}-auto-schedule`,
@@ -31,7 +31,6 @@ export default function TaskEditorPanel ({
         deadline: `${fieldPrefix}-deadline`,
         priority: `${fieldPrefix}-priority`,
         project: `${fieldPrefix}-project`,
-        projectList: `${fieldPrefix}-project-list`,
         tags: `${fieldPrefix}-tags`,
         tagList: `${fieldPrefix}-tag-list`,
         taskName: `${fieldPrefix}-task-name`,
@@ -60,6 +59,11 @@ export default function TaskEditorPanel ({
                         value={taskData.deadline || ''}
                         onChange={(e) => onChange('deadline', e.target.value)}
                     />
+                    {isPastDeadline && (
+                        <p className="task-field-warning" role="status">
+                            This date is in the past - this task will be immediately overdue.
+                        </p>
+                    )}
                 </div>
 
                 <div className="task-field">
@@ -94,35 +98,18 @@ export default function TaskEditorPanel ({
 
                 <div className="task-field">
                     <label htmlFor={ids.project}>Project</label>
-                    <div className="tag-input-container">
-                        <input
-                            id={ids.project}
-                            type="text"
-                            value={taskData.project || ''}
-                            onChange={(e) => onChange('project', e.target.value)}
-                            onFocus={onProjectFocus}
-                            onBlur={onProjectBlur}
-                            placeholder="Project…"
-                            aria-expanded={projectDropdownVisible}
-                            aria-controls={projectDropdownVisible ? ids.projectList : undefined}
-                        />
-                        {projectDropdownVisible && filteredProjects.length > 0 && (
-                            <ul id={ids.projectList} className="tag-dropdown" role="listbox" aria-label="Project suggestions">
-                                {filteredProjects.map((projectName) => (
-                                    <li key={projectName}>
-                                        <button
-                                            type="button"
-                                            className="tag-dropdown-item"
-                                            onMouseDown={(event) => event.preventDefault()}
-                                            onClick={() => onProjectSelect(projectName)}
-                                        >
-                                            {projectName}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
+                    <select
+                        id={ids.project}
+                        value={taskData.project || ''}
+                        onChange={(e) => onChange('project', e.target.value)}
+                        onFocus={onProjectFocus}
+                        onBlur={onProjectBlur}
+                    >
+                        <option value="">No Project</option>
+                        {filteredProjects.map((projectName) => (
+                            <option key={projectName} value={projectName}>{projectName}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="task-field task-field-wide">

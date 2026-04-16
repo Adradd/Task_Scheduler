@@ -82,6 +82,42 @@ export default function TaskView ({ user }) {
     const timeOptions = buildTimeOptions();
     const todayKey = getTodayKey();
 
+    const parseDateKey = (dateKey) => {
+        if (!dateKey || typeof dateKey !== 'string') {
+            return null;
+        }
+
+        const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            return null;
+        }
+
+        const [, y, m, d] = match;
+        return new Date(Number(y), Number(m) - 1, Number(d));
+    };
+
+    const isTaskOverdue = (task) => {
+        const taskDate = parseDateKey(task?.deadline || '');
+        const today = parseDateKey(todayKey);
+        if (!taskDate || !today) {
+            return false;
+        }
+        taskDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return taskDate < today;
+    };
+
+    const isDueTodayOrOverdue = (task) => {
+        const taskDate = parseDateKey(task?.deadline || '');
+        const today = parseDateKey(todayKey);
+        if (!taskDate || !today) {
+            return false;
+        }
+        taskDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return taskDate <= today;
+    };
+
     const handleEdit = (task) => {
         if (isGoogleReadOnlyTask(task)) {
             setError('Google Calendar events are view-only and cannot be edited in this app.');
@@ -103,6 +139,12 @@ export default function TaskView ({ user }) {
     };
 
     const handleSaveEdit = async () => {
+        const validationErrors = validateTask(editData);
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
+            return;
+        }
+
         try {
             setError(null);
             const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName, allTagObjects));
@@ -126,6 +168,7 @@ export default function TaskView ({ user }) {
         setEditingId(null);
         setEditData({});
         setEditTaskAutoSchedule(false);
+        setError(null);
     };
 
     const resetNewTaskForm = () => {
@@ -143,6 +186,7 @@ export default function TaskView ({ user }) {
         setShowNewTaskProjectDropdown(false);
         setShowNewTaskForm(false);
         setNewTaskAutoSchedule(false);
+        setError(null);
     };
 
     const handleDelete = async (taskId) => {
@@ -202,17 +246,25 @@ export default function TaskView ({ user }) {
     };
 
     const validateTask = (task) => {
-        if (!task.taskName.trim()) return 'Task name is required';
-        if (!task.deadline.trim()) return 'Deadline is required';
-        if (!task.timeToComplete.trim()) return 'Time to complete is required';
-        if (!task.priority.trim()) return 'Priority is required';
-        return null;
+        const errors = [];
+
+        if (!task.taskName?.trim()) errors.push('Task name is required');
+        if (!task.deadline?.trim()) errors.push('Deadline is required');
+        if (!task.timeToComplete?.trim()) errors.push('Time to complete is required');
+        if (!task.priority?.trim()) errors.push('Priority is required');
+
+        const projectName = task.project?.trim();
+        if (projectName && !availableProjects.some((project) => project.toLowerCase() === projectName.toLowerCase())) {
+            errors.push('Please select a project from the project list');
+        }
+
+        return errors;
     };
 
     const handleCreateTask = async () => {
-        const validationError = validateTask(newTask);
-        if (validationError) {
-            setError(validationError);
+        const validationErrors = validateTask(newTask);
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
             return;
         }
 
@@ -221,7 +273,7 @@ export default function TaskView ({ user }) {
             const tagObjects = newTask.tags.map((tagName) => tagNameToTagObject(tagName, allTagObjects));
 
             const taskToCreate = {
-                taskId: `task_${Date.now()}`,
+                taskId: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 taskName: newTask.taskName,
                 deadline: newTask.deadline,
                 timeToComplete: newTask.timeToComplete,
@@ -247,9 +299,6 @@ export default function TaskView ({ user }) {
             setNewTask(prev => ({ ...prev, tags: parseTagInput(value) }));
             return;
         }
-        if (field === 'project') {
-            setShowNewTaskProjectDropdown(true);
-        }
         setNewTask(prev => ({ ...prev, [field]: value }));
     };
 
@@ -261,9 +310,6 @@ export default function TaskView ({ user }) {
             const tagNames = parseTagInput(value).filter(Boolean);
             setEditData(prev => ({ ...prev, tags: tagNames }));
             return;
-        }
-        if (field === 'project') {
-            setShowEditProjectDropdown(true);
         }
         setEditData(prev => ({ ...prev, [field]: value }));
     };
@@ -308,24 +354,6 @@ export default function TaskView ({ user }) {
         return availableTags.filter(tag =>
             tag.toLowerCase().includes(input) && !currentTags.includes(tag)
         );
-    };
-
-    const getFilteredProjects = (inputValue) => {
-        const input = (inputValue || '').trim().toLowerCase();
-        if (!input) {
-            return availableProjects;
-        }
-        return availableProjects.filter(projectName => projectName.toLowerCase().includes(input));
-    };
-
-    const handleProjectSelect = (projectName, isNewTask = true) => {
-        if (isNewTask) {
-            setNewTask(prev => ({ ...prev, project: projectName }));
-            setShowNewTaskProjectDropdown(false);
-            return;
-        }
-        setEditData(prev => ({ ...prev, project: projectName }));
-        setShowEditProjectDropdown(false);
     };
 
     const handleCreateProject = async () => {
@@ -386,15 +414,14 @@ export default function TaskView ({ user }) {
             projectDropdownVisible,
             tagDropdownVisible,
             tagInputValue,
-            filteredProjects: getFilteredProjects(taskData.project),
+            filteredProjects: availableProjects,
             filteredTags: getFilteredTags(tagInputValue, taskData.tags || []),
             autoSchedule: isNewTask ? newTaskAutoSchedule : editTaskAutoSchedule,
             onChange: (field, value) => (isNewTask ? handleNewTaskChange(field, value) : handleEditChange(field, value)),
             onProjectFocus: () => (isNewTask ? setShowNewTaskProjectDropdown(true) : setShowEditProjectDropdown(true)),
-            onProjectBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 200),
+            onProjectBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 0),
             onTagFocus: () => (isNewTask ? setShowNewTaskTagDropdown(true) : setShowEditTagDropdown(true)),
             onTagBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskTagDropdown(false) : setShowEditTagDropdown(false)), 200),
-            onProjectSelect: (projectName) => handleProjectSelect(projectName, isNewTask),
             onTagSelect: (tagName) => handleTagSelect(tagName, isNewTask),
             onRemoveTag: (tagName) => removeTag(tagName, isNewTask),
             onAutoScheduleChange: (checked) => (isNewTask ? setNewTaskAutoSchedule(checked) : setEditTaskAutoSchedule(checked)),
@@ -411,6 +438,7 @@ export default function TaskView ({ user }) {
         <TaskListItem
             key={task.taskId}
             task={task}
+            className={isTaskOverdue(task) ? 'task-card-overdue' : ''}
             isEditing={editingId === task.taskId}
             editorPanel={<TaskEditorPanel {...getEditorProps(false, task.taskId)} />}
             getProjectName={projectToProjectName}
@@ -424,11 +452,17 @@ export default function TaskView ({ user }) {
             metaItems={[
                 projectToProjectName(task.project) || 'Uncategorized',
                 formatPriorityLabel(task.priority) || 'No priority',
+                ...(isTaskOverdue(task) ? ['Overdue'] : []),
                 ...(isGoogleReadOnlyTask(task) ? ['Google Calendar (read-only)'] : []),
                 task.comments || '',
             ].filter(Boolean)}
         />
     );
+    const handleSelectFilter = (filter) => {
+        setError(null);
+        setSelectedFilter(filter);
+    };
+
 
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
@@ -490,7 +524,7 @@ export default function TaskView ({ user }) {
         : selectedFilter === 'inbox'
             ? tasks.filter(task => !projectToProjectName(task.project))
             : selectedFilter === 'today'
-                ? tasks.filter(task => task.deadline === todayKey)
+                ? tasks.filter(isDueTodayOrOverdue)
                 : selectedFilter.startsWith('project:')
                     ? tasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
                     : tasks;
@@ -500,7 +534,7 @@ export default function TaskView ({ user }) {
         : selectedFilter === 'inbox'
             ? completedTasks.filter(task => !projectToProjectName(task.project))
             : selectedFilter === 'today'
-                ? completedTasks.filter(task => task.deadline === todayKey)
+                ? completedTasks.filter(isDueTodayOrOverdue)
                 : selectedFilter.startsWith('project:')
                     ? completedTasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
                     : completedTasks;
@@ -535,7 +569,7 @@ export default function TaskView ({ user }) {
     const emptyStateMessage = selectedFilter === 'inbox'
         ? 'Tasks without a project will appear here.'
         : selectedFilter === 'today'
-            ? 'Tasks due today will show up here from any project.'
+            ? 'Tasks due today and overdue tasks will show up here from any project.'
             : selectedFilter === 'overview'
                 ? 'Create a task below to get started.'
                 : 'Pick another section or create a new task below.';
@@ -555,7 +589,7 @@ export default function TaskView ({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'inbox' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('inbox')}
+                                    onClick={() => handleSelectFilter('inbox')}
                                 >
                                     {renderSidebarIcon(inboxIcon)}
                                     Inbox
@@ -563,7 +597,7 @@ export default function TaskView ({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'today' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('today')}
+                                    onClick={() => handleSelectFilter('today')}
                                 >
                                     {renderSidebarIcon(targetIcon)}
                                     Today
@@ -571,7 +605,7 @@ export default function TaskView ({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'overview' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('overview')}
+                                    onClick={() => handleSelectFilter('overview')}
                                 >
                                     {renderSidebarIcon(bookIcon)}
                                     Overview
@@ -587,7 +621,7 @@ export default function TaskView ({ user }) {
                                                 type="button"
                                                 key={project.projectId || project.projectName}
                                                 className={`project-nav-item ${selectedFilter === `project:${project.projectName}` ? 'active' : ''}`}
-                                                onClick={() => setSelectedFilter(`project:${project.projectName}`)}
+                                                onClick={() => handleSelectFilter(`project:${project.projectName}`)}
                                                 title={project.projectName}
                                             >
                                                 <span className="project-nav-label-wrap">
@@ -689,6 +723,7 @@ export default function TaskView ({ user }) {
                                     className="new-task-button"
                                     onClick={() => {
                                         handleCancel();
+                                        setError(null);
                                         setShowNewTaskForm(prev => !prev);
                                     }}
                                 >
@@ -759,6 +794,7 @@ export default function TaskView ({ user }) {
                                                             {projectToProjectName(task.project) || 'Uncategorized'}
                                                         </span>
                                                         <span>{formatPriorityLabel(task.priority) || 'No priority'}</span>
+                                                        <span>{(getTagNames(task.tags) || []).join(' • ') || 'No tags'}</span>
                                                         {task.comments ? <span>{task.comments}</span> : null}
                                                     </div>
                                                 </div>

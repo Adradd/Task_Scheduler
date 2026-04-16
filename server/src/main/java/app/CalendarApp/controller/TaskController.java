@@ -79,7 +79,12 @@ public class TaskController {
             task.setGoogleSourceCalendarId(null);
             task.setGoogleSourceEventId(null);
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
-                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+                String projectName = task.getProject().getProjectName().trim();
+                var existingProject = projectService.findProjectByOwnerAndName(account, projectName);
+                if (existingProject == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Project must be selected from existing projects"));
+                }
+                task.setProject(existingProject);
             } else {
                 task.setProject(null);
             }
@@ -116,7 +121,12 @@ public class TaskController {
             task.setGoogleSourceCalendarId(existing.getGoogleSourceCalendarId());
             task.setGoogleSourceEventId(existing.getGoogleSourceEventId());
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
-                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+                String projectName = task.getProject().getProjectName().trim();
+                var existingProject = projectService.findProjectByOwnerAndName(account, projectName);
+                if (existingProject == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Project must be selected from existing projects"));
+                }
+                task.setProject(existingProject);
             } else {
                 task.setProject(null);
             }

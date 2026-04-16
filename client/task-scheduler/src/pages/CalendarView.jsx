@@ -35,7 +35,29 @@ import '../styles/CalendarView.css';
 const parseTaskDateTime = (value) => {
     if (!value || typeof value !== 'string') return null;
 
-    const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
+    const normalized = value.trim().includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value.trim();
+
+    // Parse date-only values in local time to avoid timezone day shifts.
+    const dateOnlyMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+    }
+
+    const localDateTimeMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (localDateTimeMatch) {
+        const [, year, month, day, hours, minutes, seconds = '0'] = localDateTimeMatch;
+        return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hours),
+            Number(minutes),
+            Number(seconds),
+            0,
+        );
+    }
+
     const parsed = new Date(normalized);
 
     if (Number.isNaN(parsed.getTime())) {
@@ -83,7 +105,7 @@ export default function CalendarView ({ user }) {
     const WEEK_VIEW_HOUR_HEIGHT = 32;
     const WEEK_VIEW_HEADER_HEIGHT = 56;
     const WEEK_VIEW_UNSCHEDULED_HEIGHT = 78;
-    const WEEK_VIEW_TICK_OFFSET = 1;
+    const NO_PROJECT_CALENDAR_COLOR = '#8ecae6';
 
     const {
         tasks,
@@ -250,11 +272,15 @@ export default function CalendarView ({ user }) {
     };
 
     const getTaskDisplayDateKey = (task) => {
+        if (task?.deadline) {
+            return task.deadline;
+        }
+
         const { startDate, hasValidRange } = getTaskScheduleRange(task);
         if (hasValidRange) {
             return toDateKey(startDate);
         }
-        return task.deadline || '';
+        return '';
     };
 
     const getTasksForDate = (date) => {
@@ -269,6 +295,15 @@ export default function CalendarView ({ user }) {
         const parsed = parseTaskDateTime(`${deadline}T00:00:00`);
         if (!parsed) return deadline;
         return formatMonthDayLabel(parsed);
+    };
+
+    const formatDateTimeDetailLabel = (dateTimeValue) => {
+        const parsed = parseTaskDateTime(dateTimeValue);
+        if (!parsed) return 'Unscheduled';
+
+        const dateLabel = formatDate(parsed, { month: 'long', day: 'numeric', year: 'numeric' });
+        const timeLabel = formatTimeLabel(parsed);
+        return `${dateLabel} at ${timeLabel}`;
     };
 
     const normalizeProjectColor = (color) => {
@@ -299,8 +334,9 @@ export default function CalendarView ({ user }) {
 
         calendarItems.forEach((task) => {
             const { startDate, endDate, hasValidRange } = getTaskScheduleRange(task);
+            const taskDisplayDateKey = getTaskDisplayDateKey(task);
 
-            if (hasValidRange && toDateKey(startDate) === selectedDateKey) {
+            if (hasValidRange && taskDisplayDateKey === selectedDateKey) {
                 const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
                 const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
                 const clippedStart = Math.max(dayStartMinutes, startMinutes);
@@ -320,7 +356,7 @@ export default function CalendarView ({ user }) {
                 return;
             }
 
-            if (task.deadline === selectedDateKey && !hasValidRange) {
+            if (taskDisplayDateKey === selectedDateKey && !hasValidRange) {
                 unscheduledEntries.push(task);
             }
         });
@@ -400,23 +436,12 @@ export default function CalendarView ({ user }) {
         return availableTags.filter((tag) => tag.toLowerCase().includes(input) && !currentTags.includes(tag));
     };
 
-    const getFilteredProjects = (inputValue) => {
-        const input = (inputValue || '').trim().toLowerCase();
-        if (!input) {
-            return availableProjects;
-        }
-        return availableProjects.filter((projectName) => projectName.toLowerCase().includes(input));
-    };
-
     const handleEditChange = (field, value) => {
         if (field === 'tags') {
             setEditTaskTagInput(value);
             setShowEditTagDropdown(value.length > 0);
             setEditData((prev) => ({ ...prev, tags: parseTagInput(value) }));
             return;
-        }
-        if (field === 'project') {
-            setShowEditProjectDropdown(true);
         }
         setEditData((prev) => ({ ...prev, [field]: value }));
     };
@@ -436,10 +461,6 @@ export default function CalendarView ({ user }) {
         setEditTaskTagInput('');
     };
 
-    const handleEditProjectSelect = (projectName) => {
-        setEditData((prev) => ({ ...prev, project: projectName }));
-        setShowEditProjectDropdown(false);
-    };
 
     const loadSelectedTask = async (task) => {
         if (!task) {
@@ -507,10 +528,27 @@ export default function CalendarView ({ user }) {
         setShowEditTagDropdown(false);
         setShowEditProjectDropdown(false);
         setEditTaskAutoSchedule(false);
+        setError(null);
     };
 
     const handleSaveSelectedTask = async () => {
         if (!selectedTask?.taskId) {
+            return;
+        }
+
+        const validationErrors = [];
+        if (!editData.taskName?.trim()) validationErrors.push('Task name is required');
+        if (!editData.deadline?.trim()) validationErrors.push('Deadline is required');
+        if (!editData.timeToComplete?.trim()) validationErrors.push('Time to complete is required');
+        if (!editData.priority?.trim()) validationErrors.push('Priority is required');
+        if (
+            editData.project?.trim()
+            && !availableProjects.some((projectName) => projectName.toLowerCase() === editData.project.trim().toLowerCase())
+        ) {
+            validationErrors.push('Please select a project from the project list');
+        }
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
             return;
         }
 
@@ -564,15 +602,14 @@ export default function CalendarView ({ user }) {
         projectDropdownVisible: showEditProjectDropdown,
         tagDropdownVisible: showEditTagDropdown,
         tagInputValue: editTaskTagInput,
-        filteredProjects: getFilteredProjects(editData.project),
+        filteredProjects: availableProjects,
         filteredTags: getFilteredTags(editTaskTagInput, editData.tags || []),
         autoSchedule: editTaskAutoSchedule,
         onChange: handleEditChange,
         onProjectFocus: () => setShowEditProjectDropdown(true),
-        onProjectBlur: () => setTimeout(() => setShowEditProjectDropdown(false), 200),
+        onProjectBlur: () => setTimeout(() => setShowEditProjectDropdown(false), 0),
         onTagFocus: () => setShowEditTagDropdown(true),
         onTagBlur: () => setTimeout(() => setShowEditTagDropdown(false), 200),
-        onProjectSelect: handleEditProjectSelect,
         onTagSelect: handleEditTagSelect,
         onRemoveTag: handleEditRemoveTag,
         onAutoScheduleChange: setEditTaskAutoSchedule,
@@ -606,7 +643,15 @@ export default function CalendarView ({ user }) {
         if (isGoogleReadOnlyTask(task)) {
             return '#1a73e8';
         }
-        return getProjectColor(task?.project) || getPriorityColor(task?.priority);
+
+        const projectName = projectToProjectName(task?.project);
+        const projectColor = getProjectColor(task?.project);
+
+        if (!projectName) {
+            return NO_PROJECT_CALENDAR_COLOR;
+        }
+
+        return projectColor || getPriorityColor(task?.priority);
     };
 
     const handlePrevious = () => {
@@ -700,11 +745,10 @@ export default function CalendarView ({ user }) {
     const renderWeekView = () => {
         const weekStart = getWeekStart(currentDate);
         const totalHours = DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR + 1;
-        const tickOffsetPx = WEEK_VIEW_TICK_OFFSET * WEEK_VIEW_HOUR_HEIGHT;
-        const dayHeight = (totalHours + WEEK_VIEW_TICK_OFFSET) * WEEK_VIEW_HOUR_HEIGHT;
-        const weekTopOffset = WEEK_VIEW_HEADER_HEIGHT + WEEK_VIEW_UNSCHEDULED_HEIGHT + tickOffsetPx;
+        const dayHeight = totalHours * WEEK_VIEW_HOUR_HEIGHT;
+        const weekTopOffset = WEEK_VIEW_HEADER_HEIGHT + WEEK_VIEW_UNSCHEDULED_HEIGHT;
         const dayHours = Array.from({ length: totalHours }, (_, idx) => DAY_VIEW_START_HOUR + idx);
-        const weekHourBoundaries = Array.from({ length: totalHours + WEEK_VIEW_TICK_OFFSET + 1 }, (_, idx) => idx);
+        const weekHourBoundaries = Array.from({ length: totalHours + 1 }, (_, idx) => idx);
 
         return (
             <div className="week-view">
@@ -712,7 +756,6 @@ export default function CalendarView ({ user }) {
                     <div className="week-time-labels" style={{ height: `${dayHeight + weekTopOffset}px` }}>
                         <div className="week-time-header-spacer" style={{ height: `${WEEK_VIEW_HEADER_HEIGHT}px` }} aria-hidden="true" />
                         <div className="week-time-unscheduled-spacer" style={{ height: `${WEEK_VIEW_UNSCHEDULED_HEIGHT}px` }} aria-hidden="true" />
-                        <div className="week-time-leading-tick-spacer" style={{ height: `${tickOffsetPx}px` }} aria-hidden="true" />
                         {dayHours.map((hour) => (
                             <div key={`week-hour-${hour}`} className="week-time-label" style={{ height: `${WEEK_VIEW_HOUR_HEIGHT}px` }}>
                                 {formatHourLabel(hour)}
@@ -765,7 +808,7 @@ export default function CalendarView ({ user }) {
                                         ))}
 
                                         {dayData.showCurrentTime && (
-                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop + tickOffsetPx}px` }} />
+                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop}px` }} />
                                         )}
 
                                         {dayData.scheduledEntries.map((entry) => (
@@ -775,7 +818,7 @@ export default function CalendarView ({ user }) {
                                                 className="week-timeline-task"
                                                 onClick={() => loadSelectedTask(entry.task)}
                                                 style={{
-                                                    top: `${entry.top + tickOffsetPx}px`,
+                                                    top: `${entry.top}px`,
                                                     height: `${entry.height}px`,
                                                     left: `calc(${entry.leftPct}% + 2px)`,
                                                     width: `calc(${entry.widthPct}% - 4px)`,
@@ -852,9 +895,9 @@ export default function CalendarView ({ user }) {
 
                         {dayViewData.showCurrentTime && (
                             <>
-                                <div className="day-current-time-label" style={{ top: `${dayViewData.currentTimeTop}px` }}>
-                                    {dayViewData.currentTimeLabel}
-                                </div>
+                                {/*<div className="day-current-time-label" style={{ top: `${dayViewData.currentTimeTop}px` }}>*/}
+                                {/*    {dayViewData.currentTimeLabel}*/}
+                                {/*</div>*/}
                                 <div className="day-current-time-line" style={{ top: `${dayViewData.currentTimeTop}px` }} />
                             </>
                         )}
@@ -1022,14 +1065,9 @@ export default function CalendarView ({ user }) {
                                     {isGoogleReadOnlyTask(selectedTask) ? <div className="detail-item"><strong>Source:</strong> Google Calendar</div> : null}
                                     <div className="detail-item"><strong>Deadline:</strong> {selectedTask.deadline || 'No date'}</div>
                                     <div className="detail-item"><strong>Time to Complete:</strong> {selectedTask.timeToComplete || 'No estimate'}</div>
-                                    <div className="detail-item"><strong>Start:</strong> {selectedTask.startTime || 'Unscheduled'}</div>
-                                    <div className="detail-item"><strong>End:</strong> {selectedTask.endTime || 'Unscheduled'}</div>
-                                    <div className="detail-item">
-                                        <strong>Priority:</strong>
-                                        <span className="priority-badge" style={{ backgroundColor: getTaskCalendarColor(selectedTask) }}>
-                                            {formatPriorityLabel(selectedTask.priority) || 'No priority'}
-                                        </span>
-                                    </div>
+                                    <div className="detail-item"><strong>Start:</strong> {formatDateTimeDetailLabel(selectedTask.startTime)}</div>
+                                    <div className="detail-item"><strong>End:</strong> {formatDateTimeDetailLabel(selectedTask.endTime)}</div>
+                                    <div className="detail-item"><strong>Priority:</strong> {formatPriorityLabel(selectedTask.priority) || 'No priority'}</div>
                                     <div className="detail-item"><strong>Project:</strong> {projectToProjectName(selectedTask.project) || 'Uncategorized'}</div>
                                     <div className="detail-item"><strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ') || 'None'}</div>
                                     {selectedTask.comments ? <div className="detail-item"><strong>Comments:</strong> {selectedTask.comments}</div> : null}

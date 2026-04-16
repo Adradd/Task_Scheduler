@@ -38,7 +38,7 @@ export default function PomodoroFullTimer () {
         return 1 - remainingMs / durationMs;
     }, [durationMs, remainingMs]);
 
-    const cycleIndex = phase === 'focus' ? completedFocusCount + 1 : completedFocusCount;
+    const cycleIndex = completedFocusCount + 1;
 
     useEffect(() => {
         if (!expanded) {

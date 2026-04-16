@@ -630,6 +630,10 @@
     cursor: pointer;
 }
 
+.calendar-sidebar-task .task-overdue-pill {
+    margin-left: 0.35rem;
+}
+
 .project-checkbox-row:hover {
     background: rgba(255, 255, 255, 0.08);
 }

@@ -94,7 +94,7 @@ class TaskControllerTest {
         created.setProject(project);
         created.setTags(List.of(tag));
         when(accountService.findAccountByUsername("jane")).thenReturn(owner);
-        when(projectService.ensureProjectExists(eq(owner), any(Project.class))).thenReturn(project);
+        when(projectService.findProjectByOwnerAndName(eq(owner), eq("Work"))).thenReturn(project);
         when(tagService.ensureTagsExist(eq(owner), any())).thenReturn(List.of(tag));
         when(taskService.createTask(any(Task.class), eq(true))).thenReturn(created);
 
@@ -117,6 +117,28 @@ class TaskControllerTest {
             .andExpect(jsonPath("$.taskId").value("task-1"))
             .andExpect(jsonPath("$.project.projectName").value("Work"))
             .andExpect(jsonPath("$.tags[0].tagName").value("urgent"));
+    }
+
+    @Test
+    void createTaskReturnsBadRequestWhenProjectDoesNotExist() throws Exception {
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+        when(projectService.findProjectByOwnerAndName(eq(owner), eq("Unknown"))).thenReturn(null);
+
+        mockMvc.perform(post("/api/tasks")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "taskId": "task-1",
+                      "taskName": "Write tests",
+                      "deadline": "2026-04-10",
+                      "timeToComplete": "1h",
+                      "priority": "high",
+                      "project": {"projectName": "Unknown"}
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Project must be selected from existing projects"));
     }
 
     @Test

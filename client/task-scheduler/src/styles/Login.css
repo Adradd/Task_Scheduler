@@ -78,6 +78,16 @@
     border-left: 4px solid #d32f2f;
 }
 
+.auth-message {
+    background-color: #eef4ff;
+    color: #1f3f7a;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    border-left: 4px solid #1a73e8;
+}
+
 .submit-btn {
     width: 100%;
     padding: 12px;

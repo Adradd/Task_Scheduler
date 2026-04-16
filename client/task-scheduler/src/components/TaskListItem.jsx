@@ -1,5 +1,6 @@
 import ConfirmPopoverButton from './ConfirmPopoverButton.jsx';
 import { formatPriorityLabel } from '../utils/taskFormatting.js';
+import { getTodayKey } from '../utils/dateFormatters.js';
 
 export default function TaskListItem ({
     task,
@@ -30,6 +31,8 @@ export default function TaskListItem ({
         task.comments || '',
     ]).filter(Boolean);
     const isSelectable = typeof onSelect === 'function';
+    const todayKey = getTodayKey();
+    const isOverdue = Boolean(task?.deadline && task.deadline < todayKey && !task?.isCompleted);
 
     return (
         <div className={`task-card ${className} ${isEditing ? 'editing' : ''}`.trim()}>
@@ -58,6 +61,7 @@ export default function TaskListItem ({
                     ) : (
                         <h3 className="task-title" title={task.taskName}>{task.taskName}</h3>
                     )}
+                    {isOverdue && <span className="task-overdue-pill">Overdue</span>}
                     {showTags && (
                         <div className="task-tags-inline" title={taskTagNames.join(', ')}>
                             {taskTagNames.length > 0 ? taskTagNames.join(' • ') : 'No tags'}
