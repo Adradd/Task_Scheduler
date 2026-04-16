@@ -103,8 +103,8 @@ export default function CalendarView ({ user }) {
     const DAY_VIEW_END_HOUR = 23;
     const DAY_VIEW_HOUR_HEIGHT = 52;
     const WEEK_VIEW_HOUR_HEIGHT = 32;
-    const WEEK_VIEW_HEADER_HEIGHT = 56;
-    const WEEK_VIEW_UNSCHEDULED_HEIGHT = 78;
+    const WEEK_VIEW_HEADER_HEIGHT = 79.4;
+    const WEEK_VIEW_UNSCHEDULED_HEIGHT = 93.4;
     const NO_PROJECT_CALENDAR_COLOR = '#8ecae6';
 
     const {

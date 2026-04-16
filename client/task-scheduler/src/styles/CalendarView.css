@@ -321,10 +321,12 @@
 }
 
 .week-time-header-spacer {
+    box-sizing: border-box;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .week-time-unscheduled-spacer {
+    box-sizing: border-box;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -333,6 +335,7 @@
 }
 
 .week-time-label {
+    box-sizing: border-box;
     color: rgba(244, 241, 242, 0.52);
     font-size: 0.71rem;
     display: flex;
