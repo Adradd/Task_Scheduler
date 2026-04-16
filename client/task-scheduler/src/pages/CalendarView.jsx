@@ -394,6 +394,7 @@ export default function CalendarView ({ user }) {
             height: Math.max(24, (entry.clippedEnd - entry.clippedStart) * minutePixelHeight),
             widthPct: 100 / totalLanes,
             leftPct: (entry.lane * 100) / totalLanes,
+            showTimeLabel: entry.clippedEnd - entry.clippedStart > 60,
         }));
 
         const now = new Date();
@@ -811,25 +812,29 @@ export default function CalendarView ({ user }) {
                                             <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop}px` }} />
                                         )}
 
-                                        {dayData.scheduledEntries.map((entry) => (
-                                            <button
-                                                type="button"
-                                                key={entry.task.taskId}
-                                                className="week-timeline-task"
-                                                onClick={() => loadSelectedTask(entry.task)}
-                                                style={{
-                                                    top: `${entry.top}px`,
-                                                    height: `${entry.height}px`,
-                                                    left: `calc(${entry.leftPct}% + 2px)`,
-                                                    width: `calc(${entry.widthPct}% - 4px)`,
-                                                    backgroundColor: getTaskCalendarColor(entry.task),
-                                                }}
-                                                title={`${entry.task.taskName} (${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)})`}
-                                            >
-                                                <span className="task-event-title">{entry.task.taskName}</span>
-                                                <span className="task-event-time">{formatTimeLabel(entry.startDate)} - {formatTimeLabel(entry.endDate)}</span>
-                                            </button>
-                                        ))}
+                                        {dayData.scheduledEntries.map((entry) => {
+                                            const timeRangeLabel = `${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)}`;
+
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={entry.task.taskId}
+                                                    className="week-timeline-task"
+                                                    onClick={() => loadSelectedTask(entry.task)}
+                                                    style={{
+                                                        top: `${entry.top}px`,
+                                                        height: `${entry.height}px`,
+                                                        left: `calc(${entry.leftPct}% + 2px)`,
+                                                        width: `calc(${entry.widthPct}% - 4px)`,
+                                                        backgroundColor: getTaskCalendarColor(entry.task),
+                                                    }}
+                                                    title={entry.showTimeLabel ? `${entry.task.taskName} (${timeRangeLabel})` : entry.task.taskName}
+                                                >
+                                                    <span className="task-event-title">{entry.task.taskName}</span>
+                                                    {entry.showTimeLabel ? <span className="task-event-time">{timeRangeLabel}</span> : null}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -902,25 +907,29 @@ export default function CalendarView ({ user }) {
                             </>
                         )}
 
-                        {dayViewData.scheduledEntries.map((entry) => (
-                            <button
-                                type="button"
-                                key={entry.task.taskId}
-                                className="day-task-block"
-                                onClick={() => loadSelectedTask(entry.task)}
-                                style={{
-                                    top: `${entry.top}px`,
-                                    height: `${entry.height}px`,
-                                    left: `calc(${entry.leftPct}% + 2px)`,
-                                    width: `calc(${entry.widthPct}% - 4px)`,
-                                    backgroundColor: getTaskCalendarColor(entry.task),
-                                }}
-                                title={`${entry.task.taskName} (${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)})`}
-                            >
-                                <span className="task-event-title">{entry.task.taskName}</span>
-                                <span className="task-event-time">{formatTimeLabel(entry.startDate)} - {formatTimeLabel(entry.endDate)}</span>
-                            </button>
-                        ))}
+                        {dayViewData.scheduledEntries.map((entry) => {
+                            const timeRangeLabel = `${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)}`;
+
+                            return (
+                                <button
+                                    type="button"
+                                    key={entry.task.taskId}
+                                    className="day-task-block"
+                                    onClick={() => loadSelectedTask(entry.task)}
+                                    style={{
+                                        top: `${entry.top}px`,
+                                        height: `${entry.height}px`,
+                                        left: `calc(${entry.leftPct}% + 2px)`,
+                                        width: `calc(${entry.widthPct}% - 4px)`,
+                                        backgroundColor: getTaskCalendarColor(entry.task),
+                                    }}
+                                    title={entry.showTimeLabel ? `${entry.task.taskName} (${timeRangeLabel})` : entry.task.taskName}
+                                >
+                                    <span className="task-event-title">{entry.task.taskName}</span>
+                                    {entry.showTimeLabel ? <span className="task-event-time">{timeRangeLabel}</span> : null}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
