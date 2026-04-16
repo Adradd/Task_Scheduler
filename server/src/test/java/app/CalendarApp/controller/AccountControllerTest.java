@@ -11,8 +11,10 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.mockito.ArgumentCaptor;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -47,7 +49,12 @@ class AccountControllerTest {
             .andExpect(jsonPath("$.accountId").value("acc-1"))
             .andExpect(jsonPath("$.username").value("jane"))
             .andExpect(jsonPath("$.dateCreated").value("2026-04-08"))
+            .andExpect(jsonPath("$.password").doesNotExist())
             .andExpect(jsonPath("$.message").value("Account created successfully"));
+
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        verify(accountService).createAccount(accountCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("password123", accountCaptor.getValue().getPassword());
     }
 
     @Test
