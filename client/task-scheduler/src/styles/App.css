@@ -77,13 +77,33 @@ body {
   font-weight: 500;
 }
 
+.nav-link-with-icon {
+  gap: 0.6rem;
+}
+
+.nav-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  display: block;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.nav-link-with-icon:hover .nav-icon {
+  filter: brightness(0) saturate(100%) invert(82%) sepia(12%) saturate(653%) hue-rotate(162deg) brightness(88%) contrast(91%);
+}
+
+.nav-link-with-icon.active .nav-icon {
+  filter: brightness(0) saturate(100%) invert(61%) sepia(68%) saturate(1039%) hue-rotate(169deg) brightness(91%) contrast(89%);
+}
+
 .navbar > ul > li a:hover {
-  color: #6c92ba;
+  color: #9fbed4;
 }
 
 .navbar > ul > li a.active {
-  border-bottom-color: #0576f3;
-  color: #0576f3;
+  border-bottom-color: #3498db;
+  color: #3498db;
 }
 
 .navbar > ul > li a:focus-visible,

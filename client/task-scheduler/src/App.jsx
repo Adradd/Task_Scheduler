@@ -12,6 +12,9 @@ import { PomodoroProvider } from './components/pomodoro/PomodoroProvider.jsx';
 import PomodoroFloatingWidget from './components/pomodoro/PomodoroFloatingWidget.jsx';
 import PomodoroFullTimer from './components/pomodoro/PomodoroFullTimer.jsx';
 import useAuthSession from './hooks/useAuthSession.js';
+import taskIcon from './assets/task.svg';
+import calendarIcon from './assets/calendar.svg';
+import accountIcon from './assets/account.svg';
 
 export default function App () {
     const { user, isAuthenticated, login, logout } = useAuthSession();
@@ -62,13 +65,22 @@ function AppContent({ isAuthenticated, user, onLoginSuccess, onRegisterSuccess, 
                 <nav className="navbar" aria-label="Primary">
                     <ul className="nav-list">
                         <li className="nav-item">
-                            <Link to="/task-view" className={location.pathname === '/task-view' ? 'active' : ''}>Tasks</Link>
+                            <Link to="/task-view" className={location.pathname === '/task-view' ? 'active nav-link-with-icon' : 'nav-link-with-icon'}>
+                                <img className="nav-icon" src={taskIcon} alt="" aria-hidden="true" />
+                                <span>Tasks</span>
+                            </Link>
                         </li>
                         <li className="nav-item">
-                            <Link to="/calendar-view" className={location.pathname === '/calendar-view' ? 'active' : ''}>Calendar</Link>
+                            <Link to="/calendar-view" className={location.pathname === '/calendar-view' ? 'active nav-link-with-icon' : 'nav-link-with-icon'}>
+                                <img className="nav-icon" src={calendarIcon} alt="" aria-hidden="true" />
+                                <span>Calendar</span>
+                            </Link>
                         </li>
                         <li className={"nav-item"}>
-                            <Link to="/account" className={location.pathname === '/account' ? 'active' : ''}>Account</Link>
+                            <Link to="/account" className={location.pathname === '/account' ? 'active nav-link-with-icon' : 'nav-link-with-icon'}>
+                                <img className="nav-icon" src={accountIcon} alt="" aria-hidden="true" />
+                                <span>Account</span>
+                            </Link>
                         </li>
                         <li className="nav-item-logo-item">
                             <Link to="/" className={"logo-home-link"}><span className={"site-logo"}>schedule.me</span></Link>

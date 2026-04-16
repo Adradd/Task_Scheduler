@@ -61,7 +61,7 @@ export default function TaskEditorPanel ({
                     />
                     {isPastDeadline && (
                         <p className="task-field-warning" role="status">
-                            This date is in the past - this task will be immediately overdue.
+                            This date is in the past - this task will be immediately overdue!
                         </p>
                     )}
                 </div>
