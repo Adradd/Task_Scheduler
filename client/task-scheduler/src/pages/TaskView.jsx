@@ -733,6 +733,7 @@ export default function TaskView ({ user }) {
                                     <ConfirmPopoverButton
                                         buttonClassName="project-delete-header-button"
                                         buttonLabel="Delete Project"
+                                        popoverClassName="confirm-popover-below-right"
                                         title="Delete project?"
                                         message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
                                         onConfirm={() => handleDeleteProject(selectedProjectObject)}

@@ -708,6 +708,24 @@
     border-top: 1px solid rgba(61, 56, 60, 0.15);
 }
 
+.confirm-popover-below-right {
+    top: calc(100% + 0.55rem);
+    left: auto;
+    right: 0;
+    transform: none;
+    z-index: 150;
+}
+
+.confirm-popover-below-right::before {
+    top: -7px;
+    left: auto;
+    right: 1.1rem;
+    border-left: 1px solid rgba(61, 56, 60, 0.15);
+    border-top: 1px solid rgba(61, 56, 60, 0.15);
+    border-bottom: none;
+    transform: rotate(45deg);
+}
+
 .confirm-popover-title {
     font-size: 0.82rem;
     font-weight: 700;
