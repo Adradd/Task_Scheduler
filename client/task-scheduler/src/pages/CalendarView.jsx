@@ -272,13 +272,13 @@ export default function CalendarView ({ user }) {
     };
 
     const getTaskDisplayDateKey = (task) => {
-        if (task?.deadline) {
-            return task.deadline;
-        }
-
         const { startDate, hasValidRange } = getTaskScheduleRange(task);
         if (hasValidRange) {
             return toDateKey(startDate);
+        }
+
+        if (task?.deadline) {
+            return task.deadline;
         }
         return '';
     };

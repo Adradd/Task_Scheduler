@@ -3,7 +3,6 @@ package app.CalendarApp.service.impl;
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
 import app.CalendarApp.repository.Task;
-import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.support.TestDataFactory;
@@ -12,10 +11,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -23,9 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,6 +57,7 @@ class TaskServiceImplTest {
     void setUp() {
         owner = TestDataFactory.account("acc-1", "jane");
         task = TestDataFactory.task("task-1", owner, "Plan sprint");
+        setDefaultTimeZone(taskService);
     }
 
     @Test
@@ -103,6 +106,96 @@ class TaskServiceImplTest {
 
         assertEquals(LocalDateTime.of(2026, 4, 9, 11, 0), created.getStartTime());
         verify(autoSchedulerService).scheduleTask(eq(task), eq(owner), eq(List.of()), any());
+    }
+
+    @Test
+    void createTaskParsesGoogleDateTimesWithoutOffsetForBusyIntervals() {
+        Task scheduled = TestDataFactory.task("task-1", owner, "Plan sprint");
+        scheduled.setStartTime(LocalDateTime.of(2026, 4, 24, 11, 0));
+        task.setDeadline(LocalDate.of(2026, 4, 24));
+
+        when(taskRepository.findAllByOwner(owner)).thenReturn(List.of());
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(true);
+        when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of());
+        when(googleCalendarService.fetchEvents(eq(owner), any(), any())).thenReturn(List.of(Map.of(
+            "start", Map.of("dateTime", "2026-04-24T09:00:00", "timeZone", "America/New_York"),
+            "end", Map.of("dateTime", "2026-04-24T10:00:00", "timeZone", "America/New_York")
+        )));
+        when(autoSchedulerService.scheduleTask(eq(task), eq(owner), eq(List.of()), any())).thenReturn(scheduled);
+        when(taskRepository.save(scheduled)).thenReturn(scheduled);
+
+        Task created = taskService.createTask(task, true);
+
+        assertEquals(LocalDateTime.of(2026, 4, 24, 11, 0), created.getStartTime());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TaskAutoSchedulerService.BusyInterval>> busyCaptor = ArgumentCaptor.forClass(List.class);
+        verify(autoSchedulerService).scheduleTask(eq(task), eq(owner), eq(List.of()), busyCaptor.capture());
+        List<TaskAutoSchedulerService.BusyInterval> intervals = busyCaptor.getValue();
+
+        assertEquals(1, intervals.size());
+        assertEquals(LocalDateTime.of(2026, 4, 24, 9, 0), intervals.getFirst().start());
+        assertEquals(LocalDateTime.of(2026, 4, 24, 10, 0), intervals.getFirst().end());
+    }
+
+    @Test
+    void createTaskConvertsUtcGoogleDateTimesIntoSchedulingTimezone() {
+        Task scheduled = TestDataFactory.task("task-1", owner, "Plan sprint");
+        scheduled.setStartTime(LocalDateTime.of(2026, 4, 24, 11, 0));
+        task.setDeadline(LocalDate.of(2026, 4, 24));
+
+        when(taskRepository.findAllByOwner(owner)).thenReturn(List.of());
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(true);
+        when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of());
+        when(googleCalendarService.fetchEvents(eq(owner), any(), any())).thenReturn(List.of(Map.of(
+            "start", Map.of("dateTime", "2026-04-24T13:00:00Z"),
+            "end", Map.of("dateTime", "2026-04-24T14:00:00Z")
+        )));
+        when(autoSchedulerService.scheduleTask(eq(task), eq(owner), eq(List.of()), any())).thenReturn(scheduled);
+        when(taskRepository.save(scheduled)).thenReturn(scheduled);
+
+        taskService.createTask(task, true);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<TaskAutoSchedulerService.BusyInterval>> busyCaptor = ArgumentCaptor.forClass(List.class);
+        verify(autoSchedulerService).scheduleTask(eq(task), eq(owner), eq(List.of()), busyCaptor.capture());
+        List<TaskAutoSchedulerService.BusyInterval> intervals = busyCaptor.getValue();
+
+        assertEquals(1, intervals.size());
+        assertEquals(LocalDateTime.of(2026, 4, 24, 9, 0), intervals.getFirst().start());
+        assertEquals(LocalDateTime.of(2026, 4, 24, 10, 0), intervals.getFirst().end());
+    }
+
+    @Test
+    void createTaskPrefersTomorrowOpenTimeOverDeadlineDayGoogleBusyEvent() {
+        TaskAutoSchedulerService realScheduler = new TaskAutoSchedulerService();
+        TaskServiceImpl realTaskService = new TaskServiceImpl(taskRepository, realScheduler, googleCalendarService, mappingRepository);
+        setDefaultTimeZone(realTaskService);
+
+        LocalDate deadline = LocalDate.now().plusDays(2);
+        Task toSchedule = TestDataFactory.task("task-5", owner, "Task 5");
+        toSchedule.setDeadline(deadline);
+        toSchedule.setTimeToComplete("1h 0m");
+
+        Task blockToday = TestDataFactory.task("busy-today", owner, "Busy today");
+        blockToday.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        blockToday.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(17, 0)));
+
+        when(taskRepository.findAllByOwner(owner)).thenReturn(List.of(blockToday));
+        when(googleCalendarService.isCalendarLinked(owner)).thenReturn(true);
+        when(mappingRepository.findAllByAccountId("acc-1")).thenReturn(List.of());
+        when(googleCalendarService.fetchEvents(eq(owner), any(), any())).thenReturn(List.of(Map.of(
+            "start", Map.of("dateTime", deadline.atTime(13, 0) + "Z"),
+            "end", Map.of("dateTime", deadline.atTime(14, 0) + "Z")
+        )));
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Task created = realTaskService.createTask(toSchedule, true);
+
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        assertEquals(LocalDateTime.of(tomorrow, LocalTime.of(9, 0)), created.getStartTime());
+        assertEquals(LocalDateTime.of(tomorrow, LocalTime.of(10, 0)), created.getEndTime());
+        assertTrue(created.getEndTime().isAfter(created.getStartTime()));
     }
 
     @Test
@@ -211,7 +304,17 @@ class TaskServiceImplTest {
         Task completed = taskService.markTaskAsComplete("task-1");
 
         assertSame(task, completed);
-        assertEquals(true, completed.isCompleted());
+        assertTrue(completed.isCompleted());
+    }
+
+    private static void setDefaultTimeZone(TaskServiceImpl service) {
+        try {
+            Field field = TaskServiceImpl.class.getDeclaredField("defaultTimeZone");
+            field.setAccessible(true);
+            field.set(service, "America/New_York");
+        } catch (ReflectiveOperationException ex) {
+            throw new RuntimeException("Failed to set TaskServiceImpl defaultTimeZone for tests", ex);
+        }
     }
 
     @Test
