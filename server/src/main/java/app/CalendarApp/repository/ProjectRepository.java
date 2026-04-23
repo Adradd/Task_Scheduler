@@ -8,4 +8,5 @@ public interface ProjectRepository extends MongoRepository<Project, String> {
     List<Project> findAllByOwner(Account owner);
     Project findProjectByProjectIdAndOwner(String projectId, Account owner);
     Project findProjectByOwnerAndProjectNameIgnoreCase(Account owner, String projectName);
+    void deleteAllByOwner(Account owner);
 }

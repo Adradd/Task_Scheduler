@@ -18,4 +18,5 @@ public interface TaskRepository extends MongoRepository<Task, String> {
     List<Task> findAllByOwnerAndIsCompleted(Account owner, boolean isCompleted);
     Task findTaskByOwnerAndGoogleSourceCalendarIdAndGoogleSourceEventId(Account owner, String googleSourceCalendarId, String googleSourceEventId);
     void deleteAllByOwnerAndProject(Account owner, Project project);
+    void deleteAllByOwner(Account owner);
 }

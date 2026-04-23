@@ -15,6 +15,7 @@ export default function Account ({ user, onLogout }) {
     const [googleCalendarLinked, setGoogleCalendarLinked] = useState(false);
     const [googleCalendarLoading, setGoogleCalendarLoading] = useState(false);
     const [googleCalendarMessage, setGoogleCalendarMessage] = useState('');
+    const [accountDeleteLoading, setAccountDeleteLoading] = useState(false);
     const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -124,6 +125,28 @@ export default function Account ({ user, onLogout }) {
     const handleLogout = () => {
         onLogout();
         navigate('/login');
+    };
+
+    const handleDeleteAccount = async () => {
+        const confirmed = window.confirm(
+            'Delete your account and all associated tasks, tags, and projects? This action cannot be undone.',
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setAccountDeleteLoading(true);
+            setError(null);
+            const accountId = getStoredAccountId();
+            await axios.delete(`${backendUrl}/api/accounts/${accountId}`, createAuthConfig());
+            onLogout();
+            navigate('/login');
+        } catch (err) {
+            setError('Failed to delete account: ' + extractApiErrorMessage(err));
+        } finally {
+            setAccountDeleteLoading(false);
+        }
     };
 
     const handleConnectGoogleCalendar = async () => {
@@ -264,6 +287,14 @@ export default function Account ({ user, onLogout }) {
                         <>
                             <button type="button" className="edit-btn" onClick={() => setEditing(true)}>Edit Profile</button>
                             <button type="button" className="logout-btn" onClick={handleLogout}>Logout</button>
+                            <button
+                                type="button"
+                                className="delete-account-btn"
+                                onClick={handleDeleteAccount}
+                                disabled={accountDeleteLoading}
+                            >
+                                {accountDeleteLoading ? 'Deleting Account…' : 'Delete Account'}
+                            </button>
                         </>
                     ) : (
                         <>

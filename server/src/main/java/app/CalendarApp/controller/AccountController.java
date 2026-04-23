@@ -59,6 +59,17 @@ public class AccountController {
         }
     }
 
+    @DeleteMapping("/{accountId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> deleteAccount(@PathVariable String accountId) {
+        try {
+            accountService.deleteAccount(accountId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> createAccount(@RequestBody Account account) {
         try {

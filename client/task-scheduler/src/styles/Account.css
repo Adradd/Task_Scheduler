@@ -131,6 +131,16 @@
     background: #ffe0e0;
 }
 
+.delete-account-btn {
+    background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+    color: #fff;
+}
+
+.delete-account-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(211, 47, 47, 0.4);
+}
+
 .save-btn {
     background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
     color: white;

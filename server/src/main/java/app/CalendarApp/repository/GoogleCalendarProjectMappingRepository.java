@@ -7,5 +7,6 @@ import java.util.List;
 public interface GoogleCalendarProjectMappingRepository extends MongoRepository<GoogleCalendarProjectMapping, String> {
     List<GoogleCalendarProjectMapping> findAllByAccountId(String accountId);
     GoogleCalendarProjectMapping findByAccountIdAndGoogleCalendarId(String accountId, String googleCalendarId);
+    void deleteAllByAccountId(String accountId);
 }
 
