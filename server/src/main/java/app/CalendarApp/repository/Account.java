@@ -1,9 +1,14 @@
 package app.CalendarApp.repository;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+@Setter
+@Getter
 @Document("Account")
 public class Account {
     @Id
@@ -42,73 +47,8 @@ public class Account {
     public String getId() {
         return accountId;
     }
+
     public void setId(String accountId) {
         this.accountId = accountId;
-    }
-    public String getUsername() {
-        return username;
-    }
-    public void setUsername(String username) {
-        this.username = username;
-    }
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    public String getEmail() {
-        return email;
-    }
-    public void setEmail(String email) {
-        this.email = email;
-    }
-    public String getDateCreated() {
-        return dateCreated;
-    }
-    public void setDateCreated(String dateCreated) {
-        this.dateCreated = dateCreated;
-    }
-    public String getRole() {
-        return role;
-    }
-    public void setRole(String role) {
-        this.role = role;
-    }
-    public String getStartWorkingHours() {
-        return startWorkingHours;
-    }
-    public void setStartWorkingHours(String startWorkingHours) {
-        this.startWorkingHours = startWorkingHours;
-    }
-    public String getEndWorkingHours() {
-        return endWorkingHours;
-    }
-    public void setEndWorkingHours(String endWorkingHours) {
-        this.endWorkingHours = endWorkingHours;
-    }
-
-    public String getGoogleRefreshToken() {
-        return googleRefreshToken;
-    }
-
-    public void setGoogleRefreshToken(String googleRefreshToken) {
-        this.googleRefreshToken = googleRefreshToken;
-    }
-
-    public String getGoogleAccessToken() {
-        return googleAccessToken;
-    }
-
-    public void setGoogleAccessToken(String googleAccessToken) {
-        this.googleAccessToken = googleAccessToken;
-    }
-
-    public String getGoogleAccessTokenExpiresAt() {
-        return googleAccessTokenExpiresAt;
-    }
-
-    public void setGoogleAccessTokenExpiresAt(String googleAccessTokenExpiresAt) {
-        this.googleAccessTokenExpiresAt = googleAccessTokenExpiresAt;
     }
 }

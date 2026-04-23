@@ -38,9 +38,8 @@ public class ApiExceptionHandler {
             }
         }
 
-        String message = exception.getMostSpecificCause() != null
-            ? exception.getMostSpecificCause().getMessage()
-            : exception.getMessage();
+        exception.getMostSpecificCause();
+        String message = exception.getMostSpecificCause().getMessage();
 
         if (message != null) {
             if (message.contains("LocalDateTime")) {

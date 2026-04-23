@@ -3,7 +3,6 @@ package app.CalendarApp.controller;
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.GoogleCalendarProjectMapping;
 import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
-import app.CalendarApp.repository.Project;
 import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.service.ProjectService;
@@ -37,8 +36,7 @@ import java.util.stream.Collectors;
 public class GoogleCalendarIntegrationController {
 	private final GoogleCalendarService googleCalendarService;
 	private final AccountService accountService;
-	private final ProjectService projectService;
-	private final GoogleCalendarProjectMappingRepository mappingRepository;
+    private final GoogleCalendarProjectMappingRepository mappingRepository;
 	private final String frontendUrl;
 
 	public GoogleCalendarIntegrationController(
@@ -50,8 +48,7 @@ public class GoogleCalendarIntegrationController {
 	) {
 		this.googleCalendarService = googleCalendarService;
 		this.accountService = accountService;
-		this.projectService = projectService;
-		this.mappingRepository = mappingRepository;
+        this.mappingRepository = mappingRepository;
 		this.frontendUrl = frontendUrl;
 	}
 
@@ -229,7 +226,7 @@ public class GoogleCalendarIntegrationController {
 
 			mapping.setGoogleCalendarName(getString(rawMap, "googleCalendarName"));
 			mapping.setProjectId(getString(rawMap, "projectId"));
-			mapping.setEnabled(getBoolean(rawMap, "enabled", false));
+			mapping.setEnabled(getBoolean(rawMap));
 			mappingRepository.save(mapping);
 		}
 
@@ -297,10 +294,10 @@ public class GoogleCalendarIntegrationController {
 		return events != null ? events : List.of();
 	}
 
-	private boolean getBoolean(Map<?, ?> map, String key, boolean fallback) {
-		Object value = map.get(key);
+	private boolean getBoolean(Map<?, ?> map) {
+		Object value = map.get("enabled");
 		if (value == null) {
-			return fallback;
+			return false;
 		}
 		if (value instanceof Boolean bool) {
 			return bool;

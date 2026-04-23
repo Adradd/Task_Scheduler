@@ -2,6 +2,8 @@ package app.CalendarApp.repository;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -13,6 +15,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+@Setter
+@Getter
 @Document("Task")
 public class Task {
     @Id
@@ -60,64 +64,6 @@ public class Task {
         this.isCompleted = false;
         this.startTime = startTime;
     }
-    public String getTaskId() {
-        return taskId;
-    }
-    public void setTaskId(String taskId) {
-        this.taskId = taskId;
-    }
-
-    public Account getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Account owner) {
-        this.owner = owner;
-    }
-
-    public String getTaskName() {
-        return taskName;
-    }
-
-    public void setTaskName(String taskName) {
-        this.taskName = taskName;
-    }
-
-    public LocalDate getDeadline() {
-        return deadline;
-    }
-
-    public void setDeadline(LocalDate deadline) {
-        this.deadline = deadline;
-    }
-
-    public String getTimeToComplete() {
-        return timeToComplete;
-    }
-
-    public void setTimeToComplete(String timeToComplete) {
-        this.timeToComplete = timeToComplete;
-    }
-
-    public Project getProject() {
-        return project;
-    }
-
-    public void setProject(Project project) {
-        this.project = project;
-    }
-
-    public TaskPriority getPriority() {
-        return priority;
-    }
-
-    public void setPriority(TaskPriority priority) {
-        this.priority = priority;
-    }
-
-    public List<Tag> getTags() {
-        return tags;
-    }
 
     public void setTags(List<Tag> tags) {
         this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
@@ -155,11 +101,9 @@ public class Task {
         switch (project) {
             case null -> {
                 this.project = null;
-                return;
             }
             case Project parsedProject -> {
                 this.project = parsedProject;
-                return;
             }
             case java.util.Map<?, ?> projectMap -> {
                 Project parsedProject = new Project();
@@ -173,7 +117,6 @@ public class Task {
                     parsedProject.setProjectColor(String.valueOf(projectMap.get("projectColor")));
                 }
                 this.project = parsedProject;
-                return;
             }
             case String projectName when !projectName.trim().isEmpty() -> {
                 Project parsedProject = new Project();
@@ -186,68 +129,7 @@ public class Task {
 
     }
 
-    public String getComments() {
-        return comments;
-    }
-    public void setComments(String comments) {
-        this.comments = comments;
-    }
-    public boolean isCompleted() {
-        return isCompleted;
-    }
     public void setIsCompleted(boolean completed) {
         isCompleted = completed;
-    }
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-
-    public String getGoogleCalendarEventId() {
-        return googleCalendarEventId;
-    }
-
-    public void setGoogleCalendarEventId(String googleCalendarEventId) {
-        this.googleCalendarEventId = googleCalendarEventId;
-    }
-
-    public String getGoogleSourceCalendarId() {
-        return googleSourceCalendarId;
-    }
-
-    public void setGoogleSourceCalendarId(String googleSourceCalendarId) {
-        this.googleSourceCalendarId = googleSourceCalendarId;
-    }
-
-    public String getGoogleSourceEventId() {
-        return googleSourceEventId;
-    }
-
-    public void setGoogleSourceEventId(String googleSourceEventId) {
-        this.googleSourceEventId = googleSourceEventId;
-    }
-
-    public boolean isImportedFromGoogle() {
-        return importedFromGoogle;
-    }
-
-    public void setImportedFromGoogle(boolean importedFromGoogle) {
-        this.importedFromGoogle = importedFromGoogle;
-    }
-
-    public boolean isAutoSchedule() {
-        return autoSchedule;
-    }
-
-    public void setAutoSchedule(boolean autoSchedule) {
-        this.autoSchedule = autoSchedule;
     }
 }

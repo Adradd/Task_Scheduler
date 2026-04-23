@@ -1,9 +1,13 @@
 package app.CalendarApp.repository;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
+@Setter
+@Getter
 @Document("Project")
 public class Project {
     @Id
@@ -23,36 +27,5 @@ public class Project {
         this.projectColor = projectColor;
     }
 
-    public String getProjectId() {
-        return projectId;
-    }
-
-    public void setProjectId(String projectId) {
-        this.projectId = projectId;
-    }
-
-    public Account getOwner() {
-        return owner;
-    }
-
-    public void setOwner(Account owner) {
-        this.owner = owner;
-    }
-
-    public String getProjectName() {
-        return projectName;
-    }
-
-    public void setProjectName(String projectName) {
-        this.projectName = projectName;
-    }
-
-    public String getProjectColor() {
-        return projectColor;
-    }
-
-    public void setProjectColor(String projectColor) {
-        this.projectColor = projectColor;
-    }
 }
 
