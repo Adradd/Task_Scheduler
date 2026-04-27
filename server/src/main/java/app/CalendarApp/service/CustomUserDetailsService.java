@@ -14,11 +14,26 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collection;
 
+/**
+ * Loads application accounts for Spring Security's username/password
+ * authentication flow.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
     private final AccountRepository accountRepository;
 
+    /**
+     * Resolves a user by username and converts account roles into Spring
+     * Security authorities.
+     *
+     * @param username username supplied during authentication
+     * @return Spring Security user details
+     * @throws UsernameNotFoundException when the username is null or unknown
+     */
     @Override
     public UserDetails loadUserByUsername(@Nullable String username) throws UsernameNotFoundException {
         if (username == null) {

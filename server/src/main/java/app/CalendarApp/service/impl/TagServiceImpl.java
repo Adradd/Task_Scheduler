@@ -12,6 +12,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Implements tag lookup, creation, and resolution of task payload tags into
+ * persisted user-owned tag documents.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 @RequiredArgsConstructor
 public class TagServiceImpl implements TagService {

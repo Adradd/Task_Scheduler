@@ -16,6 +16,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * MongoDB document representing a task, including scheduling metadata,
+ * project/tag references, completion state, and Google Calendar linkage.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Setter
 @Getter
 @NoArgsConstructor
@@ -49,6 +56,20 @@ public class Task {
     @Transient
     private boolean autoSchedule;
 
+    /**
+     * Creates a task with the core user-editable fields and marks it incomplete.
+     *
+     * @param taskId unique task identifier
+     * @param owner account that owns the task
+     * @param taskName display name
+     * @param deadline date by which the task should be finished
+     * @param timeToComplete estimated duration string
+     * @param priority task priority
+     * @param project optional project reference
+     * @param tags optional tag references
+     * @param comments free-form task notes
+     * @param startTime optional scheduled start time
+     */
     public Task(String taskId, Account owner, String taskName, LocalDate deadline, String timeToComplete, TaskPriority priority, Project project, List<Tag> tags, String comments, LocalDateTime startTime) {
         this.taskId = taskId;
         this.owner = owner;
@@ -63,10 +84,20 @@ public class Task {
         this.startTime = startTime;
     }
 
+    /**
+     * Replaces tags defensively so callers cannot mutate the internal list.
+     *
+     * @param tags tag list to assign, or null for an empty list
+     */
     public void setTags(List<Tag> tags) {
         this.tags = (tags != null) ? new ArrayList<>(tags) : new ArrayList<>();
     }
 
+    /**
+     * Deserializes tag payloads sent either as tag objects or maps.
+     *
+     * @param tags raw JSON value for the tags property
+     */
     @JsonSetter("tags")
     public void setTagsFromJson(Object tags) {
         if (tags == null) {
@@ -94,6 +125,12 @@ public class Task {
         }
     }
 
+    /**
+     * Deserializes project payloads sent as a project object, map, string name,
+     * or null value.
+     *
+     * @param project raw JSON value for the project property
+     */
     @JsonSetter("project")
     public void setProjectFromJson(Object project) {
         switch (project) {
@@ -127,6 +164,12 @@ public class Task {
 
     }
 
+    /**
+     * Updates the completed flag while preserving the JavaBean boolean naming
+     * used by the existing API.
+     *
+     * @param completed whether the task is completed
+     */
     public void setIsCompleted(boolean completed) {
         isCompleted = completed;
     }

@@ -11,6 +11,13 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implements project lookup, creation, deletion, and normalization for
+ * user-owned projects.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 @RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {

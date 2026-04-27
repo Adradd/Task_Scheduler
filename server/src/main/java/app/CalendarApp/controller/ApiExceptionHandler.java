@@ -8,9 +8,23 @@ import tools.jackson.databind.exc.InvalidFormatException;
 
 import java.util.Map;
 
+/**
+ * Converts malformed JSON and type conversion failures into user-friendly API
+ * error responses.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    /**
+     * Handles unreadable request bodies, including invalid date/time and enum
+     * values.
+     *
+     * @param exception Spring exception raised while parsing the request body
+     * @return a 400 response with a concise error message
+     */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleUnreadableMessage(HttpMessageNotReadableException exception) {
         Throwable cause = exception.getMostSpecificCause();

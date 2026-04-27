@@ -27,6 +27,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Implements task validation, persistence, completion updates, auto-scheduling,
+ * and Google Calendar availability integration.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 @RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {

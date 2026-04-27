@@ -16,6 +16,13 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
+/**
+ * Implements account validation, password encoding, persistence, and cascading
+ * cleanup of user-owned data.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {

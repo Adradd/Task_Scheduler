@@ -31,6 +31,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Provides endpoints for linking Google Calendar, reading calendar data, and
+ * managing calendar-to-project mappings.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/integrations/google")
@@ -41,6 +48,13 @@ public class GoogleCalendarIntegrationController {
 	@Value("${google.oauth.frontend-url}")
 	private String frontendUrl;
 
+	/**
+	 * Reports whether the authenticated account currently has Google Calendar
+	 * credentials stored.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return linked status or an authentication error response
+	 */
 	@GetMapping("/status")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> getGoogleCalendarStatus(Authentication authentication) {
@@ -52,6 +66,13 @@ public class GoogleCalendarIntegrationController {
 		return ResponseEntity.ok(Map.of("linked", googleCalendarService.isCalendarLinked(account)));
 	}
 
+	/**
+	 * Builds the OAuth authorization URL used by the frontend to start linking
+	 * Google Calendar.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return authorization URL or an authentication error response
+	 */
 	@GetMapping("/connect")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> getGoogleCalendarConnectUrl(Authentication authentication) {
@@ -64,6 +85,12 @@ public class GoogleCalendarIntegrationController {
 		return ResponseEntity.ok(Map.of("authorizationUrl", authorizationUrl));
 	}
 
+	/**
+	 * Removes stored Google Calendar credentials for the authenticated account.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return 204 when disconnected
+	 */
 	@DeleteMapping("/disconnect")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> disconnectGoogleCalendar(Authentication authentication) {
@@ -76,6 +103,15 @@ public class GoogleCalendarIntegrationController {
 		return ResponseEntity.noContent().build();
 	}
 
+	/**
+	 * Reads Google Calendar events in the requested time range, including enabled
+	 * secondary calendars configured in project mappings.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @param timeMin optional ISO-8601 lower bound
+	 * @param timeMax optional ISO-8601 upper bound
+	 * @return linked status and calendar events, or a validation error response
+	 */
 	@GetMapping("/events")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> getGoogleCalendarEvents(
@@ -148,6 +184,12 @@ public class GoogleCalendarIntegrationController {
 		}
 	}
 
+	/**
+	 * Lists calendars available to the linked Google account.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return linked status and calendars, or a reconnect error response
+	 */
 	@GetMapping("/calendars")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> getGoogleCalendars(Authentication authentication) {
@@ -171,6 +213,13 @@ public class GoogleCalendarIntegrationController {
 		}
 	}
 
+	/**
+	 * Returns saved Google Calendar project mappings for the authenticated
+	 * account.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return saved mapping records
+	 */
 	@GetMapping("/project-mappings")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> getProjectMappings(Authentication authentication) {
@@ -183,6 +232,13 @@ public class GoogleCalendarIntegrationController {
 		return ResponseEntity.ok(Map.of("mappings", mappings));
 	}
 
+	/**
+	 * Upserts Google Calendar project mappings supplied by the frontend.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @param payload request body containing a {@code mappings} array
+	 * @return success message or a validation error response
+	 */
 	@PutMapping("/project-mappings")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> saveProjectMappings(Authentication authentication, @RequestBody Map<String, Object> payload) {
@@ -222,6 +278,13 @@ public class GoogleCalendarIntegrationController {
 		return ResponseEntity.ok(Map.of("message", "Mappings saved"));
 	}
 
+	/**
+	 * Placeholder endpoint for imports, intentionally disabled while external
+	 * Google Calendar events are view-only.
+	 *
+	 * @param authentication authenticated Spring Security principal
+	 * @return 403 response explaining that imports are disabled
+	 */
 	@PostMapping("/import-mapped-calendars")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
 	public ResponseEntity<?> importMappedCalendars(Authentication authentication) {
@@ -230,6 +293,15 @@ public class GoogleCalendarIntegrationController {
 		));
 	}
 
+	/**
+	 * Handles Google's OAuth redirect and sends the browser back to the account
+	 * page with a connection status.
+	 *
+	 * @param code authorization code returned by Google
+	 * @param state OAuth state value generated by the backend
+	 * @param response servlet response used for the redirect
+	 * @throws IOException when the redirect cannot be sent
+	 */
 	@GetMapping("/callback")
 	public void handleGoogleCallback(
 		@RequestParam(name = "code", required = false) String code,

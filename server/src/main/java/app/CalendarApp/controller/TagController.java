@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Exposes tag endpoints scoped to the authenticated account.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/tags")
@@ -20,6 +26,12 @@ public class TagController {
     private final TagService tagService;
     private final AccountService accountService;
 
+    /**
+     * Lists tags owned by the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @return owned tags or 404 when the account cannot be resolved
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Tag>> getTagsForUser(Authentication authentication) {
@@ -30,6 +42,13 @@ public class TagController {
         return ResponseEntity.ok(tagService.findAllByOwner(account));
     }
 
+    /**
+     * Creates or reuses a tag for the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @param payload map containing tagName
+     * @return created tag or validation error response
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> createTag(Authentication authentication, @RequestBody Map<String, String> payload) {
@@ -53,4 +72,3 @@ public class TagController {
         return accountService.findAccountByUsername(authentication.getName());
     }
 }
-

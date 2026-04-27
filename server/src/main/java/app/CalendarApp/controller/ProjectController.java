@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Exposes project endpoints scoped to the authenticated account.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestController
 @AllArgsConstructor
 @RequestMapping("/api/projects")
@@ -20,6 +26,12 @@ public class ProjectController {
     private final ProjectService projectService;
     private final AccountService accountService;
 
+    /**
+     * Lists projects owned by the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @return owned projects or 404 when the account cannot be resolved
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Project>> getProjectsForUser(Authentication authentication) {
@@ -30,6 +42,13 @@ public class ProjectController {
         return ResponseEntity.ok(projectService.findAllByOwner(account));
     }
 
+    /**
+     * Creates or reuses a project for the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @param payload map containing projectName and optional projectColor
+     * @return created project or validation error response
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> createProject(Authentication authentication, @RequestBody Map<String, String> payload) {
@@ -47,6 +66,13 @@ public class ProjectController {
         }
     }
 
+    /**
+     * Deletes a project and tasks assigned to it for the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @param projectId project identifier or name
+     * @return 204 when deleted or validation error response
+     */
     @DeleteMapping("/{projectId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> deleteProject(Authentication authentication, @PathVariable String projectId) {

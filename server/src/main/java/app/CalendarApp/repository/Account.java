@@ -7,6 +7,13 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+/**
+ * MongoDB document representing a registered user and their account-level
+ * preferences, authentication role, and Google Calendar token state.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Setter
 @Getter
 @Document("Account")
@@ -44,10 +51,21 @@ public class Account {
         this.endWorkingHours = endWorkingHours;
     }
 
+    /**
+     * Provides an ID alias used by services that treat accountId as the entity
+     * identifier.
+     *
+     * @return account identifier
+     */
     public String getId() {
         return accountId;
     }
 
+    /**
+     * Updates the account identifier through the ID alias.
+     *
+     * @param accountId account identifier to assign
+     */
     public void setId(String accountId) {
         this.accountId = accountId;
     }

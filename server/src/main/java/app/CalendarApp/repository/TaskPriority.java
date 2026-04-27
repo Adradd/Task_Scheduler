@@ -5,6 +5,12 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.Arrays;
 
+/**
+ * Priority values accepted by task payloads and serialized as lowercase text.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 public enum TaskPriority {
     LOW("low"),
     MEDIUM("medium"),
@@ -16,11 +22,23 @@ public enum TaskPriority {
         this.value = value;
     }
 
+    /**
+     * Returns the lowercase JSON representation for the priority.
+     *
+     * @return serialized priority value
+     */
     @JsonValue
     public String getValue() {
         return value;
     }
 
+    /**
+     * Parses priorities from either enum names or lowercase API values.
+     *
+     * @param value raw priority text
+     * @return matching priority, or null for null input
+     * @throws IllegalArgumentException when the value does not map to a priority
+     */
     @JsonCreator
     public static TaskPriority fromValue(String value) {
         if (value == null) {

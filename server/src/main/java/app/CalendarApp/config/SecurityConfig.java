@@ -17,6 +17,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Configures authentication, authorization, password encoding, OAuth login, and
+ * CORS rules for the backend API.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -27,11 +34,25 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
 
+    /**
+     * Provides the BCrypt password encoder used when accounts are created and
+     * login credentials are verified.
+     *
+     * @return password encoder for account passwords
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Builds the Spring Security filter chain for public registration/login
+     * endpoints and authenticated API access.
+     *
+     * @param http security builder supplied by Spring
+     * @return configured security filter chain
+     * @throws Exception when the filter chain cannot be built
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -52,6 +73,11 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Restricts cross-origin API requests to the configured frontend origin.
+     *
+     * @return MVC configurer containing API CORS mappings
+     */
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {

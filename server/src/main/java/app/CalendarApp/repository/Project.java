@@ -6,6 +6,12 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
+/**
+ * MongoDB document representing a user-owned project used to group tasks.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Setter
 @Getter
 @Document("Project")
@@ -28,4 +34,3 @@ public class Project {
     }
 
 }
-
