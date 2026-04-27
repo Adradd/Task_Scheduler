@@ -7,7 +7,7 @@ import app.CalendarApp.repository.ProjectRepository;
 import app.CalendarApp.repository.TagRepository;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.AccountService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +17,7 @@ import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
@@ -25,23 +26,6 @@ public class AccountServiceImpl implements AccountService {
     private final ProjectRepository projectRepository;
     private final GoogleCalendarProjectMappingRepository mappingRepository;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
-
-    @Autowired
-    public AccountServiceImpl(
-        AccountRepository accountRepository,
-        PasswordEncoder passwordEncoder,
-        TaskRepository taskRepository,
-        TagRepository tagRepository,
-        ProjectRepository projectRepository,
-        GoogleCalendarProjectMappingRepository mappingRepository
-    ) {
-        this.accountRepository = accountRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.taskRepository = taskRepository;
-        this.tagRepository = tagRepository;
-        this.projectRepository = projectRepository;
-        this.mappingRepository = mappingRepository;
-    }
 
     @Override
     public Account findAccountByAccountId(String accountId) {

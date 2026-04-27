@@ -16,6 +16,5 @@ public class GoogleCalendarProjectMapping {
     private String googleCalendarName;
     private String projectId;
     private boolean enabled;
-
 }
 

@@ -5,8 +5,8 @@ import app.CalendarApp.repository.GoogleCalendarProjectMapping;
 import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
 import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.GoogleCalendarService;
-import app.CalendarApp.service.ProjectService;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,25 +32,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/integrations/google")
 public class GoogleCalendarIntegrationController {
 	private final GoogleCalendarService googleCalendarService;
 	private final AccountService accountService;
     private final GoogleCalendarProjectMappingRepository mappingRepository;
-	private final String frontendUrl;
-
-	public GoogleCalendarIntegrationController(
-		GoogleCalendarService googleCalendarService,
-		AccountService accountService,
-		ProjectService projectService,
-		GoogleCalendarProjectMappingRepository mappingRepository,
-		@Value("${google.oauth.frontend-url}") String frontendUrl
-	) {
-		this.googleCalendarService = googleCalendarService;
-		this.accountService = accountService;
-        this.mappingRepository = mappingRepository;
-		this.frontendUrl = frontendUrl;
-	}
+	@Value("${google.oauth.frontend-url}")
+	private String frontendUrl;
 
 	@GetMapping("/status")
 	@PreAuthorize("hasAnyRole('USER', 'ADMIN')")
@@ -305,4 +294,3 @@ public class GoogleCalendarIntegrationController {
 		return Boolean.parseBoolean(String.valueOf(value));
 	}
 }
-

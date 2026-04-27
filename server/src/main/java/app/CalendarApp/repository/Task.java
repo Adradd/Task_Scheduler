@@ -3,6 +3,7 @@ package app.CalendarApp.repository;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Setter
 @Getter
+@NoArgsConstructor
 @Document("Task")
 public class Task {
     @Id
@@ -46,10 +48,6 @@ public class Task {
     private boolean importedFromGoogle;
     @Transient
     private boolean autoSchedule;
-
-    public Task() {
-        // Required by persistence/deserialization frameworks.
-    }
 
     public Task(String taskId, Account owner, String taskName, LocalDate deadline, String timeToComplete, TaskPriority priority, Project project, List<Tag> tags, String comments, LocalDateTime startTime) {
         this.taskId = taskId;

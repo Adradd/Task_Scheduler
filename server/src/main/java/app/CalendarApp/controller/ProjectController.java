@@ -4,6 +4,7 @@ import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Project;
 import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.ProjectService;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -13,15 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/projects")
 public class ProjectController {
     private final ProjectService projectService;
     private final AccountService accountService;
-
-    public ProjectController(ProjectService projectService, AccountService accountService) {
-        this.projectService = projectService;
-        this.accountService = accountService;
-    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

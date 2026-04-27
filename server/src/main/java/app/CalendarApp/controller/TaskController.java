@@ -8,7 +8,7 @@ import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.ProjectService;
 import app.CalendarApp.service.TagService;
 import app.CalendarApp.service.TaskService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService taskService;
@@ -27,21 +28,6 @@ public class TaskController {
     private final TagService tagService;
     private final ProjectService projectService;
     private final GoogleCalendarProjectMappingRepository mappingRepository;
-
-    @Autowired
-    public TaskController(
-        TaskService taskService,
-        AccountService accountService,
-        TagService tagService,
-        ProjectService projectService,
-        GoogleCalendarProjectMappingRepository mappingRepository
-    ) {
-        this.taskService = taskService;
-        this.accountService = accountService;
-        this.tagService = tagService;
-        this.projectService = projectService;
-        this.mappingRepository = mappingRepository;
-    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

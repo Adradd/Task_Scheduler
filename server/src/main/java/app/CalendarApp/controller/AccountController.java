@@ -2,6 +2,7 @@ package app.CalendarApp.controller;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.service.AccountService;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,16 +12,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/accounts")
 public class AccountController {
     private final AccountService accountService;
     private final PasswordEncoder passwordEncoder;
-
-    @Autowired
-    public AccountController(AccountService accountService, PasswordEncoder passwordEncoder) {
-        this.accountService = accountService;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @GetMapping("/{accountId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

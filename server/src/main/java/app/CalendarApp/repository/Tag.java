@@ -1,6 +1,8 @@
 package app.CalendarApp.repository;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -8,6 +10,8 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
 @Setter
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
 @Document("Tag")
 public class Tag {
     @Id
@@ -17,15 +21,4 @@ public class Tag {
     private Account owner;
 
     private String tagName;
-
-    public Tag() {
-
-    }
-
-    public Tag(String tagId, Account owner, String tagName)  {
-        this.tagId = tagId;
-        this.owner = owner;
-        this.tagName = tagName;
-    }
-
 }

@@ -4,6 +4,7 @@ import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.TagService;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -13,15 +14,11 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/tags")
 public class TagController {
     private final TagService tagService;
     private final AccountService accountService;
-
-    public TagController(TagService tagService, AccountService accountService) {
-        this.tagService = tagService;
-        this.accountService = accountService;
-    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

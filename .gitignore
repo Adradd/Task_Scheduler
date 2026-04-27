@@ -33,3 +33,5 @@ build/
 .vscode/
 
 .env
+
+.m2-local/

@@ -10,7 +10,7 @@ import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.service.TaskService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
     private static final DateTimeFormatter GOOGLE_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
 
@@ -38,19 +39,6 @@ public class TaskServiceImpl implements TaskService {
 
     @Value("${google.calendar.default-time-zone:America/New_York}")
     private String defaultTimeZone;
-
-    @Autowired
-    public TaskServiceImpl(
-        TaskRepository taskRepository,
-        TaskAutoSchedulerService autoSchedulerService,
-        GoogleCalendarService googleCalendarService,
-        GoogleCalendarProjectMappingRepository mappingRepository
-    ) {
-        this.taskRepository = taskRepository;
-        this.autoSchedulerService = autoSchedulerService;
-        this.googleCalendarService = googleCalendarService;
-        this.mappingRepository = mappingRepository;
-    }
 
     @Override
     public Task findTaskByTaskId(String taskId) {

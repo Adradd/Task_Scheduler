@@ -4,7 +4,7 @@ import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.Tag;
 import app.CalendarApp.repository.TagRepository;
 import app.CalendarApp.service.TagService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -13,13 +13,9 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class TagServiceImpl implements TagService {
     private final TagRepository tagRepository;
-
-    @Autowired
-    public TagServiceImpl(TagRepository tagRepository) {
-        this.tagRepository = tagRepository;
-    }
 
     @Override
     public List<Tag> findAllByOwner(Account owner) {

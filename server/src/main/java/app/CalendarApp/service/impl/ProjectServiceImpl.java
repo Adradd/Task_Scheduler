@@ -5,23 +5,18 @@ import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.ProjectRepository;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.ProjectService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private static final String DEFAULT_PROJECT_COLOR = "#3fb0ba";
-
-    @Autowired
-    public ProjectServiceImpl(ProjectRepository projectRepository, TaskRepository taskRepository) {
-        this.projectRepository = projectRepository;
-        this.taskRepository = taskRepository;
-    }
 
     @Override
     public List<Project> findAllByOwner(Account owner) {
