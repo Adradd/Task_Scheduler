@@ -48,6 +48,16 @@ public interface ProjectService {
     void deleteProject(Account owner, String projectId);
 
     /**
+     * Updates the color of an existing project.
+     *
+     * @param owner account owner
+     * @param projectId project identifier or name
+     * @param projectColor new hex color
+     * @return updated project
+     */
+    Project updateProjectColor(Account owner, String projectId, String projectColor);
+
+    /**
      * Resolves a project reference, creating it when needed.
      *
      * @param owner account owner

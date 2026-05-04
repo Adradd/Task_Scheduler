@@ -405,6 +405,72 @@
     white-space: nowrap;
 }
 
+.project-color-picker-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.project-color-header-button {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: transparent;
+    color: #f5f2f3;
+    border-radius: 999px;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    white-space: nowrap;
+}
+
+.project-color-header-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.project-color-header-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.project-color-button-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.project-color-popover {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    right: 0;
+    min-width: 220px;
+    padding: 0.85rem;
+    border-radius: 12px;
+    background: #f7f2f3;
+    color: #2c2528;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(61, 56, 60, 0.15);
+    display: grid;
+    gap: 0.65rem;
+    z-index: 80;
+}
+
+.project-color-popover-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6e5961;
+}
+
+.project-color-popover .project-color-options {
+    margin-top: 0.25rem;
+}
+
 .project-header-color-picker {
     width: 1.5rem;
     height: 1.5rem;

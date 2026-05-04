@@ -67,6 +67,32 @@ public class ProjectController {
     }
 
     /**
+     * Updates the color of an existing project for the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @param projectId project identifier or name
+     * @param payload map containing the new projectColor
+     * @return updated project or validation error response
+     */
+    @PutMapping("/{projectId}/color")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> updateProjectColor(Authentication authentication,
+                                                @PathVariable String projectId,
+                                                @RequestBody Map<String, String> payload) {
+        Account account = resolveAccount(authentication);
+        if (account == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            String projectColor = payload.get("projectColor");
+            Project updated = projectService.updateProjectColor(account, projectId, projectColor);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
      * Deletes a project and tasks assigned to it for the authenticated account.
      *
      * @param authentication authenticated Spring Security principal

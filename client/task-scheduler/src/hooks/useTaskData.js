@@ -184,6 +184,68 @@ function useTaskData(user) {
         )));
     }, [backendUrl]);
 
+    const updateProjectColor = useCallback(async (project, projectColor) => {
+        const projectIdentifier = project?.projectId || project?.projectName;
+        if (!projectIdentifier) {
+            throw new Error('Project identifier is required');
+        }
+        const response = await axios.put(
+            `${backendUrl}/api/projects/${encodeURIComponent(projectIdentifier)}/color`,
+            { projectColor },
+            createAuthConfig(),
+        );
+        const updatedProject = response.data || { ...project, projectColor };
+        const updatedName = updatedProject.projectName?.toLowerCase();
+        const updatedId = updatedProject.projectId;
+
+        setAllProjectObjects((prev) => prev.map((current) => {
+            if (updatedId && current.projectId === updatedId) {
+                return { ...current, projectColor: updatedProject.projectColor };
+            }
+            if (updatedName && current.projectName?.toLowerCase() === updatedName) {
+                return { ...current, projectColor: updatedProject.projectColor };
+            }
+            return current;
+        }));
+        setTasks((prev) => prev.map((task) => {
+            const taskProject = task?.project;
+            if (!taskProject || typeof taskProject === 'string') {
+                return task;
+            }
+            const matchesById = updatedId && taskProject.projectId === updatedId;
+            const matchesByName = updatedName && taskProject.projectName?.toLowerCase() === updatedName;
+            if (!matchesById && !matchesByName) {
+                return task;
+            }
+            return {
+                ...task,
+                project: {
+                    ...taskProject,
+                    projectColor: updatedProject.projectColor,
+                },
+            };
+        }));
+        setCompletedTasks((prev) => prev.map((task) => {
+            const taskProject = task?.project;
+            if (!taskProject || typeof taskProject === 'string') {
+                return task;
+            }
+            const matchesById = updatedId && taskProject.projectId === updatedId;
+            const matchesByName = updatedName && taskProject.projectName?.toLowerCase() === updatedName;
+            if (!matchesById && !matchesByName) {
+                return task;
+            }
+            return {
+                ...task,
+                project: {
+                    ...taskProject,
+                    projectColor: updatedProject.projectColor,
+                },
+            };
+        }));
+        return updatedProject;
+    }, [backendUrl]);
+
     const fetchTaskDetails = useCallback(async (taskId) => {
         const response = await axios.get(`${backendUrl}/api/tasks/${taskId}`, createAuthConfig());
         return normalizeTask(response.data || {});
@@ -215,6 +277,7 @@ function useTaskData(user) {
         reopenTask,
         createProject,
         deleteProject,
+        updateProjectColor,
         fetchTaskDetails,
         resolveProjectObject,
     };

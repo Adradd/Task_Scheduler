@@ -5,7 +5,7 @@ import app.CalendarApp.repository.Project;
 import app.CalendarApp.repository.ProjectRepository;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.ProjectService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,11 +19,16 @@ import java.util.List;
  * @author Adam Raddant
  */
 @Service
-@RequiredArgsConstructor
 public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final TaskRepository taskRepository;
     private static final String DEFAULT_PROJECT_COLOR = "#3fb0ba";
+
+    @Autowired
+    public ProjectServiceImpl(ProjectRepository projectRepository, TaskRepository taskRepository) {
+        this.projectRepository = projectRepository;
+        this.taskRepository = taskRepository;
+    }
 
     @Override
     public List<Project> findAllByOwner(Account owner) {
@@ -86,6 +91,37 @@ public class ProjectServiceImpl implements ProjectService {
 
         taskRepository.deleteAllByOwnerAndProject(owner, project);
         projectRepository.delete(project);
+    }
+
+    @Override
+    public Project updateProjectColor(Account owner, String projectId, String projectColor) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Owner is required");
+        }
+        if (projectId == null || projectId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Project ID is required");
+        }
+
+        String normalizedColor = normalizeProjectColorOrNull(projectColor);
+        if (normalizedColor == null) {
+            throw new IllegalArgumentException("Project color is required");
+        }
+
+        String identifier = projectId.trim();
+        Project project = projectRepository.findProjectByProjectIdAndOwner(identifier, owner);
+        if (project == null) {
+            project = projectRepository.findProjectByOwnerAndProjectNameIgnoreCase(owner, identifier);
+        }
+        if (project == null) {
+            throw new IllegalArgumentException("Project does not exist");
+        }
+
+        if (normalizedColor.equalsIgnoreCase(project.getProjectColor())) {
+            return project;
+        }
+
+        project.setProjectColor(normalizedColor);
+        return projectRepository.save(project);
     }
 
     @Override

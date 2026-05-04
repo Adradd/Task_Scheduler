@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -75,6 +76,36 @@ class ProjectControllerTest {
 
         mockMvc.perform(delete("/api/projects/proj-1").principal(new TestingAuthenticationToken("jane", null, "ROLE_USER")))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void updateProjectColorReturnsUpdatedProject() throws Exception {
+        Project updated = TestDataFactory.project("proj-1", owner, "Work");
+        updated.setProjectColor("#123456");
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+        when(projectService.updateProjectColor(owner, "proj-1", "#123456")).thenReturn(updated);
+
+        mockMvc.perform(put("/api/projects/proj-1/color")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"projectColor\":\"#123456\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.projectColor").value("#123456"));
+    }
+
+    @Test
+    void updateProjectColorReturnsBadRequestOnValidationError() throws Exception {
+        when(accountService.findAccountByUsername("jane")).thenReturn(owner);
+        doThrow(new IllegalArgumentException("Project color is required"))
+            .when(projectService)
+            .updateProjectColor(owner, "proj-1", "invalid");
+
+        mockMvc.perform(put("/api/projects/proj-1/color")
+                .principal(new TestingAuthenticationToken("jane", null, "ROLE_USER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"projectColor\":\"invalid\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Project color is required"));
     }
 
     @Test

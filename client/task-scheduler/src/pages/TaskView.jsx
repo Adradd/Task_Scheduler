@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import bookIcon from '../assets/book.svg';
 import inboxIcon from '../assets/inbox.svg';
 import targetIcon from '../assets/target.svg';
@@ -49,6 +49,7 @@ export default function TaskView ({ user }) {
         reopenTask,
         createProject,
         deleteProject,
+        updateProjectColor,
     } = useTaskData(user);
     const [editingId, setEditingId] = useState(null);
     const [editData, setEditData] = useState({});
@@ -77,10 +78,39 @@ export default function TaskView ({ user }) {
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
     const [newTaskAutoSchedule, setNewTaskAutoSchedule] = useState(false);
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
+    const [showProjectColorPicker, setShowProjectColorPicker] = useState(false);
+    const [isUpdatingProjectColor, setIsUpdatingProjectColor] = useState(false);
+    const projectColorPickerRef = useRef(null);
     const { isResizing, sidebarWidth, startResizing } = useResizableSidebar();
 
     const timeOptions = buildTimeOptions();
     const todayKey = getTodayKey();
+
+    useEffect(() => {
+        if (!showProjectColorPicker) {
+            return undefined;
+        }
+
+        const handlePointerDown = (event) => {
+            if (!projectColorPickerRef.current?.contains(event.target)) {
+                setShowProjectColorPicker(false);
+            }
+        };
+
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setShowProjectColorPicker(false);
+            }
+        };
+
+        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showProjectColorPicker]);
 
     const parseDateKey = (dateKey) => {
         if (!dateKey || typeof dateKey !== 'string') {
@@ -461,8 +491,30 @@ export default function TaskView ({ user }) {
     const handleSelectFilter = (filter) => {
         setError(null);
         setSelectedFilter(filter);
+        setShowProjectColorPicker(false);
     };
 
+    const handleUpdateProjectColor = async (project, color) => {
+        if (!project) {
+            return;
+        }
+        const normalizedColor = color.toLowerCase();
+        if (projectToProjectColor(project) === normalizedColor) {
+            setShowProjectColorPicker(false);
+            return;
+        }
+
+        try {
+            setIsUpdatingProjectColor(true);
+            setError(null);
+            await updateProjectColor(project, normalizedColor);
+            setShowProjectColorPicker(false);
+        } catch (err) {
+            setError(`Failed to update project color: ${extractApiErrorMessage(err)}`);
+        } finally {
+            setIsUpdatingProjectColor(false);
+        }
+    };
 
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
@@ -730,14 +782,53 @@ export default function TaskView ({ user }) {
                                     {showNewTaskForm ? 'Close New Task' : '+ New Task'}
                                 </button>
                                 {selectedProjectObject && (
-                                    <ConfirmPopoverButton
-                                        buttonClassName="project-delete-header-button"
-                                        buttonLabel="Delete Project"
-                                        popoverClassName="confirm-popover-below-right"
-                                        title="Delete project?"
-                                        message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
-                                        onConfirm={() => handleDeleteProject(selectedProjectObject)}
-                                    />
+                                    <>
+                                        <ConfirmPopoverButton
+                                            buttonClassName="project-delete-header-button"
+                                            buttonLabel="Delete Project"
+                                            popoverClassName="confirm-popover-below-right"
+                                            title="Delete project?"
+                                            message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
+                                            onConfirm={() => handleDeleteProject(selectedProjectObject)}
+                                        />
+                                        <span className="project-color-picker-wrap" ref={projectColorPickerRef}>
+                                            <button
+                                                type="button"
+                                                className="project-color-header-button"
+                                                onClick={() => setShowProjectColorPicker(prev => !prev)}
+                                                disabled={isUpdatingProjectColor}
+                                                aria-expanded={showProjectColorPicker}
+                                                aria-haspopup="dialog"
+                                            >
+                                                <span
+                                                    className="project-color-button-dot"
+                                                    style={{ backgroundColor: projectToProjectColor(selectedProjectObject) }}
+                                                    aria-hidden="true"
+                                                />
+                                                {isUpdatingProjectColor ? 'Updating…' : 'Change Color'}
+                                            </button>
+                                            {showProjectColorPicker && (
+                                                <span className="project-color-popover" role="dialog" aria-label="Choose project color">
+                                                    <span className="project-color-popover-title">Project Color</span>
+                                                    <span className="project-color-options" role="listbox" aria-label="Project color options">
+                                                        {PROJECT_COLOR_OPTIONS.map((color) => (
+                                                            <button
+                                                                type="button"
+                                                                key={color}
+                                                                className={`project-color-option ${projectToProjectColor(selectedProjectObject) === color ? 'selected' : ''}`}
+                                                                onClick={() => handleUpdateProjectColor(selectedProjectObject, color)}
+                                                                aria-label={`Set project color ${color}`}
+                                                                title={color}
+                                                                disabled={isUpdatingProjectColor}
+                                                            >
+                                                                <span className="project-color-option-fill" style={{ backgroundColor: color }} aria-hidden="true" />
+                                                            </button>
+                                                        ))}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </span>
+                                    </>
                                 )}
                             </div>
 
