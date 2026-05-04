@@ -2,6 +2,10 @@ package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
+import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
+import app.CalendarApp.repository.ProjectRepository;
+import app.CalendarApp.repository.TagRepository;
+import app.CalendarApp.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -28,6 +33,18 @@ class AccountServiceImplTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private TaskRepository taskRepository;
+
+    @Mock
+    private TagRepository tagRepository;
+
+    @Mock
+    private ProjectRepository projectRepository;
+
+    @Mock
+    private GoogleCalendarProjectMappingRepository mappingRepository;
 
     @InjectMocks
     private AccountServiceImpl accountService;
@@ -136,5 +153,22 @@ class AccountServiceImplTest {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> accountService.deleteAccount("missing"));
 
         assertEquals("Account does not exist", exception.getMessage());
+        verify(taskRepository, never()).deleteAllByOwner(any(Account.class));
+        verify(tagRepository, never()).deleteAllByOwner(any(Account.class));
+        verify(projectRepository, never()).deleteAllByOwner(any(Account.class));
+        verify(mappingRepository, never()).deleteAllByAccountId(any(String.class));
+    }
+
+    @Test
+    void deleteAccountRemovesAssociatedDataBeforeAccount() {
+        when(accountRepository.findAccountByAccountId("acc-1")).thenReturn(account);
+
+        accountService.deleteAccount("acc-1");
+
+        verify(taskRepository).deleteAllByOwner(account);
+        verify(tagRepository).deleteAllByOwner(account);
+        verify(projectRepository).deleteAllByOwner(account);
+        verify(mappingRepository).deleteAllByAccountId("acc-1");
+        verify(accountRepository).deleteById("acc-1");
     }
 }

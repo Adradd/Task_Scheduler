@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import bookIcon from '../assets/book.svg';
 import inboxIcon from '../assets/inbox.svg';
 import targetIcon from '../assets/target.svg';
@@ -7,21 +6,51 @@ import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
-import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
+import useTaskData from '../hooks/useTaskData.js';
+import { extractApiErrorMessage } from '../utils/api.js';
+import {
+    buildTimeOptions,
+    formatTags,
+    getTagNames,
+    isGoogleReadOnlyTask,
+    parseTagInput,
+    projectNameToProjectObject,
+    projectToProjectColor,
+    projectToProjectName,
+    tagNameToTagObject,
+} from '../utils/taskAdapters.js';
+import { getTodayKey } from '../utils/dateFormatters.js';
+import { formatPriorityLabel, getPriorityRank } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 
-function TaskView({ user }) {
-    const PROJECT_COLOR_OPTIONS = [
-        '#dc2626', '#ef4444', '#f43f5e', '#ec4899',
-        '#f97316', '#f59e0b', '#eab308', '#84cc16',
-        '#65a30d', '#22c55e', '#10b981', '#14b8a6',
-        '#06b6d4', '#0ea5e9', '#0576f3', '#1d4ed8',
-        '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
-    ];
-    const [tasks, setTasks] = useState([]);
-    const [completedTasks, setCompletedTasks] = useState([]);
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true);
+const PROJECT_COLOR_OPTIONS = [
+    '#dc2626', '#ef4444', '#f43f5e', '#ec4899',
+    '#f97316', '#f59e0b', '#eab308', '#84cc16',
+    '#65a30d', '#22c55e', '#10b981', '#14b8a6',
+    '#06b6d4', '#0ea5e9', '#0576f3', '#1d4ed8',
+    '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+];
+
+export default function TaskView ({ user }) {
+    const {
+        tasks,
+        completedTasks,
+        availableTags,
+        allTagObjects,
+        availableProjects,
+        allProjectObjects,
+        error,
+        setError,
+        loading,
+        createTask,
+        updateTask,
+        deleteTask,
+        completeTask,
+        reopenTask,
+        createProject,
+        deleteProject,
+        updateProjectColor,
+    } = useTaskData(user);
     const [editingId, setEditingId] = useState(null);
     const [editData, setEditData] = useState({});
     const [sortBy] = useState('deadline'); // 'deadline', 'project', 'priority'
@@ -34,10 +63,6 @@ function TaskView({ user }) {
         tags: [],
         comments: ''
     });
-    const [availableTags, setAvailableTags] = useState([]);
-    const [allTagObjects, setAllTagObjects] = useState([]);
-    const [availableProjects, setAvailableProjects] = useState([]);
-    const [allProjectObjects, setAllProjectObjects] = useState([]);
     const [showNewTaskTagDropdown, setShowNewTaskTagDropdown] = useState(false);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
     const [showNewTaskProjectDropdown, setShowNewTaskProjectDropdown] = useState(false);
@@ -53,181 +78,74 @@ function TaskView({ user }) {
     const [showCompletedTasks, setShowCompletedTasks] = useState(false);
     const [newTaskAutoSchedule, setNewTaskAutoSchedule] = useState(false);
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
+    const [showProjectColorPicker, setShowProjectColorPicker] = useState(false);
+    const [isUpdatingProjectColor, setIsUpdatingProjectColor] = useState(false);
+    const projectColorPickerRef = useRef(null);
     const { isResizing, sidebarWidth, startResizing } = useResizableSidebar();
 
-    const backendUrl = import.meta.env.VITE_BACKEND_URL;
+    const timeOptions = buildTimeOptions();
+    const todayKey = getTodayKey();
 
-    // Extract tag names from Tag objects
-    const getTagNames = (tags) => {
-        if (!Array.isArray(tags)) return [];
-        return tags.map(tag => {
-            if (typeof tag === 'string') return tag;
-            return tag?.tagName || '';
-        }).filter(Boolean);
-    };
-
-    // Convert tag names to Tag objects
-    const tagNameToTagObject = (tagName) => {
-        const found = allTagObjects.find(t => t.tagName?.toLowerCase() === tagName?.toLowerCase());
-        if (found) {
-            return found;
+    useEffect(() => {
+        if (!showProjectColorPicker) {
+            return undefined;
         }
-        return { tagName: tagName.trim() };
-    };
 
-    const parseTagInput = (value) => {
-        if (!value) return [];
-        return [...new Set(value.split(',').map(tag => tag.trim()).filter(Boolean))];
-    };
+        const handlePointerDown = (event) => {
+            if (!projectColorPickerRef.current?.contains(event.target)) {
+                setShowProjectColorPicker(false);
+            }
+        };
 
-    const formatTags = (tags) => {
-        if (!Array.isArray(tags) || tags.length === 0) return '';
-        const tagNames = getTagNames(tags);
-        return tagNames.join(', ');
-    };
+        const handleKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                setShowProjectColorPicker(false);
+            }
+        };
 
-    const projectToProjectName = (project) => {
-        if (!project) return '';
-        if (typeof project === 'string') return project;
-        return project?.projectName || '';
-    };
+        document.addEventListener('pointerdown', handlePointerDown);
+        document.addEventListener('keydown', handleKeyDown);
 
-    const projectToProjectColor = (project) => {
-        if (!project || typeof project === 'string') return '#3fb0ba';
-        const color = project?.projectColor;
-        if (typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color.trim())) {
-            return color.trim().toLowerCase();
-        }
-        return '#3fb0ba';
-    };
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [showProjectColorPicker]);
 
-    const projectToProjectId = (project) => {
-        if (!project || typeof project === 'string') return '';
-        return project?.projectId || project?.id || project?._id || '';
-    };
-
-    const projectNameToProjectObject = (projectName) => {
-        if (!projectName || !projectName.trim()) {
+    const parseDateKey = (dateKey) => {
+        if (!dateKey || typeof dateKey !== 'string') {
             return null;
         }
-        const found = allProjectObjects.find(p => p.projectName?.toLowerCase() === projectName?.toLowerCase());
-        if (found) {
-            return found;
+
+        const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) {
+            return null;
         }
-        return { projectName: projectName.trim() };
+
+        const [, y, m, d] = match;
+        return new Date(Number(y), Number(m) - 1, Number(d));
     };
 
-    const normalizeTask = (task) => ({
-        ...task,
-        priority: normalizePriority(task?.priority),
-        project: task?.project || null,
-        tags: Array.isArray(task?.tags) ? task.tags : []
-    });
-
-    const isGoogleReadOnlyTask = (task) => Boolean(task?.importedFromGoogle || task?.googleSourceEventId);
-
-    // Generate time options: 15 minute increments up to 3 hours, then 30 minute increments
-    const generateTimeOptions = () => {
-        const options = [];
-
-        // 15-minute increments from 15 minutes to 3 hours (180 minutes)
-        for (let minutes = 15; minutes <= 180; minutes += 15) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const label = mins === 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : `${hours}h ${mins}m`;
-            options.push({ value: `${hours}h ${mins}m`, label });
+    const isTaskOverdue = (task) => {
+        const taskDate = parseDateKey(task?.deadline || '');
+        const today = parseDateKey(todayKey);
+        if (!taskDate || !today) {
+            return false;
         }
-
-        // 30-minute increments from 3.5 hours to 8 hours (210 to 480 minutes)
-        for (let minutes = 210; minutes <= 480; minutes += 30) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const label = mins === 0 ? `${hours} hours` : `${hours}h ${mins}m`;
-            options.push({ value: `${hours}h ${mins}m`, label });
-        }
-
-        return options;
+        taskDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return taskDate < today;
     };
 
-    const timeOptions = generateTimeOptions();
-
-    const todayKey = (() => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    })();
-
-    // Create auth config from stored credentials
-    const getAuthConfig = () => { // TODO: split out & use shared code
-        const authToken = sessionStorage.getItem('authToken');
-        if (authToken) {
-            return {
-                headers: {
-                    'Authorization': 'Basic ' + authToken
-                }
-            };
+    const isDueTodayOrOverdue = (task) => {
+        const taskDate = parseDateKey(task?.deadline || '');
+        const today = parseDateKey(todayKey);
+        if (!taskDate || !today) {
+            return false;
         }
-        return {};
-    };
-
-    // Fetch all tasks on component mount and when user changes
-    useEffect(() => {
-        if (user) {
-            fetchTasks();
-            fetchCompletedTasks();
-            fetchAvailableTags();
-            fetchAvailableProjects();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
-
-    const fetchAvailableTags = async () => {
-        try {
-            const res = await axios.get(`${backendUrl}/api/tags`, getAuthConfig());
-            const tags = res.data || [];
-            setAllTagObjects(tags);
-            setAvailableTags(tags.map(tag => tag.tagName));
-        } catch (err) {
-            console.error('Failed to fetch tags:', err);
-        }
-    };
-
-    const fetchAvailableProjects = async () => {
-        try {
-            const res = await axios.get(`${backendUrl}/api/projects`, getAuthConfig());
-            const projects = res.data || [];
-            setAllProjectObjects(projects);
-            setAvailableProjects([...new Set(projects.map(project => project.projectName).filter(Boolean))]);
-        } catch (err) {
-            console.error('Failed to fetch projects:', err);
-        }
-    };
-
-    const fetchTasks = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const res = await axios.get(`${backendUrl}/api/tasks`, getAuthConfig());
-            setTasks((res.data || []).map(normalizeTask));
-        } catch (err) {
-            setError('Failed to fetch tasks: ' + (err.response?.data?.message || err.message));
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchCompletedTasks = async () => {
-        try {
-            setError(null);
-            const res = await axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig());
-            setCompletedTasks((res.data || []).map(normalizeTask));
-        } catch (err) {
-            setError('Failed to fetch completed tasks: ' + (err.response?.data?.message || err.message));
-            console.error(err);
-        }
+        taskDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+        return taskDate <= today;
     };
 
     const handleEdit = (task) => {
@@ -237,7 +155,7 @@ function TaskView({ user }) {
         }
         setShowNewTaskForm(false);
         setEditingId(task.taskId);
-        const normalized = normalizeTask(task);
+        const normalized = task;
         // Convert Tag objects to tag name strings for editing
         const tagNames = getTagNames(normalized.tags);
         const editDataWithNames = {
@@ -250,29 +168,29 @@ function TaskView({ user }) {
         setEditTaskAutoSchedule(false);
     };
 
-    const handleSaveEdit = async (taskId) => {
+    const handleSaveEdit = async () => {
+        const validationErrors = validateTask(editData);
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
+            return;
+        }
+
         try {
             setError(null);
-            // Convert tag names to Tag objects
-            const tagObjects = (editData.tags || []).map(tagName => tagNameToTagObject(tagName));
+            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName, allTagObjects));
             const dataToSend = {
                 ...editData,
-                project: projectNameToProjectObject(editData.project || ''),
+                project: projectNameToProjectObject(editData.project || '', allProjectObjects),
                 tags: tagObjects,
                 autoSchedule: editTaskAutoSchedule
             };
 
-            const res = await axios.put(`${backendUrl}/api/tasks`, dataToSend, getAuthConfig());
-            const updatedTask = normalizeTask(res.data || editData);
-            setTasks(tasks.map(t => t.taskId === taskId ? updatedTask : t));
+            await updateTask(dataToSend);
             setEditingId(null);
             setEditData({});
             setEditTaskAutoSchedule(false);
-            fetchAvailableTags();
-            fetchAvailableProjects();
         } catch (err) {
-            setError('Failed to update task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to update task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -280,6 +198,7 @@ function TaskView({ user }) {
         setEditingId(null);
         setEditData({});
         setEditTaskAutoSchedule(false);
+        setError(null);
     };
 
     const resetNewTaskForm = () => {
@@ -297,6 +216,7 @@ function TaskView({ user }) {
         setShowNewTaskProjectDropdown(false);
         setShowNewTaskForm(false);
         setNewTaskAutoSchedule(false);
+        setError(null);
     };
 
     const handleDelete = async (taskId) => {
@@ -307,11 +227,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be deleted in this app.');
                 return;
             }
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setTasks(tasks.filter(t => t.taskId !== taskId));
+            await deleteTask(taskId);
         } catch (err) {
-            setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -323,12 +241,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be updated in this app.');
                 return;
             }
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
-            setTasks(tasks.filter(t => t.taskId !== taskId));
-            setCompletedTasks([...completedTasks, normalizeTask(res.data)]);
+            await completeTask(taskId);
         } catch (err) {
-            setError('Failed to complete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to complete task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -340,12 +255,9 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be updated in this app.');
                 return;
             }
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/reopen`, {}, getAuthConfig());
-            setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
-            setTasks([...tasks, normalizeTask(res.data)]);
+            await reopenTask(taskId);
         } catch (err) {
-            setError('Failed to reopen task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to reopen task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -357,54 +269,55 @@ function TaskView({ user }) {
                 setError('Google Calendar events are view-only and cannot be deleted in this app.');
                 return;
             }
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setCompletedTasks(completedTasks.filter(t => t.taskId !== taskId));
+            await deleteTask(taskId);
         } catch (err) {
-            setError('Failed to delete task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete task: ' + extractApiErrorMessage(err));
         }
     };
 
     const validateTask = (task) => {
-        if (!task.taskName.trim()) return 'Task name is required';
-        if (!task.deadline.trim()) return 'Deadline is required';
-        if (!task.timeToComplete.trim()) return 'Time to complete is required';
-        if (!task.priority.trim()) return 'Priority is required';
-        return null;
+        const errors = [];
+
+        if (!task.taskName?.trim()) errors.push('Task name is required');
+        if (!task.deadline?.trim()) errors.push('Deadline is required');
+        if (!task.timeToComplete?.trim()) errors.push('Time to complete is required');
+        if (!task.priority?.trim()) errors.push('Priority is required');
+
+        const projectName = task.project?.trim();
+        if (projectName && !availableProjects.some((project) => project.toLowerCase() === projectName.toLowerCase())) {
+            errors.push('Please select a project from the project list');
+        }
+
+        return errors;
     };
 
     const handleCreateTask = async () => {
-        const validationError = validateTask(newTask);
-        if (validationError) {
-            setError(validationError);
+        const validationErrors = validateTask(newTask);
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
             return;
         }
 
         try {
             setError(null);
-            // Convert tag names to Tag objects
-            const tagObjects = newTask.tags.map(tagName => tagNameToTagObject(tagName));
+            const tagObjects = newTask.tags.map((tagName) => tagNameToTagObject(tagName, allTagObjects));
 
             const taskToCreate = {
-                taskId: `task_${Date.now()}`,
+                taskId: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 taskName: newTask.taskName,
                 deadline: newTask.deadline,
                 timeToComplete: newTask.timeToComplete,
                 priority: newTask.priority,
-                project: projectNameToProjectObject(newTask.project),
+                project: projectNameToProjectObject(newTask.project, allProjectObjects),
                 tags: tagObjects,
                 comments: newTask.comments,
                 autoSchedule: newTaskAutoSchedule
             };
 
-            const res = await axios.post(`${backendUrl}/api/tasks`, taskToCreate, getAuthConfig());
-            setTasks([...tasks, normalizeTask(res.data)]);
+            await createTask(taskToCreate);
             resetNewTaskForm();
-            fetchAvailableTags();
-            fetchAvailableProjects();
         } catch (err) {
-            setError('Failed to create task: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to create task: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -415,9 +328,6 @@ function TaskView({ user }) {
             // Only parse the input as tags, don't double-format
             setNewTask(prev => ({ ...prev, tags: parseTagInput(value) }));
             return;
-        }
-        if (field === 'project') {
-            setShowNewTaskProjectDropdown(true);
         }
         setNewTask(prev => ({ ...prev, [field]: value }));
     };
@@ -430,9 +340,6 @@ function TaskView({ user }) {
             const tagNames = parseTagInput(value).filter(Boolean);
             setEditData(prev => ({ ...prev, tags: tagNames }));
             return;
-        }
-        if (field === 'project') {
-            setShowEditProjectDropdown(true);
         }
         setEditData(prev => ({ ...prev, [field]: value }));
     };
@@ -479,24 +386,6 @@ function TaskView({ user }) {
         );
     };
 
-    const getFilteredProjects = (inputValue) => {
-        const input = (inputValue || '').trim().toLowerCase();
-        if (!input) {
-            return availableProjects;
-        }
-        return availableProjects.filter(projectName => projectName.toLowerCase().includes(input));
-    };
-
-    const handleProjectSelect = (projectName, isNewTask = true) => {
-        if (isNewTask) {
-            setNewTask(prev => ({ ...prev, project: projectName }));
-            setShowNewTaskProjectDropdown(false);
-            return;
-        }
-        setEditData(prev => ({ ...prev, project: projectName }));
-        setShowEditProjectDropdown(false);
-    };
-
     const handleCreateProject = async () => {
         const trimmedName = newProjectName.trim();
         if (!trimmedName) {
@@ -507,30 +396,18 @@ function TaskView({ user }) {
         try {
             setIsCreatingProject(true);
             setError(null);
-            const res = await axios.post(
-                `${backendUrl}/api/projects`,
-                { projectName: trimmedName, projectColor: newProjectColor },
-                getAuthConfig()
-            );
-            const createdProject = res.data;
+            const createdProject = await createProject({
+                projectName: trimmedName,
+                projectColor: newProjectColor,
+            });
             const createdProjectName = createdProject?.projectName || trimmedName;
-
-            setAllProjectObjects(prev => {
-                const exists = prev.some(project => project.projectName?.toLowerCase() === createdProjectName.toLowerCase());
-                return exists ? prev : [...prev, createdProject];
-            });
-            setAvailableProjects(prev => {
-                const nextProjects = prev.includes(createdProjectName) ? prev : [...prev, createdProjectName];
-                return nextProjects.sort((a, b) => a.localeCompare(b));
-            });
             setSelectedFilter(`project:${createdProjectName}`);
             setNewTask(prev => ({ ...prev, project: createdProjectName }));
             setNewProjectName('');
             setNewProjectColor('#3fb0ba');
             setShowNewProjectInput(false);
         } catch (err) {
-            setError('Failed to create project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to create project: ' + extractApiErrorMessage(err));
         } finally {
             setIsCreatingProject(false);
         }
@@ -544,25 +421,17 @@ function TaskView({ user }) {
 
         try {
             setError(null);
-            await axios.delete(`${backendUrl}/api/projects/${encodeURIComponent(projectIdentifier)}`, getAuthConfig());
-
-            setAllProjectObjects(prev => prev.filter(currentProject =>
-                currentProject.projectId !== project.projectId && currentProject.projectName !== project.projectName
-            ));
-            setAvailableProjects(prev => prev.filter(projectName => projectName !== project.projectName));
-            setTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
-            setCompletedTasks(prev => prev.filter(task => projectToProjectId(task.project) !== project.projectId && projectToProjectName(task.project) !== project.projectName));
+            await deleteProject(project);
 
             if (selectedFilter === `project:${project.projectName}`) {
                 setSelectedFilter('overview');
             }
         } catch (err) {
-            setError('Failed to delete project: ' + (err.response?.data?.error || err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to delete project: ' + extractApiErrorMessage(err));
         }
     };
 
-    const getEditorProps = (isNewTask = false, taskId = null) => {
+    const getEditorProps = (isNewTask = false) => {
         const taskData = isNewTask ? newTask : editData;
         const projectDropdownVisible = isNewTask ? showNewTaskProjectDropdown : showEditProjectDropdown;
         const tagDropdownVisible = isNewTask ? showNewTaskTagDropdown : showEditTagDropdown;
@@ -575,19 +444,18 @@ function TaskView({ user }) {
             projectDropdownVisible,
             tagDropdownVisible,
             tagInputValue,
-            filteredProjects: getFilteredProjects(taskData.project),
+            filteredProjects: availableProjects,
             filteredTags: getFilteredTags(tagInputValue, taskData.tags || []),
             autoSchedule: isNewTask ? newTaskAutoSchedule : editTaskAutoSchedule,
             onChange: (field, value) => (isNewTask ? handleNewTaskChange(field, value) : handleEditChange(field, value)),
             onProjectFocus: () => (isNewTask ? setShowNewTaskProjectDropdown(true) : setShowEditProjectDropdown(true)),
-            onProjectBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 200),
+            onProjectBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskProjectDropdown(false) : setShowEditProjectDropdown(false)), 0),
             onTagFocus: () => (isNewTask ? setShowNewTaskTagDropdown(true) : setShowEditTagDropdown(true)),
             onTagBlur: () => setTimeout(() => (isNewTask ? setShowNewTaskTagDropdown(false) : setShowEditTagDropdown(false)), 200),
-            onProjectSelect: (projectName) => handleProjectSelect(projectName, isNewTask),
             onTagSelect: (tagName) => handleTagSelect(tagName, isNewTask),
             onRemoveTag: (tagName) => removeTag(tagName, isNewTask),
             onAutoScheduleChange: (checked) => (isNewTask ? setNewTaskAutoSchedule(checked) : setEditTaskAutoSchedule(checked)),
-            onSave: () => (isNewTask ? handleCreateTask() : handleSaveEdit(taskId)),
+            onSave: () => (isNewTask ? handleCreateTask() : handleSaveEdit()),
             onCancel: () => (isNewTask ? resetNewTaskForm() : handleCancel()),
         };
     };
@@ -600,6 +468,7 @@ function TaskView({ user }) {
         <TaskListItem
             key={task.taskId}
             task={task}
+            className={isTaskOverdue(task) ? 'task-card-overdue' : ''}
             isEditing={editingId === task.taskId}
             editorPanel={<TaskEditorPanel {...getEditorProps(false, task.taskId)} />}
             getProjectName={projectToProjectName}
@@ -613,11 +482,39 @@ function TaskView({ user }) {
             metaItems={[
                 projectToProjectName(task.project) || 'Uncategorized',
                 formatPriorityLabel(task.priority) || 'No priority',
+                ...(isTaskOverdue(task) ? ['Overdue'] : []),
                 ...(isGoogleReadOnlyTask(task) ? ['Google Calendar (read-only)'] : []),
                 task.comments || '',
             ].filter(Boolean)}
         />
     );
+    const handleSelectFilter = (filter) => {
+        setError(null);
+        setSelectedFilter(filter);
+        setShowProjectColorPicker(false);
+    };
+
+    const handleUpdateProjectColor = async (project, color) => {
+        if (!project) {
+            return;
+        }
+        const normalizedColor = color.toLowerCase();
+        if (projectToProjectColor(project) === normalizedColor) {
+            setShowProjectColorPicker(false);
+            return;
+        }
+
+        try {
+            setIsUpdatingProjectColor(true);
+            setError(null);
+            await updateProjectColor(project, normalizedColor);
+            setShowProjectColorPicker(false);
+        } catch (err) {
+            setError(`Failed to update project color: ${extractApiErrorMessage(err)}`);
+        } finally {
+            setIsUpdatingProjectColor(false);
+        }
+    };
 
     const sortTasks = (tasksToSort) => {
         const sorted = [...tasksToSort];
@@ -643,14 +540,14 @@ function TaskView({ user }) {
 
     if (loading) {
         return (
-            <div className="task-view-container">
+            <main className="task-view-container">
                 <div className="task-content">
                     <div className="task-layout task-layout-loading">
                         <aside className="project-sidebar task-loading-sidebar" />
-                        <div className="task-main-panel loading loading-panel">Loading tasks...</div>
+                        <div className="task-main-panel loading loading-panel">Loading tasks…</div>
                     </div>
                 </div>
-            </div>
+            </main>
         );
     }
 
@@ -679,7 +576,7 @@ function TaskView({ user }) {
         : selectedFilter === 'inbox'
             ? tasks.filter(task => !projectToProjectName(task.project))
             : selectedFilter === 'today'
-                ? tasks.filter(task => task.deadline === todayKey)
+                ? tasks.filter(isDueTodayOrOverdue)
                 : selectedFilter.startsWith('project:')
                     ? tasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
                     : tasks;
@@ -689,7 +586,7 @@ function TaskView({ user }) {
         : selectedFilter === 'inbox'
             ? completedTasks.filter(task => !projectToProjectName(task.project))
             : selectedFilter === 'today'
-                ? completedTasks.filter(task => task.deadline === todayKey)
+                ? completedTasks.filter(isDueTodayOrOverdue)
                 : selectedFilter.startsWith('project:')
                     ? completedTasks.filter(task => projectToProjectName(task.project) === selectedFilter.replace('project:', ''))
                     : completedTasks;
@@ -724,16 +621,15 @@ function TaskView({ user }) {
     const emptyStateMessage = selectedFilter === 'inbox'
         ? 'Tasks without a project will appear here.'
         : selectedFilter === 'today'
-            ? 'Tasks due today will show up here from any project.'
+            ? 'Tasks due today and overdue tasks will show up here from any project.'
             : selectedFilter === 'overview'
                 ? 'Create a task below to get started.'
                 : 'Pick another section or create a new task below.';
 
     return (
-        <div className="task-view-container">
-            {/* Content Section */}
+        <main className="task-view-container">
             <div className="task-content">
-                {error && <div className="error-message">{error}</div>}
+                {error && <div className="error-message" role="alert">{error}</div>}
 
                 <div
                     className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
@@ -745,7 +641,7 @@ function TaskView({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'inbox' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('inbox')}
+                                    onClick={() => handleSelectFilter('inbox')}
                                 >
                                     {renderSidebarIcon(inboxIcon)}
                                     Inbox
@@ -753,7 +649,7 @@ function TaskView({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'today' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('today')}
+                                    onClick={() => handleSelectFilter('today')}
                                 >
                                     {renderSidebarIcon(targetIcon)}
                                     Today
@@ -761,7 +657,7 @@ function TaskView({ user }) {
                                 <button
                                     type="button"
                                     className={`sidebar-view-button ${selectedFilter === 'overview' ? 'active' : ''}`}
-                                    onClick={() => setSelectedFilter('overview')}
+                                    onClick={() => handleSelectFilter('overview')}
                                 >
                                     {renderSidebarIcon(bookIcon)}
                                     Overview
@@ -777,7 +673,7 @@ function TaskView({ user }) {
                                                 type="button"
                                                 key={project.projectId || project.projectName}
                                                 className={`project-nav-item ${selectedFilter === `project:${project.projectName}` ? 'active' : ''}`}
-                                                onClick={() => setSelectedFilter(`project:${project.projectName}`)}
+                                                onClick={() => handleSelectFilter(`project:${project.projectName}`)}
                                                 title={project.projectName}
                                             >
                                                 <span className="project-nav-label-wrap">
@@ -805,7 +701,8 @@ function TaskView({ user }) {
                                         type="text"
                                         value={newProjectName}
                                         onChange={(e) => setNewProjectName(e.target.value)}
-                                        placeholder="New project name"
+                                        placeholder="New project name…"
+                                        aria-label="New project name"
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') {
                                                 handleCreateProject();
@@ -835,7 +732,7 @@ function TaskView({ user }) {
                                     </div>
                                     <div className="project-create-actions">
                                         <button type="button" className="project-create-button" onClick={handleCreateProject} disabled={isCreatingProject}>
-                                            {isCreatingProject ? 'Saving...' : 'Create'}
+                                            {isCreatingProject ? 'Saving…' : 'Create'}
                                         </button>
                                         <button
                                             type="button"
@@ -878,19 +775,60 @@ function TaskView({ user }) {
                                     className="new-task-button"
                                     onClick={() => {
                                         handleCancel();
+                                        setError(null);
                                         setShowNewTaskForm(prev => !prev);
                                     }}
                                 >
                                     {showNewTaskForm ? 'Close New Task' : '+ New Task'}
                                 </button>
                                 {selectedProjectObject && (
-                                    <ConfirmPopoverButton
-                                        buttonClassName="project-delete-header-button"
-                                        buttonLabel="Delete Project"
-                                        title="Delete project?"
-                                        message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
-                                        onConfirm={() => handleDeleteProject(selectedProjectObject)}
-                                    />
+                                    <>
+                                        <ConfirmPopoverButton
+                                            buttonClassName="project-delete-header-button"
+                                            buttonLabel="Delete Project"
+                                            popoverClassName="confirm-popover-below-right"
+                                            title="Delete project?"
+                                            message={<><strong>{selectedProjectObject.projectName}</strong> and its associated tasks will be removed.</>}
+                                            onConfirm={() => handleDeleteProject(selectedProjectObject)}
+                                        />
+                                        <span className="project-color-picker-wrap" ref={projectColorPickerRef}>
+                                            <button
+                                                type="button"
+                                                className="project-color-header-button"
+                                                onClick={() => setShowProjectColorPicker(prev => !prev)}
+                                                disabled={isUpdatingProjectColor}
+                                                aria-expanded={showProjectColorPicker}
+                                                aria-haspopup="dialog"
+                                            >
+                                                <span
+                                                    className="project-color-button-dot"
+                                                    style={{ backgroundColor: projectToProjectColor(selectedProjectObject) }}
+                                                    aria-hidden="true"
+                                                />
+                                                {isUpdatingProjectColor ? 'Updating…' : 'Change Color'}
+                                            </button>
+                                            {showProjectColorPicker && (
+                                                <span className="project-color-popover" role="dialog" aria-label="Choose project color">
+                                                    <span className="project-color-popover-title">Project Color</span>
+                                                    <span className="project-color-options" role="listbox" aria-label="Project color options">
+                                                        {PROJECT_COLOR_OPTIONS.map((color) => (
+                                                            <button
+                                                                type="button"
+                                                                key={color}
+                                                                className={`project-color-option ${projectToProjectColor(selectedProjectObject) === color ? 'selected' : ''}`}
+                                                                onClick={() => handleUpdateProjectColor(selectedProjectObject, color)}
+                                                                aria-label={`Set project color ${color}`}
+                                                                title={color}
+                                                                disabled={isUpdatingProjectColor}
+                                                            >
+                                                                <span className="project-color-option-fill" style={{ backgroundColor: color }} aria-hidden="true" />
+                                                            </button>
+                                                        ))}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </span>
+                                    </>
                                 )}
                             </div>
 
@@ -948,6 +886,7 @@ function TaskView({ user }) {
                                                             {projectToProjectName(task.project) || 'Uncategorized'}
                                                         </span>
                                                         <span>{formatPriorityLabel(task.priority) || 'No priority'}</span>
+                                                        <span>{(getTagNames(task.tags) || []).join(' • ') || 'No tags'}</span>
                                                         {task.comments ? <span>{task.comments}</span> : null}
                                                     </div>
                                                 </div>
@@ -986,8 +925,6 @@ function TaskView({ user }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
-
-export default TaskView;

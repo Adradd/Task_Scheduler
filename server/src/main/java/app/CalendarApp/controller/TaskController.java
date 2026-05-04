@@ -8,7 +8,7 @@ import app.CalendarApp.service.AccountService;
 import app.CalendarApp.service.ProjectService;
 import app.CalendarApp.service.TagService;
 import app.CalendarApp.service.TaskService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -19,7 +19,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Exposes task endpoints for authenticated users, including task CRUD,
+ * completion state changes, and filtering of disabled Google Calendar events.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/tasks")
 public class TaskController {
     private final TaskService taskService;
@@ -28,21 +36,12 @@ public class TaskController {
     private final ProjectService projectService;
     private final GoogleCalendarProjectMappingRepository mappingRepository;
 
-    @Autowired
-    public TaskController(
-        TaskService taskService,
-        AccountService accountService,
-        TagService tagService,
-        ProjectService projectService,
-        GoogleCalendarProjectMappingRepository mappingRepository
-    ) {
-        this.taskService = taskService;
-        this.accountService = accountService;
-        this.tagService = tagService;
-        this.projectService = projectService;
-        this.mappingRepository = mappingRepository;
-    }
-
+    /**
+     * Lists active, non-completed tasks owned by the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @return active tasks or 404 when the account cannot be resolved
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Task>> getAllTasksForUser(Authentication authentication) {
@@ -58,6 +57,12 @@ public class TaskController {
         return ResponseEntity.ok(tasks);
     }
 
+    /**
+     * Retrieves a task by identifier.
+     *
+     * @param taskId task identifier from the route
+     * @return the task when found, otherwise 404
+     */
     @GetMapping("/{taskId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Task> getTaskById(@PathVariable String taskId) {
@@ -65,6 +70,14 @@ public class TaskController {
         return task != null ? ResponseEntity.ok(task) : ResponseEntity.notFound().build();
     }
 
+    /**
+     * Creates a task for the authenticated account, resolving supplied project
+     * and tag references before saving.
+     *
+     * @param task task payload from the request body
+     * @param authentication authenticated Spring Security principal
+     * @return created task or validation error response
+     */
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> createTask(@RequestBody Task task, Authentication authentication) {
@@ -79,7 +92,12 @@ public class TaskController {
             task.setGoogleSourceCalendarId(null);
             task.setGoogleSourceEventId(null);
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
-                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+                String projectName = task.getProject().getProjectName().trim();
+                var existingProject = projectService.findProjectByOwnerAndName(account, projectName);
+                if (existingProject == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Project must be selected from existing projects"));
+                }
+                task.setProject(existingProject);
             } else {
                 task.setProject(null);
             }
@@ -91,6 +109,13 @@ public class TaskController {
         }
     }
 
+    /**
+     * Updates an existing task owned by the authenticated account.
+     *
+     * @param task task update payload
+     * @param authentication authenticated Spring Security principal
+     * @return updated task, 403 for read-only/imported tasks, or validation error response
+     */
     @PutMapping
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> updateTask(@RequestBody Task task, Authentication authentication) {
@@ -116,7 +141,12 @@ public class TaskController {
             task.setGoogleSourceCalendarId(existing.getGoogleSourceCalendarId());
             task.setGoogleSourceEventId(existing.getGoogleSourceEventId());
             if (task.getProject() != null && task.getProject().getProjectName() != null && !task.getProject().getProjectName().trim().isEmpty()) {
-                task.setProject(projectService.ensureProjectExists(account, task.getProject()));
+                String projectName = task.getProject().getProjectName().trim();
+                var existingProject = projectService.findProjectByOwnerAndName(account, projectName);
+                if (existingProject == null) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Project must be selected from existing projects"));
+                }
+                task.setProject(existingProject);
             } else {
                 task.setProject(null);
             }
@@ -128,6 +158,13 @@ public class TaskController {
         }
     }
 
+    /**
+     * Deletes an existing task owned by the authenticated account.
+     *
+     * @param taskId task identifier from the route
+     * @param authentication authenticated Spring Security principal
+     * @return 204 when deleted or an error response
+     */
     @DeleteMapping("/{taskId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> deleteTask(@PathVariable String taskId, Authentication authentication) {
@@ -151,6 +188,12 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Lists completed tasks owned by the authenticated account.
+     *
+     * @param authentication authenticated Spring Security principal
+     * @return completed tasks or 404 when the account cannot be resolved
+     */
     @GetMapping("/completed")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<Task>> getCompletedTasksForUser(Authentication authentication) {
@@ -184,6 +227,13 @@ public class TaskController {
             && disabledCalendarIds.contains(task.getGoogleSourceCalendarId()));
     }
 
+    /**
+     * Marks an owned, editable task as completed.
+     *
+     * @param taskId task identifier from the route
+     * @param authentication authenticated Spring Security principal
+     * @return updated task or an authorization/error response
+     */
     @PutMapping("/{taskId}/complete")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> markTaskAsComplete(@PathVariable String taskId, Authentication authentication) {
@@ -207,6 +257,13 @@ public class TaskController {
         return ResponseEntity.ok(task);
     }
 
+    /**
+     * Reopens an owned, editable task by clearing its completed flag.
+     *
+     * @param taskId task identifier from the route
+     * @param authentication authenticated Spring Security principal
+     * @return updated task or an authorization/error response
+     */
     @PutMapping("/{taskId}/reopen")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> reopenTask(@PathVariable String taskId, Authentication authentication) {

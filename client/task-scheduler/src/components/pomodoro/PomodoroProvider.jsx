@@ -173,15 +173,11 @@ function getNextPhaseState(currentState, config) {
 
 export function PomodoroProvider({ children, config, onPhaseChange, onCycleComplete }) {
     const normalizedConfig = useMemo(() => normalizeConfig(config), [config]);
-    const initialSnapshotRef = useRef(null);
-    if (initialSnapshotRef.current === null) {
-        initialSnapshotRef.current = readStoredState(normalizedConfig);
-    }
+    const initialSnapshot = useMemo(() => readStoredState(normalizedConfig), [normalizedConfig]);
+    const [state, setState] = useState(() => initialSnapshot.state);
 
-    const [state, setState] = useState(() => initialSnapshotRef.current.state);
-
-    const startTimestampRef = useRef(initialSnapshotRef.current.startTimestamp);
-    const remainingAtLastStartRef = useRef(initialSnapshotRef.current.remainingAtLastStart);
+    const startTimestampRef = useRef(initialSnapshot.startTimestamp);
+    const remainingAtLastStartRef = useRef(initialSnapshot.remainingAtLastStart);
     const phaseTransitionLockRef = useRef(false);
 
     useEffect(() => {
@@ -310,8 +306,24 @@ export function PomodoroProvider({ children, config, onPhaseChange, onCycleCompl
 
     const skipPhase = useCallback(() => {
         phaseTransitionLockRef.current = true;
-        advancePhase();
-    }, [advancePhase]);
+
+        setState((prev) => {
+            const { nextState, phaseChangedTo, cycleComplete } = getNextPhaseState(prev, normalizedConfig);
+
+            if (onPhaseChange) {
+                onPhaseChange(phaseChangedTo);
+            }
+            if (cycleComplete && onCycleComplete) {
+                onCycleComplete();
+            }
+
+            return persistAndReturnState(nextState);
+        });
+
+        startTimestampRef.current = 0;
+        remainingAtLastStartRef.current = 0;
+        phaseTransitionLockRef.current = false;
+    }, [normalizedConfig, onCycleComplete, onPhaseChange]);
 
     const setExpanded = useCallback((value) => {
         setState((prev) => persistAndReturnState({

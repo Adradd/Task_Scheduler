@@ -2,8 +2,12 @@ package app.CalendarApp.service.impl;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
+import app.CalendarApp.repository.GoogleCalendarProjectMappingRepository;
+import app.CalendarApp.repository.ProjectRepository;
+import app.CalendarApp.repository.TagRepository;
+import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.AccountService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -12,17 +16,23 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.regex.Pattern;
 
+/**
+ * Implements account validation, password encoding, persistence, and cascading
+ * cleanup of user-owned data.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
+@RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TaskRepository taskRepository;
+    private final TagRepository tagRepository;
+    private final ProjectRepository projectRepository;
+    private final GoogleCalendarProjectMappingRepository mappingRepository;
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,4}$");
-
-    @Autowired
-    public AccountServiceImpl(AccountRepository accountRepository, PasswordEncoder passwordEncoder) {
-        this.accountRepository = accountRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     public Account findAccountByAccountId(String accountId) {
@@ -58,9 +68,15 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public void deleteAccount(String accountId) {
-        if (accountId == null || accountRepository.findAccountByAccountId(accountId) == null) {
+        Account existingAccount = accountId == null ? null : accountRepository.findAccountByAccountId(accountId);
+        if (existingAccount == null) {
             throw new IllegalArgumentException("Account does not exist");
         }
+
+        taskRepository.deleteAllByOwner(existingAccount);
+        tagRepository.deleteAllByOwner(existingAccount);
+        projectRepository.deleteAllByOwner(existingAccount);
+        mappingRepository.deleteAllByAccountId(accountId);
         accountRepository.deleteById(accountId);
     }
 

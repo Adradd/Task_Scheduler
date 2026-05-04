@@ -151,6 +151,31 @@ class TaskAutoSchedulerServiceTests {
     }
 
     @Test
+    void prefersTomorrowOpenTimeOverDeadlineDayBusyStart() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate deadline = LocalDate.now().plusDays(2);
+        Account owner = createOwner("09:00", "17:00");
+        Task task = createTask("task_new", "High", deadline.toString());
+        task.setTimeToComplete("1h 0m");
+
+        Task blockToday = createTask("task_today", "High", LocalDate.now().toString());
+        blockToday.setStartTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(9, 0)));
+        blockToday.setEndTime(LocalDateTime.of(LocalDate.now(), LocalTime.of(17, 0)));
+
+        List<TaskAutoSchedulerService.BusyInterval> googleBusy = List.of(
+            new TaskAutoSchedulerService.BusyInterval(
+                LocalDateTime.of(deadline, LocalTime.of(9, 0)),
+                LocalDateTime.of(deadline, LocalTime.of(10, 30))
+            )
+        );
+
+        Task scheduled = schedulerService.scheduleTask(task, owner, List.of(blockToday), googleBusy);
+
+        assertEquals(LocalDateTime.of(tomorrow, LocalTime.of(9, 0)), scheduled.getStartTime());
+        assertEquals(LocalDateTime.of(tomorrow, LocalTime.of(10, 0)), scheduled.getEndTime());
+    }
+
+    @Test
     void returnsNullTimesWhenDeadlineCannotBeMet() {
         Account owner = createOwner("09:00", "10:00");
         Task task = createTask("task_new", "High", LocalDate.now().toString());

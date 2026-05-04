@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-function ConfirmPopoverButton({
+export default function ConfirmPopoverButton ({
     buttonClassName = '',
     buttonLabel,
     cancelLabel = 'Cancel',
@@ -83,5 +83,3 @@ function ConfirmPopoverButton({
         </span>
     );
 }
-
-export default ConfirmPopoverButton;

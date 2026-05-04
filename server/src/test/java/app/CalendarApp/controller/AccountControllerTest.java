@@ -11,9 +11,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.mockito.ArgumentCaptor;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -47,7 +52,12 @@ class AccountControllerTest {
             .andExpect(jsonPath("$.accountId").value("acc-1"))
             .andExpect(jsonPath("$.username").value("jane"))
             .andExpect(jsonPath("$.dateCreated").value("2026-04-08"))
+            .andExpect(jsonPath("$.password").doesNotExist())
             .andExpect(jsonPath("$.message").value("Account created successfully"));
+
+        ArgumentCaptor<Account> accountCaptor = ArgumentCaptor.forClass(Account.class);
+        verify(accountService).createAccount(accountCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("password123", accountCaptor.getValue().getPassword());
     }
 
     @Test
@@ -155,5 +165,22 @@ class AccountControllerTest {
                 .content("{\"email\":\"bad\"}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error").value("Invalid email format"));
+    }
+
+    @Test
+    void deleteAccountReturnsNoContentOnSuccess() throws Exception {
+        doNothing().when(accountService).deleteAccount("acc-1");
+
+        mockMvc.perform(delete("/api/accounts/acc-1"))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteAccountReturnsBadRequestWhenMissing() throws Exception {
+        doThrow(new IllegalArgumentException("Account does not exist")).when(accountService).deleteAccount("missing");
+
+        mockMvc.perform(delete("/api/accounts/missing"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Account does not exist"));
     }
 }

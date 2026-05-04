@@ -1,14 +1,27 @@
 package app.CalendarApp.repository;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+/**
+ * MongoDB document representing a registered user and their account-level
+ * preferences, authentication role, and Google Calendar token state.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
+@Setter
+@Getter
 @Document("Account")
 public class Account {
     @Id
     private String accountId;
     private String username;
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
     private String email;
     private String dateCreated;
@@ -38,76 +51,22 @@ public class Account {
         this.endWorkingHours = endWorkingHours;
     }
 
+    /**
+     * Provides an ID alias used by services that treat accountId as the entity
+     * identifier.
+     *
+     * @return account identifier
+     */
     public String getId() {
         return accountId;
     }
+
+    /**
+     * Updates the account identifier through the ID alias.
+     *
+     * @param accountId account identifier to assign
+     */
     public void setId(String accountId) {
         this.accountId = accountId;
-    }
-    public String getUsername() {
-        return username;
-    }
-    public void setUsername(String username) {
-        this.username = username;
-    }
-    public String getPassword() {
-        return password;
-    }
-    public void setPassword(String password) {
-        this.password = password;
-    }
-    public String getEmail() {
-        return email;
-    }
-    public void setEmail(String email) {
-        this.email = email;
-    }
-    public String getDateCreated() {
-        return dateCreated;
-    }
-    public void setDateCreated(String dateCreated) {
-        this.dateCreated = dateCreated;
-    }
-    public String getRole() {
-        return role;
-    }
-    public void setRole(String role) {
-        this.role = role;
-    }
-    public String getStartWorkingHours() {
-        return startWorkingHours;
-    }
-    public void setStartWorkingHours(String startWorkingHours) {
-        this.startWorkingHours = startWorkingHours;
-    }
-    public String getEndWorkingHours() {
-        return endWorkingHours;
-    }
-    public void setEndWorkingHours(String endWorkingHours) {
-        this.endWorkingHours = endWorkingHours;
-    }
-
-    public String getGoogleRefreshToken() {
-        return googleRefreshToken;
-    }
-
-    public void setGoogleRefreshToken(String googleRefreshToken) {
-        this.googleRefreshToken = googleRefreshToken;
-    }
-
-    public String getGoogleAccessToken() {
-        return googleAccessToken;
-    }
-
-    public void setGoogleAccessToken(String googleAccessToken) {
-        this.googleAccessToken = googleAccessToken;
-    }
-
-    public String getGoogleAccessTokenExpiresAt() {
-        return googleAccessTokenExpiresAt;
-    }
-
-    public void setGoogleAccessTokenExpiresAt(String googleAccessTokenExpiresAt) {
-        this.googleAccessTokenExpiresAt = googleAccessTokenExpiresAt;
     }
 }

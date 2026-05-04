@@ -61,12 +61,6 @@
     transform: translate(-50%, -50%);
 }
 
-.project-sidebar-resize-handle:hover,
-.task-layout.is-resizing .project-sidebar-resize-handle {
-    background: rgba(63, 176, 186, 0.12);
-    box-shadow: inset 1px 0 0 rgba(63, 176, 186, 0.28), inset -1px 0 0 rgba(63, 176, 186, 0.28);
-}
-
 .project-sidebar-eyebrow {
     color: #fff;
     margin: 0;
@@ -109,13 +103,31 @@
     background: rgba(255, 255, 255, 0.08);
 }
 
+.sidebar-view-button:focus-visible,
+.project-nav-item:focus-visible,
+.project-create-button:focus-visible,
+.project-add-footer-button:focus-visible,
+.new-task-button:focus-visible,
+.completed-tasks-toggle:focus-visible,
+.task-row-actions button:focus-visible,
+.task-editor-actions button:focus-visible,
+.tag-remove:focus-visible,
+.tag-dropdown-item:focus-visible,
+.project-color-option:focus-visible,
+.project-sidebar-resize-handle:focus-visible {
+    outline: 3px solid rgba(63, 176, 186, 0.45);
+    outline-offset: 2px;
+}
+
 .sidebar-view-button.active {
     background: rgba(255, 255, 255, 0.12);
 }
 
 .sidebar-view-icon {
-    width: 1rem;
-    height: 1rem;
+    width: 1rem !important;
+    height: 1rem !important;
+    min-width: 1rem;
+    min-height: 1rem;
     flex: 0 0 auto;
     object-fit: contain;
 }
@@ -138,7 +150,6 @@
 }
 
 .project-create-panel input:focus {
-    outline: none;
     border-color: #3fb0ba;
     box-shadow: 0 0 0 3px rgba(63, 176, 186, 0.18);
 }
@@ -394,6 +405,72 @@
     white-space: nowrap;
 }
 
+.project-color-picker-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.project-color-header-button {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: transparent;
+    color: #f5f2f3;
+    border-radius: 999px;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    white-space: nowrap;
+}
+
+.project-color-header-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.project-color-header-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.project-color-button-dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.project-color-popover {
+    position: absolute;
+    top: calc(100% + 0.55rem);
+    right: 0;
+    min-width: 220px;
+    padding: 0.85rem;
+    border-radius: 12px;
+    background: #f7f2f3;
+    color: #2c2528;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(61, 56, 60, 0.15);
+    display: grid;
+    gap: 0.65rem;
+    z-index: 80;
+}
+
+.project-color-popover-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6e5961;
+}
+
+.project-color-popover .project-color-options {
+    margin-top: 0.25rem;
+}
+
 .project-header-color-picker {
     width: 1.5rem;
     height: 1.5rem;
@@ -512,6 +589,11 @@
     padding: 1rem 0;
 }
 
+.task-card-overdue {
+    border-left: 3px solid rgba(220, 53, 69, 0.8);
+    padding-left: 0.7rem;
+}
+
 .task-checkbox {
     margin-top: 0.15rem;
     width: 20px;
@@ -586,7 +668,7 @@
     border-radius: 8px;
     font-size: 0.95rem;
     font-family: inherit;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
     background-color: rgba(255, 255, 255, 0.96);
 }
 
@@ -600,7 +682,6 @@
 .task-field input:focus,
 .task-field select:focus,
 .task-field textarea:focus {
-    outline: none;
     border-color: #0653b5;
     background-color: white;
     box-shadow: 0 0 0 3px rgba(3, 83, 181, 0.1);
@@ -613,6 +694,13 @@
 .task-field textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+.task-field-warning {
+    margin: 0.45rem 0 0;
+    color: #ffd6a0;
+    font-size: 0.82rem;
+    line-height: 1.35;
 }
 
 .task-row-actions,
@@ -631,7 +719,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -684,6 +772,24 @@
     border-bottom: none;
     border-right: 1px solid rgba(61, 56, 60, 0.15);
     border-top: 1px solid rgba(61, 56, 60, 0.15);
+}
+
+.confirm-popover-below-right {
+    top: calc(100% + 0.55rem);
+    left: auto;
+    right: 0;
+    transform: none;
+    z-index: 150;
+}
+
+.confirm-popover-below-right::before {
+    top: -7px;
+    left: auto;
+    right: 1.1rem;
+    border-left: 1px solid rgba(61, 56, 60, 0.15);
+    border-top: 1px solid rgba(61, 56, 60, 0.15);
+    border-bottom: none;
+    transform: rotate(45deg);
 }
 
 .confirm-popover-title {
@@ -741,6 +847,22 @@
     margin-top: 0.35rem;
     color: #66a8ff;
     font-size: 0.86rem;
+}
+
+.task-overdue-pill {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.35rem;
+    background: rgba(220, 53, 69, 0.2);
+    color: #ffd6db;
+    border: 1px solid rgba(220, 53, 69, 0.42);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.5rem;
+    width: fit-content;
 }
 
 .task-meta-inline {
@@ -1072,7 +1194,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1104,7 +1226,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 600;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1156,7 +1278,7 @@
     font-size: 16px;
     line-height: 1;
     padding: 0;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .tag-remove:hover {
@@ -1169,6 +1291,7 @@
     top: 100%;
     left: 0;
     right: 0;
+    list-style: none;
     background: white;
     border: 2px solid #3fb0ba;
     border-radius: 6px;
@@ -1177,14 +1300,19 @@
     overflow-y: auto;
     z-index: 1000;
     margin-top: 4px;
+    padding: 0;
 }
 
 .tag-dropdown-item {
+    width: 100%;
+    border: none;
+    background: transparent;
     padding: 0.75rem 1rem;
     cursor: pointer;
     transition: background-color 0.2s ease;
     font-size: 0.95rem;
     border-bottom: 1px solid #f0f0f0;
+    text-align: left;
 }
 
 .tag-dropdown-item:last-child {

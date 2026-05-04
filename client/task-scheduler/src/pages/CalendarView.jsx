@@ -3,15 +3,61 @@ import { useEffect, useMemo, useState } from 'react';
 import ConfirmPopoverButton from '../components/ConfirmPopoverButton.jsx';
 import TaskEditorPanel from '../components/TaskEditorPanel.jsx';
 import TaskListItem from '../components/TaskListItem.jsx';
+import useTaskData from '../hooks/useTaskData.js';
 import useResizableSidebar from '../hooks/useResizableSidebar.js';
-import { formatPriorityLabel, getPriorityRank, normalizePriority } from '../utils/taskFormatting.js';
+import { extractApiErrorMessage } from '../utils/api.js';
+import { createAuthConfig } from '../utils/authSession.js';
+import {
+    buildTimeOptions,
+    formatTags,
+    getTagNames,
+    isGoogleReadOnlyTask,
+    parseTagInput,
+    projectNameToProjectObject,
+    projectToProjectName,
+    tagNameToTagObject,
+} from '../utils/taskAdapters.js';
+import {
+    formatDate,
+    formatFullDateLabel,
+    formatHourLabel,
+    formatMonthDayLabel,
+    formatMonthYearLabel,
+    formatSelectedDayLabel,
+    formatTimeLabel,
+    getTodayKey,
+    toDateKey,
+} from '../utils/dateFormatters.js';
+import { formatPriorityLabel, getPriorityRank } from '../utils/taskFormatting.js';
 import '../styles/TaskView.css';
 import '../styles/CalendarView.css';
 
 const parseTaskDateTime = (value) => {
     if (!value || typeof value !== 'string') return null;
 
-    const normalized = value.includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value;
+    const normalized = value.trim().includes(' ') && !value.includes('T') ? value.replace(' ', 'T') : value.trim();
+
+    // Parse date-only values in local time to avoid timezone day shifts.
+    const dateOnlyMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const [, year, month, day] = dateOnlyMatch;
+        return new Date(Number(year), Number(month) - 1, Number(day), 0, 0, 0, 0);
+    }
+
+    const localDateTimeMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (localDateTimeMatch) {
+        const [, year, month, day, hours, minutes, seconds = '0'] = localDateTimeMatch;
+        return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hours),
+            Number(minutes),
+            Number(seconds),
+            0,
+        );
+    }
+
     const parsed = new Date(normalized);
 
     if (Number.isNaN(parsed.getTime())) {
@@ -52,21 +98,33 @@ const sortByDeadlineSchedulePriority = (taskA, taskB) => {
     return (taskA.taskName || '').localeCompare(taskB.taskName || '');
 };
 
-function CalendarView({ user }) {
+export default function CalendarView ({ user }) {
     const DAY_VIEW_START_HOUR = 0;
     const DAY_VIEW_END_HOUR = 23;
     const DAY_VIEW_HOUR_HEIGHT = 52;
     const WEEK_VIEW_HOUR_HEIGHT = 32;
-    const WEEK_VIEW_HEADER_HEIGHT = 56;
-    const WEEK_VIEW_UNSCHEDULED_HEIGHT = 78;
-    const WEEK_VIEW_TICK_OFFSET = 1;
+    const WEEK_VIEW_HEADER_HEIGHT = 79.4;
+    const WEEK_VIEW_UNSCHEDULED_HEIGHT = 93.4;
+    const NO_PROJECT_CALENDAR_COLOR = '#8ecae6';
 
-    const [tasks, setTasks] = useState([]);
+    const {
+        tasks,
+        completedTasks,
+        availableProjects,
+        allProjectObjects,
+        availableTags,
+        allTagObjects,
+        error,
+        setError,
+        loading,
+        refetchAll,
+        fetchTaskDetails,
+        updateTask,
+        completeTask,
+        deleteTask,
+    } = useTaskData(user);
     const [googleEvents, setGoogleEvents] = useState([]);
-    const [completedTasks, setCompletedTasks] = useState([]);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
     const [selectedTask, setSelectedTask] = useState(null);
     const [selectedTaskLoading, setSelectedTaskLoading] = useState(false);
     const [editData, setEditData] = useState({});
@@ -74,10 +132,6 @@ function CalendarView({ user }) {
     const [editTaskAutoSchedule, setEditTaskAutoSchedule] = useState(false);
     const [viewType, setViewType] = useState('month');
     const [projectVisibility, setProjectVisibility] = useState({});
-    const [availableProjects, setAvailableProjects] = useState([]);
-    const [allProjectObjects, setAllProjectObjects] = useState([]);
-    const [availableTags, setAvailableTags] = useState([]);
-    const [allTagObjects, setAllTagObjects] = useState([]);
     const [showEditTagDropdown, setShowEditTagDropdown] = useState(false);
     const [showEditProjectDropdown, setShowEditProjectDropdown] = useState(false);
     const [editTaskTagInput, setEditTaskTagInput] = useState('');
@@ -86,41 +140,6 @@ function CalendarView({ user }) {
 
     const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-
-    const toDateKey = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const getAuthConfig = () => {
-        const authToken = sessionStorage.getItem('authToken');
-        if (!authToken) {
-            return {};
-        }
-
-        return {
-            headers: {
-                Authorization: `Basic ${authToken}`,
-            },
-        };
-    };
-
-    const getErrorMessage = (err, fallback) => (
-        err.response?.data?.error || err.response?.data?.message || err.message || fallback
-    );
-
-    const normalizeTask = (task) => ({
-        ...task,
-        priority: normalizePriority(task?.priority),
-        project: task?.project || null,
-        tags: Array.isArray(task?.tags) ? task.tags : [],
-    });
 
     const normalizeGoogleEvent = (event) => {
         const startDateTime = event?.start?.dateTime || '';
@@ -130,7 +149,7 @@ function CalendarView({ user }) {
         const sourceCalendarName = event?.googleCalendarName || 'Google Calendar';
 
         return {
-            taskId: `google_${event?.id || Math.random().toString(36).slice(2)}`,
+            taskId: `google_${event?.id || `${sourceCalendarName}_${deadline || 'event'}`}`,
             taskName: event?.summary || '(Google Calendar Event)',
             deadline,
             startTime: isAllDay ? '' : startDateTime,
@@ -145,70 +164,8 @@ function CalendarView({ user }) {
             googleCalendarName: sourceCalendarName,
         };
     };
-
-    const isGoogleReadOnlyTask = (task) => Boolean(task?.isGoogleEvent || task?.importedFromGoogle || task?.googleSourceEventId);
-
-    const getProjectName = (project) => {
-        if (!project) return '';
-        if (typeof project === 'string') return project;
-        return project.projectName || '';
-    };
-
-    const getTagNames = (tags) => {
-        if (!Array.isArray(tags)) return [];
-        return tags
-            .map((tag) => (typeof tag === 'string' ? tag : tag?.tagName || ''))
-            .filter(Boolean);
-    };
-
-    const formatTags = (tags) => {
-        const names = getTagNames(tags);
-        return names.join(', ');
-    };
-
-    const parseTagInput = (value) => {
-        if (!value) return [];
-        return [...new Set(value.split(',').map((tag) => tag.trim()).filter(Boolean))];
-    };
-
-    const tagNameToTagObject = (tagName) => {
-        const found = allTagObjects.find((tag) => tag.tagName?.toLowerCase() === tagName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { tagName: tagName.trim() };
-    };
-
-    const projectNameToProjectObject = (projectName) => {
-        if (!projectName || !projectName.trim()) {
-            return null;
-        }
-        const found = allProjectObjects.find((project) => project.projectName?.toLowerCase() === projectName?.toLowerCase());
-        if (found) {
-            return found;
-        }
-        return { projectName: projectName.trim() };
-    };
-
-    const todayKey = useMemo(() => {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }, []);
-
-    const selectedDayLabel = useMemo(() => {
-        return currentDate.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-    }, [currentDate]);
-
-    useEffect(() => {
-        if (!user) {
-            return;
-        }
-        fetchCalendarData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    const todayKey = useMemo(() => getTodayKey(), []);
+    const selectedDayLabel = useMemo(() => formatSelectedDayLabel(currentDate), [currentDate]);
 
     useEffect(() => {
         if (!user) {
@@ -243,54 +200,19 @@ function CalendarView({ user }) {
         const { timeMin, timeMax } = getGoogleEventRange(date, activeViewType);
         try {
             const googleRes = await axios.get(`${backendUrl}/api/integrations/google/events`, {
-                ...getAuthConfig(),
+                ...createAuthConfig(),
                 params: { timeMin, timeMax },
             });
             const sourceGoogleEvents = googleRes?.data?.events || [];
             setGoogleEvents(sourceGoogleEvents.map(normalizeGoogleEvent));
-        } catch (err) {
+        } catch {
             setGoogleEvents([]);
         }
     };
 
-    const fetchCalendarData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const [activeRes, completedRes, projectsRes, tagsRes] = await Promise.all([
-                axios.get(`${backendUrl}/api/tasks`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/tasks/completed`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/projects`, getAuthConfig()),
-                axios.get(`${backendUrl}/api/tags`, getAuthConfig()),
-            ]);
-
-            setTasks((activeRes.data || []).map(normalizeTask));
-            setCompletedTasks((completedRes.data || []).map(normalizeTask));
-            const projects = projectsRes.data || [];
-            const projectNames = [...new Set(projects.map((project) => project?.projectName).filter(Boolean))];
-            const tags = tagsRes.data || [];
-
-            setAvailableProjects(projectNames);
-            setAllProjectObjects(projects);
-            setAllTagObjects(tags);
-            setAvailableTags(tags.map((tag) => tag.tagName).filter(Boolean));
-            await fetchGoogleEventsForRange(currentDate, viewType);
-        } catch (err) {
-            setError('Failed to fetch calendar tasks: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchTaskDetails = async (taskId) => {
-        const res = await axios.get(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-        return normalizeTask(res.data || {});
-    };
-
     const taskCountByProject = useMemo(() => {
         return tasks.reduce((counts, task) => {
-            const projectName = getProjectName(task.project);
+            const projectName = projectToProjectName(task.project);
             if (!projectName) {
                 return counts;
             }
@@ -327,7 +249,7 @@ function CalendarView({ user }) {
 
     const visibleTasks = useMemo(() => {
         return tasks.filter((task) => {
-            const projectName = getProjectName(task.project);
+            const projectName = projectToProjectName(task.project);
             if (!projectName) {
                 return true;
             }
@@ -354,7 +276,11 @@ function CalendarView({ user }) {
         if (hasValidRange) {
             return toDateKey(startDate);
         }
-        return task.deadline || '';
+
+        if (task?.deadline) {
+            return task.deadline;
+        }
+        return '';
     };
 
     const getTasksForDate = (date) => {
@@ -364,25 +290,20 @@ function CalendarView({ user }) {
             .sort(sortByDeadlineSchedulePriority);
     };
 
-    const formatHourLabel = (hour) => {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const normalizedHour = hour % 12 === 0 ? 12 : hour % 12;
-        return `${normalizedHour}${period}`;
-    };
-
-    const formatTimeLabel = (date) => {
-        const hours = date.getHours();
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const period = hours >= 12 ? 'PM' : 'AM';
-        const normalizedHour = hours % 12 === 0 ? 12 : hours % 12;
-        return `${normalizedHour}:${minutes}${period}`;
-    };
-
     const formatDeadlineLabel = (deadline) => {
         if (!deadline) return 'No deadline';
         const parsed = parseTaskDateTime(`${deadline}T00:00:00`);
         if (!parsed) return deadline;
-        return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return formatMonthDayLabel(parsed);
+    };
+
+    const formatDateTimeDetailLabel = (dateTimeValue) => {
+        const parsed = parseTaskDateTime(dateTimeValue);
+        if (!parsed) return 'Unscheduled';
+
+        const dateLabel = formatDate(parsed, { month: 'long', day: 'numeric', year: 'numeric' });
+        const timeLabel = formatTimeLabel(parsed);
+        return `${dateLabel} at ${timeLabel}`;
     };
 
     const normalizeProjectColor = (color) => {
@@ -413,8 +334,9 @@ function CalendarView({ user }) {
 
         calendarItems.forEach((task) => {
             const { startDate, endDate, hasValidRange } = getTaskScheduleRange(task);
+            const taskDisplayDateKey = getTaskDisplayDateKey(task);
 
-            if (hasValidRange && toDateKey(startDate) === selectedDateKey) {
+            if (hasValidRange && taskDisplayDateKey === selectedDateKey) {
                 const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
                 const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
                 const clippedStart = Math.max(dayStartMinutes, startMinutes);
@@ -434,7 +356,7 @@ function CalendarView({ user }) {
                 return;
             }
 
-            if (task.deadline === selectedDateKey && !hasValidRange) {
+            if (taskDisplayDateKey === selectedDateKey && !hasValidRange) {
                 unscheduledEntries.push(task);
             }
         });
@@ -472,6 +394,7 @@ function CalendarView({ user }) {
             height: Math.max(24, (entry.clippedEnd - entry.clippedStart) * minutePixelHeight),
             widthPct: 100 / totalLanes,
             leftPct: (entry.lane * 100) / totalLanes,
+            showTimeLabel: entry.clippedEnd - entry.clippedStart > 60,
         }));
 
         const now = new Date();
@@ -491,12 +414,7 @@ function CalendarView({ user }) {
 
     const sectionTitle = useMemo(() => {
         if (viewType === 'day') {
-            return currentDate.toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-            });
+            return formatFullDateLabel(currentDate);
         }
 
         if (viewType === 'week') {
@@ -504,23 +422,13 @@ function CalendarView({ user }) {
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekStart.getDate() + 6);
 
-            const startLabel = weekStart.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-            });
-            const endLabel = weekEnd.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-            });
+            const startLabel = formatMonthDayLabel(weekStart);
+            const endLabel = formatDate(weekEnd, { month: 'short', day: 'numeric', year: 'numeric' });
 
-            return `Week of ${startLabel} - ${endLabel}`;
+            return `Week of ${startLabel} – ${endLabel}`;
         }
 
-        return currentDate.toLocaleDateString('en-US', {
-            month: 'long',
-            year: 'numeric',
-        });
+        return formatMonthYearLabel(currentDate);
     }, [currentDate, viewType]);
 
     const getFilteredTags = (inputValue, currentTags) => {
@@ -529,23 +437,12 @@ function CalendarView({ user }) {
         return availableTags.filter((tag) => tag.toLowerCase().includes(input) && !currentTags.includes(tag));
     };
 
-    const getFilteredProjects = (inputValue) => {
-        const input = (inputValue || '').trim().toLowerCase();
-        if (!input) {
-            return availableProjects;
-        }
-        return availableProjects.filter((projectName) => projectName.toLowerCase().includes(input));
-    };
-
     const handleEditChange = (field, value) => {
         if (field === 'tags') {
             setEditTaskTagInput(value);
             setShowEditTagDropdown(value.length > 0);
             setEditData((prev) => ({ ...prev, tags: parseTagInput(value) }));
             return;
-        }
-        if (field === 'project') {
-            setShowEditProjectDropdown(true);
         }
         setEditData((prev) => ({ ...prev, [field]: value }));
     };
@@ -565,10 +462,6 @@ function CalendarView({ user }) {
         setEditTaskTagInput('');
     };
 
-    const handleEditProjectSelect = (projectName) => {
-        setEditData((prev) => ({ ...prev, project: projectName }));
-        setShowEditProjectDropdown(false);
-    };
 
     const loadSelectedTask = async (task) => {
         if (!task) {
@@ -587,8 +480,8 @@ function CalendarView({ user }) {
             const refreshedTask = await fetchTaskDetails(task.taskId);
             setSelectedTask(refreshedTask);
         } catch (err) {
-            setSelectedTask(normalizeTask(task));
-            setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+            setSelectedTask(task);
+            setError(`Failed to fetch task details: ${extractApiErrorMessage(err)}`);
         } finally {
             setSelectedTaskLoading(false);
         }
@@ -599,7 +492,7 @@ function CalendarView({ user }) {
             return;
         }
 
-        let normalized = normalizeTask(taskToEdit);
+        let normalized = taskToEdit;
         if (isGoogleReadOnlyTask(taskToEdit)) {
             setSelectedTask(taskToEdit);
             return;
@@ -611,7 +504,7 @@ function CalendarView({ user }) {
             try {
                 normalized = await fetchTaskDetails(taskToEdit.taskId);
             } catch (err) {
-                setError(`Failed to fetch task details: ${getErrorMessage(err, 'Unknown error')}`);
+                setError(`Failed to fetch task details: ${extractApiErrorMessage(err)}`);
             } finally {
                 setSelectedTaskLoading(false);
             }
@@ -620,7 +513,7 @@ function CalendarView({ user }) {
         const tagNames = getTagNames(normalized.tags);
         setEditData({
             ...normalized,
-            project: getProjectName(normalized.project),
+            project: projectToProjectName(normalized.project),
             tags: tagNames,
         });
         setSelectedTask(normalized);
@@ -636,6 +529,7 @@ function CalendarView({ user }) {
         setShowEditTagDropdown(false);
         setShowEditProjectDropdown(false);
         setEditTaskAutoSchedule(false);
+        setError(null);
     };
 
     const handleSaveSelectedTask = async () => {
@@ -643,87 +537,80 @@ function CalendarView({ user }) {
             return;
         }
 
+        const validationErrors = [];
+        if (!editData.taskName?.trim()) validationErrors.push('Task name is required');
+        if (!editData.deadline?.trim()) validationErrors.push('Deadline is required');
+        if (!editData.timeToComplete?.trim()) validationErrors.push('Time to complete is required');
+        if (!editData.priority?.trim()) validationErrors.push('Priority is required');
+        if (
+            editData.project?.trim()
+            && !availableProjects.some((projectName) => projectName.toLowerCase() === editData.project.trim().toLowerCase())
+        ) {
+            validationErrors.push('Please select a project from the project list');
+        }
+        if (validationErrors.length > 0) {
+            setError(validationErrors.join(' | '));
+            return;
+        }
+
         try {
             setError(null);
-            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName));
+            const tagObjects = (editData.tags || []).map((tagName) => tagNameToTagObject(tagName, allTagObjects));
             const payload = {
                 ...editData,
-                project: projectNameToProjectObject(editData.project || ''),
+                project: projectNameToProjectObject(editData.project || '', allProjectObjects),
                 tags: tagObjects,
                 autoSchedule: editTaskAutoSchedule,
             };
 
-            const res = await axios.put(`${backendUrl}/api/tasks`, payload, getAuthConfig());
-            const updatedTask = normalizeTask(res.data || payload);
-
-            setTasks((prev) => prev.map((task) => (task.taskId === updatedTask.taskId ? updatedTask : task)));
+            const updatedTask = await updateTask(payload);
             setSelectedTask(updatedTask);
-            await fetchCalendarData();
+            await refetchAll();
             stopEditingSelectedTask();
         } catch (err) {
-            setError(`Failed to update task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to update task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const handleCompleteTask = async (taskId) => {
         try {
             setError(null);
-            const res = await axios.put(`${backendUrl}/api/tasks/${taskId}/complete`, {}, getAuthConfig());
-            const completedTask = normalizeTask(res.data || {});
-            setTasks((prev) => prev.filter((task) => task.taskId !== taskId));
-            setCompletedTasks((prev) => [...prev, completedTask]);
+            await completeTask(taskId);
             if (selectedTask?.taskId === taskId) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError(`Failed to complete task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to complete task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const handleDeleteTask = async (taskId) => {
         try {
             setError(null);
-            await axios.delete(`${backendUrl}/api/tasks/${taskId}`, getAuthConfig());
-            setTasks((prev) => prev.filter((task) => task.taskId !== taskId));
+            await deleteTask(taskId);
             if (selectedTask?.taskId === taskId) {
                 closeSelectedTaskModal();
             }
         } catch (err) {
-            setError(`Failed to delete task: ${getErrorMessage(err, 'Unknown error')}`);
+            setError(`Failed to delete task: ${extractApiErrorMessage(err)}`);
         }
     };
 
     const getCalendarEditorProps = () => ({
         mode: 'edit',
         taskData: editData,
-        timeOptions: [
-            ...Array.from({ length: 12 }, (_, i) => {
-                const minutes = (i + 1) * 15;
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                const label = mins === 0 ? `${hours} hour${hours > 1 ? 's' : ''}` : `${hours}h ${mins}m`;
-                return { value: `${hours}h ${mins}m`, label };
-            }),
-            ...Array.from({ length: 10 }, (_, i) => {
-                const minutes = 210 + (i * 30);
-                const hours = Math.floor(minutes / 60);
-                const mins = minutes % 60;
-                const label = mins === 0 ? `${hours} hours` : `${hours}h ${mins}m`;
-                return { value: `${hours}h ${mins}m`, label };
-            }),
-        ],
+        timeOptions: buildTimeOptions(),
         projectDropdownVisible: showEditProjectDropdown,
         tagDropdownVisible: showEditTagDropdown,
         tagInputValue: editTaskTagInput,
-        filteredProjects: getFilteredProjects(editData.project),
+        filteredProjects: availableProjects,
         filteredTags: getFilteredTags(editTaskTagInput, editData.tags || []),
         autoSchedule: editTaskAutoSchedule,
         onChange: handleEditChange,
         onProjectFocus: () => setShowEditProjectDropdown(true),
-        onProjectBlur: () => setTimeout(() => setShowEditProjectDropdown(false), 200),
+        onProjectBlur: () => setTimeout(() => setShowEditProjectDropdown(false), 0),
         onTagFocus: () => setShowEditTagDropdown(true),
         onTagBlur: () => setTimeout(() => setShowEditTagDropdown(false), 200),
-        onProjectSelect: handleEditProjectSelect,
         onTagSelect: handleEditTagSelect,
         onRemoveTag: handleEditRemoveTag,
         onAutoScheduleChange: setEditTaskAutoSchedule,
@@ -757,7 +644,15 @@ function CalendarView({ user }) {
         if (isGoogleReadOnlyTask(task)) {
             return '#1a73e8';
         }
-        return getProjectColor(task?.project) || getPriorityColor(task?.priority);
+
+        const projectName = projectToProjectName(task?.project);
+        const projectColor = getProjectColor(task?.project);
+
+        if (!projectName) {
+            return NO_PROJECT_CALENDAR_COLOR;
+        }
+
+        return projectColor || getPriorityColor(task?.priority);
     };
 
     const handlePrevious = () => {
@@ -784,7 +679,7 @@ function CalendarView({ user }) {
         setCurrentDate(nextDate);
     };
 
-    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} - ${completedTasks.length} completed - ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
+    const sectionSubtitle = `${visibleTasks.length} active task${visibleTasks.length === 1 ? '' : 's'} • ${completedTasks.length} completed • ${googleEvents.length} Google event${googleEvents.length === 1 ? '' : 's'}`;
 
     const sidebarTasks = useMemo(() => {
         return [...visibleTasks].sort(sortByDeadlineSchedulePriority);
@@ -851,11 +746,10 @@ function CalendarView({ user }) {
     const renderWeekView = () => {
         const weekStart = getWeekStart(currentDate);
         const totalHours = DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR + 1;
-        const tickOffsetPx = WEEK_VIEW_TICK_OFFSET * WEEK_VIEW_HOUR_HEIGHT;
-        const dayHeight = (totalHours + WEEK_VIEW_TICK_OFFSET) * WEEK_VIEW_HOUR_HEIGHT;
-        const weekTopOffset = WEEK_VIEW_HEADER_HEIGHT + WEEK_VIEW_UNSCHEDULED_HEIGHT + tickOffsetPx;
+        const dayHeight = totalHours * WEEK_VIEW_HOUR_HEIGHT;
+        const weekTopOffset = WEEK_VIEW_HEADER_HEIGHT + WEEK_VIEW_UNSCHEDULED_HEIGHT;
         const dayHours = Array.from({ length: totalHours }, (_, idx) => DAY_VIEW_START_HOUR + idx);
-        const weekHourBoundaries = Array.from({ length: totalHours + WEEK_VIEW_TICK_OFFSET + 1 }, (_, idx) => idx);
+        const weekHourBoundaries = Array.from({ length: totalHours + 1 }, (_, idx) => idx);
 
         return (
             <div className="week-view">
@@ -863,7 +757,6 @@ function CalendarView({ user }) {
                     <div className="week-time-labels" style={{ height: `${dayHeight + weekTopOffset}px` }}>
                         <div className="week-time-header-spacer" style={{ height: `${WEEK_VIEW_HEADER_HEIGHT}px` }} aria-hidden="true" />
                         <div className="week-time-unscheduled-spacer" style={{ height: `${WEEK_VIEW_UNSCHEDULED_HEIGHT}px` }} aria-hidden="true" />
-                        <div className="week-time-leading-tick-spacer" style={{ height: `${tickOffsetPx}px` }} aria-hidden="true" />
                         {dayHours.map((hour) => (
                             <div key={`week-hour-${hour}`} className="week-time-label" style={{ height: `${WEEK_VIEW_HOUR_HEIGHT}px` }}>
                                 {formatHourLabel(hour)}
@@ -916,28 +809,32 @@ function CalendarView({ user }) {
                                         ))}
 
                                         {dayData.showCurrentTime && (
-                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop + tickOffsetPx}px` }} />
+                                            <div className="week-current-time-line" style={{ top: `${dayData.currentTimeTop}px` }} />
                                         )}
 
-                                        {dayData.scheduledEntries.map((entry) => (
-                                            <button
-                                                type="button"
-                                                key={entry.task.taskId}
-                                                className="week-timeline-task"
-                                                onClick={() => loadSelectedTask(entry.task)}
-                                                style={{
-                                                    top: `${entry.top + tickOffsetPx}px`,
-                                                    height: `${entry.height}px`,
-                                                    left: `calc(${entry.leftPct}% + 2px)`,
-                                                    width: `calc(${entry.widthPct}% - 4px)`,
-                                                    backgroundColor: getTaskCalendarColor(entry.task),
-                                                }}
-                                                title={`${entry.task.taskName} (${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)})`}
-                                            >
-                                                <span className="task-event-title">{entry.task.taskName}</span>
-                                                <span className="task-event-time">{formatTimeLabel(entry.startDate)} - {formatTimeLabel(entry.endDate)}</span>
-                                            </button>
-                                        ))}
+                                        {dayData.scheduledEntries.map((entry) => {
+                                            const timeRangeLabel = `${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)}`;
+
+                                            return (
+                                                <button
+                                                    type="button"
+                                                    key={entry.task.taskId}
+                                                    className="week-timeline-task"
+                                                    onClick={() => loadSelectedTask(entry.task)}
+                                                    style={{
+                                                        top: `${entry.top}px`,
+                                                        height: `${entry.height}px`,
+                                                        left: `calc(${entry.leftPct}% + 2px)`,
+                                                        width: `calc(${entry.widthPct}% - 4px)`,
+                                                        backgroundColor: getTaskCalendarColor(entry.task),
+                                                    }}
+                                                    title={entry.showTimeLabel ? `${entry.task.taskName} (${timeRangeLabel})` : entry.task.taskName}
+                                                >
+                                                    <span className="task-event-title">{entry.task.taskName}</span>
+                                                    {entry.showTimeLabel ? <span className="task-event-time">{timeRangeLabel}</span> : null}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
@@ -956,7 +853,7 @@ function CalendarView({ user }) {
         return (
             <div className="day-view">
                 <div className="day-view-topbar">
-                    <div className="day-view-month">{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</div>
+                    <div className="day-view-month">{formatMonthYearLabel(currentDate)}</div>
                     <div className="day-view-current-day">{selectedDayLabel}</div>
                     <div className="day-view-spacer" aria-hidden="true" />
                 </div>
@@ -1003,32 +900,36 @@ function CalendarView({ user }) {
 
                         {dayViewData.showCurrentTime && (
                             <>
-                                <div className="day-current-time-label" style={{ top: `${dayViewData.currentTimeTop}px` }}>
-                                    {dayViewData.currentTimeLabel}
-                                </div>
+                                {/*<div className="day-current-time-label" style={{ top: `${dayViewData.currentTimeTop}px` }}>*/}
+                                {/*    {dayViewData.currentTimeLabel}*/}
+                                {/*</div>*/}
                                 <div className="day-current-time-line" style={{ top: `${dayViewData.currentTimeTop}px` }} />
                             </>
                         )}
 
-                        {dayViewData.scheduledEntries.map((entry) => (
-                            <button
-                                type="button"
-                                key={entry.task.taskId}
-                                className="day-task-block"
-                                onClick={() => loadSelectedTask(entry.task)}
-                                style={{
-                                    top: `${entry.top}px`,
-                                    height: `${entry.height}px`,
-                                    left: `calc(${entry.leftPct}% + 2px)`,
-                                    width: `calc(${entry.widthPct}% - 4px)`,
-                                    backgroundColor: getTaskCalendarColor(entry.task),
-                                }}
-                                title={`${entry.task.taskName} (${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)})`}
-                            >
-                                <span className="task-event-title">{entry.task.taskName}</span>
-                                <span className="task-event-time">{formatTimeLabel(entry.startDate)} - {formatTimeLabel(entry.endDate)}</span>
-                            </button>
-                        ))}
+                        {dayViewData.scheduledEntries.map((entry) => {
+                            const timeRangeLabel = `${formatTimeLabel(entry.startDate)} - ${formatTimeLabel(entry.endDate)}`;
+
+                            return (
+                                <button
+                                    type="button"
+                                    key={entry.task.taskId}
+                                    className="day-task-block"
+                                    onClick={() => loadSelectedTask(entry.task)}
+                                    style={{
+                                        top: `${entry.top}px`,
+                                        height: `${entry.height}px`,
+                                        left: `calc(${entry.leftPct}% + 2px)`,
+                                        width: `calc(${entry.widthPct}% - 4px)`,
+                                        backgroundColor: getTaskCalendarColor(entry.task),
+                                    }}
+                                    title={entry.showTimeLabel ? `${entry.task.taskName} (${timeRangeLabel})` : entry.task.taskName}
+                                >
+                                    <span className="task-event-title">{entry.task.taskName}</span>
+                                    {entry.showTimeLabel ? <span className="task-event-time">{timeRangeLabel}</span> : null}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -1042,19 +943,19 @@ function CalendarView({ user }) {
 
     if (loading) {
         return (
-            <div className="task-view-container">
+            <main className="task-view-container">
                 <div className="task-content">
                     <div className="task-layout task-layout-loading">
                         <aside className="project-sidebar task-loading-sidebar" />
-                        <div className="task-main-panel loading loading-panel">Loading calendar...</div>
+                        <div className="task-main-panel loading loading-panel">Loading calendar…</div>
                     </div>
                 </div>
-            </div>
+            </main>
         );
     }
 
     return (
-        <div className="task-view-container calendar-view-container">
+        <main className="task-view-container calendar-view-container">
             <div className="task-content">
                 <div
                     className={`task-layout task-layout-resizable ${isResizing ? 'is-resizing' : ''}`}
@@ -1070,15 +971,15 @@ function CalendarView({ user }) {
                                             key={`sidebar-${task.taskId}`}
                                             task={task}
                                             className="calendar-sidebar-task"
-                                            getProjectName={getProjectName}
+                                            getProjectName={projectToProjectName}
                                             getTagNames={getTagNames}
-                                    onSelect={loadSelectedTask}
+                                            onSelect={loadSelectedTask}
                                             showCheckbox={false}
                                             showTags={false}
                                             showActions={false}
                                             showDateTime={false}
                                             metaItems={[
-                                                `Project: ${getProjectName(task.project) || 'Uncategorized'}`,
+                                                `Project: ${projectToProjectName(task.project) || 'Uncategorized'}`,
                                                 `Priority: ${formatPriorityLabel(task.priority) || 'No priority'}`,
                                                 `Deadline: ${formatDeadlineLabel(task.deadline)}`,
                                             ]}
@@ -1099,7 +1000,7 @@ function CalendarView({ user }) {
                     />
 
                     <div className="task-main-panel">
-                        {error && <div className="error-message">{error}</div>}
+                        {error && <div className="error-message" role="alert">{error}</div>}
 
                         <div className="task-section-header calendar-section-header">
                             <div className="task-title-group">
@@ -1160,11 +1061,11 @@ function CalendarView({ user }) {
 
             {selectedTask && (
                 <div className="modal-overlay" onClick={closeSelectedTaskModal}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="modal-close" onClick={closeSelectedTaskModal}>x</button>
-                        <h3>{selectedTask.taskName}</h3>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="calendar-task-modal-title">
+                        <button type="button" className="modal-close" onClick={closeSelectedTaskModal} aria-label="Close task details">×</button>
+                        <h3 id="calendar-task-modal-title">{selectedTask.taskName}</h3>
                         {selectedTaskLoading ? (
-                            <div className="task-main-panel loading loading-panel">Loading task details...</div>
+                            <div className="task-main-panel loading loading-panel">Loading task details…</div>
                         ) : isEditingTask ? (
                             <TaskEditorPanel {...getCalendarEditorProps()} />
                         ) : (
@@ -1173,15 +1074,10 @@ function CalendarView({ user }) {
                                     {isGoogleReadOnlyTask(selectedTask) ? <div className="detail-item"><strong>Source:</strong> Google Calendar</div> : null}
                                     <div className="detail-item"><strong>Deadline:</strong> {selectedTask.deadline || 'No date'}</div>
                                     <div className="detail-item"><strong>Time to Complete:</strong> {selectedTask.timeToComplete || 'No estimate'}</div>
-                                    <div className="detail-item"><strong>Start:</strong> {selectedTask.startTime || 'Unscheduled'}</div>
-                                    <div className="detail-item"><strong>End:</strong> {selectedTask.endTime || 'Unscheduled'}</div>
-                                    <div className="detail-item">
-                                        <strong>Priority:</strong>
-                                        <span className="priority-badge" style={{ backgroundColor: getTaskCalendarColor(selectedTask) }}>
-                                            {formatPriorityLabel(selectedTask.priority) || 'No priority'}
-                                        </span>
-                                    </div>
-                                    <div className="detail-item"><strong>Project:</strong> {getProjectName(selectedTask.project) || 'Uncategorized'}</div>
+                                    <div className="detail-item"><strong>Start:</strong> {formatDateTimeDetailLabel(selectedTask.startTime)}</div>
+                                    <div className="detail-item"><strong>End:</strong> {formatDateTimeDetailLabel(selectedTask.endTime)}</div>
+                                    <div className="detail-item"><strong>Priority:</strong> {formatPriorityLabel(selectedTask.priority) || 'No priority'}</div>
+                                    <div className="detail-item"><strong>Project:</strong> {projectToProjectName(selectedTask.project) || 'Uncategorized'}</div>
                                     <div className="detail-item"><strong>Tags:</strong> {getTagNames(selectedTask.tags).join(', ') || 'None'}</div>
                                     {selectedTask.comments ? <div className="detail-item"><strong>Comments:</strong> {selectedTask.comments}</div> : null}
                                 </div>
@@ -1210,8 +1106,6 @@ function CalendarView({ user }) {
                     </div>
                 </div>
             )}
-        </div>
+        </main>
     );
 }
-
-export default CalendarView;

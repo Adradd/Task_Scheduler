@@ -22,6 +22,13 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Finds the earliest available working-hours slot for a task while respecting
+ * existing tasks and optional external busy intervals.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 public class TaskAutoSchedulerService {
     private static final DateTimeFormatter WORK_HOUR_24H = DateTimeFormatter.ofPattern("H:mm");
@@ -37,13 +44,38 @@ public class TaskAutoSchedulerService {
     private static final Pattern MINUTES_ONLY_PATTERN = Pattern.compile("(?i)^(\\d+)m$");
     private static final Pattern TASK_ID_TIMESTAMP_PATTERN = Pattern.compile("^task_(\\d+)$");
 
+    /**
+     * Immutable external occupied interval used to block off availability while
+     * scheduling a task.
+     *
+     * @param start interval start
+     * @param end interval end
+     */
     public record BusyInterval(LocalDateTime start, LocalDateTime end) {
     }
 
+    /**
+     * Schedules a task around existing account tasks.
+     *
+     * @param task task to schedule
+     * @param owner account whose working hours are used
+     * @param existingTasks tasks that already occupy time
+     * @return the same task with start/end times set when a slot is found
+     */
     public Task scheduleTask(Task task, Account owner, Collection<Task> existingTasks) {
         return scheduleTask(task, owner, existingTasks, List.of());
     }
 
+    /**
+     * Schedules a task around existing account tasks and external busy
+     * intervals, such as Google Calendar events.
+     *
+     * @param task task to schedule
+     * @param owner account whose working hours are used
+     * @param existingTasks tasks that already occupy time
+     * @param externalBusyIntervals additional occupied intervals
+     * @return the same task with start/end times set when a slot is found
+     */
     public Task scheduleTask(
         Task task,
         Account owner,
@@ -129,6 +161,13 @@ public class TaskAutoSchedulerService {
         return task;
     }
 
+    /**
+     * Parses supported duration strings such as {@code 2h 30m},
+     * {@code 2 hours}, and {@code 45m}.
+     *
+     * @param timeToComplete duration string from the task
+     * @return duration in minutes
+     */
     public int parseTimeToCompleteMinutes(String timeToComplete) {
         if (timeToComplete == null || timeToComplete.trim().isEmpty()) {
             throw new IllegalArgumentException("Time to complete is required for auto-scheduling");
@@ -154,6 +193,13 @@ public class TaskAutoSchedulerService {
         throw new IllegalArgumentException("Unsupported time format: " + timeToComplete);
     }
 
+    /**
+     * Parses working hour text in 24-hour or compact 12-hour format.
+     *
+     * @param workingHour configured working hour
+     * @param fallback fallback when the value is blank
+     * @return parsed local time
+     */
     public LocalTime parseWorkingHour(String workingHour, LocalTime fallback) {
         if (workingHour == null || workingHour.trim().isEmpty()) {
             if (fallback != null) {
@@ -169,6 +215,12 @@ public class TaskAutoSchedulerService {
         return LocalTime.parse(normalized, WORK_HOUR_24H);
     }
 
+    /**
+     * Rounds a date-time up to the next quarter-hour boundary.
+     *
+     * @param dateTime date-time to round
+     * @return rounded date-time
+     */
     public LocalDateTime roundUpToNextQuarterHour(LocalDateTime dateTime) {
         if (dateTime == null) {
             throw new IllegalArgumentException("Date time is required");
@@ -180,6 +232,12 @@ public class TaskAutoSchedulerService {
         return normalized.plusMinutes(minutesToAdd);
     }
 
+    /**
+     * Orders tasks by scheduling priority, deadline, creation order, and ID.
+     *
+     * @param tasks tasks to order
+     * @return new ordered task list
+     */
     public List<Task> orderTasksForScheduling(Collection<Task> tasks) {
         List<Task> ordered = new ArrayList<>(tasks == null ? List.of() : tasks);
         ordered.sort(

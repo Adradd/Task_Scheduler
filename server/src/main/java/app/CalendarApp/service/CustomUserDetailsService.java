@@ -2,6 +2,7 @@ package app.CalendarApp.service;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.repository.AccountRepository;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,14 +14,26 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collection;
 
+/**
+ * Loads application accounts for Spring Security's username/password
+ * authentication flow.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
+@RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
     private final AccountRepository accountRepository;
 
-    public CustomUserDetailsService(AccountRepository accountRepository) {
-        this.accountRepository = accountRepository;
-    }
-
+    /**
+     * Resolves a user by username and converts account roles into Spring
+     * Security authorities.
+     *
+     * @param username username supplied during authentication
+     * @return Spring Security user details
+     * @throws UsernameNotFoundException when the username is null or unknown
+     */
     @Override
     public UserDetails loadUserByUsername(@Nullable String username) throws UsernameNotFoundException {
         if (username == null) {

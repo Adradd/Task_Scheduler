@@ -5,6 +5,8 @@
     min-height: calc(100vh - 80px);
     background-color: #454047;
     padding: 20px;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .account-card {
@@ -14,6 +16,17 @@
     padding: 40px;
     width: 100%;
     max-width: 500px;
+    margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+    .account-container {
+        padding: 16px;
+    }
+
+    .account-card {
+        padding: 24px;
+    }
 }
 
 .account-card h1 {
@@ -61,8 +74,15 @@
 }
 
 .info-group input:focus {
-    outline: none;
     border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+}
+
+.info-group input:focus-visible,
+.account-actions button:focus-visible,
+.google-calendar-actions button:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.25);
+    outline-offset: 2px;
 }
 
 .error-message {
@@ -88,7 +108,7 @@
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .edit-btn {
@@ -109,6 +129,16 @@
 
 .logout-btn:hover {
     background: #ffe0e0;
+}
+
+.delete-account-btn {
+    background: linear-gradient(135deg, #ef5350 0%, #d32f2f 100%);
+    color: #fff;
+}
+
+.delete-account-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(211, 47, 47, 0.4);
 }
 
 .save-btn {
@@ -291,4 +321,3 @@
     cursor: not-allowed;
     opacity: 0.7;
 }
-

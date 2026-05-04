@@ -2,7 +2,7 @@ package app.CalendarApp.controller;
 
 import app.CalendarApp.repository.Account;
 import app.CalendarApp.service.AccountService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -10,18 +10,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Exposes account registration, login, lookup, update, and deletion endpoints.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @RestController
+@AllArgsConstructor
 @RequestMapping("/api/accounts")
 public class AccountController {
     private final AccountService accountService;
     private final PasswordEncoder passwordEncoder;
 
-    @Autowired
-    public AccountController(AccountService accountService, PasswordEncoder passwordEncoder) {
-        this.accountService = accountService;
-        this.passwordEncoder = passwordEncoder;
-    }
-
+    /**
+     * Retrieves an account by its stored account identifier.
+     *
+     * @param accountId account identifier from the route
+     * @return the account when found, otherwise 404
+     */
     @GetMapping("/{accountId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Account> getAccountById(@PathVariable String accountId) {
@@ -29,6 +36,14 @@ public class AccountController {
         return account != null ? ResponseEntity.ok(account) : ResponseEntity.notFound().build();
     }
 
+    /**
+     * Updates mutable account profile fields such as username, email, and
+     * working hours.
+     *
+     * @param accountId account identifier from the route
+     * @param accountUpdates partial account update payload
+     * @return updated account or a validation error response
+     */
     @PutMapping("/{accountId}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<?> updateAccount(@PathVariable String accountId, @RequestBody Account accountUpdates) {
@@ -59,6 +74,29 @@ public class AccountController {
         }
     }
 
+    /**
+     * Deletes an account and its dependent user-owned data.
+     *
+     * @param accountId account identifier from the route
+     * @return 204 when deleted or a validation error response
+     */
+    @DeleteMapping("/{accountId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<?> deleteAccount(@PathVariable String accountId) {
+        try {
+            accountService.deleteAccount(accountId);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Creates a new user account.
+     *
+     * @param account account registration payload
+     * @return sanitized account details and a success message
+     */
     @PostMapping
     public ResponseEntity<?> createAccount(@RequestBody Account account) {
         try {
@@ -75,6 +113,12 @@ public class AccountController {
         }
     }
 
+    /**
+     * Verifies username/password credentials for the simple login endpoint.
+     *
+     * @param credentials map containing username and password values
+     * @return account session details or an authentication error response
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         String username = credentials.get("username");

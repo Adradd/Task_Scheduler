@@ -10,14 +10,16 @@ import app.CalendarApp.repository.TaskPriority;
 import app.CalendarApp.repository.TaskRepository;
 import app.CalendarApp.service.GoogleCalendarService;
 import app.CalendarApp.service.TaskService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,25 +27,25 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Implements task validation, persistence, completion updates, auto-scheduling,
+ * and Google Calendar availability integration.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
+@RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
+    private static final DateTimeFormatter GOOGLE_DATE_TIME_FORMATTER = DateTimeFormatter.ISO_DATE_TIME;
+
     private final TaskRepository taskRepository;
     private final TaskAutoSchedulerService autoSchedulerService;
     private final GoogleCalendarService googleCalendarService;
     private final GoogleCalendarProjectMappingRepository mappingRepository;
 
-    @Autowired
-    public TaskServiceImpl(
-        TaskRepository taskRepository,
-        TaskAutoSchedulerService autoSchedulerService,
-        GoogleCalendarService googleCalendarService,
-        GoogleCalendarProjectMappingRepository mappingRepository
-    ) {
-        this.taskRepository = taskRepository;
-        this.autoSchedulerService = autoSchedulerService;
-        this.googleCalendarService = googleCalendarService;
-        this.mappingRepository = mappingRepository;
-    }
+    @Value("${google.calendar.default-time-zone:America/New_York}")
+    private String defaultTimeZone;
 
     @Override
     public Task findTaskByTaskId(String taskId) {
@@ -169,11 +171,11 @@ public class TaskServiceImpl implements TaskService {
             return List.of();
         }
 
+        ZoneId schedulingZone = resolveSchedulingZone();
         Instant timeMin = Instant.now().minusSeconds(60);
-        Instant timeMax = deadline.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant timeMax = deadline.plusDays(1).atStartOfDay(schedulingZone).toInstant();
 
-        List<Map<String, Object>> rawEvents = new ArrayList<>();
-        rawEvents.addAll(safeEvents(googleCalendarService.fetchEvents(owner, timeMin, timeMax)));
+        List<Map<String, Object>> rawEvents = new ArrayList<>(safeEvents(googleCalendarService.fetchEvents(owner, timeMin, timeMax)));
 
         List<GoogleCalendarProjectMapping> mappings = mappingRepository.findAllByAccountId(owner.getId());
         Set<String> enabledCalendarIds = mappings.stream()
@@ -210,21 +212,67 @@ public class TaskServiceImpl implements TaskService {
         Map<String, Object> endMap = toMap(event.get("end"));
         String startDateTime = getText(startMap.get("dateTime"));
         String endDateTime = getText(endMap.get("dateTime"));
+        String startTimeZone = getText(startMap.get("timeZone"));
+        String endTimeZone = getText(endMap.get("timeZone"));
 
         // All-day events are treated as unscheduled and should not block auto-scheduling slots.
         if (startDateTime == null || endDateTime == null) {
             return null;
         }
 
-        try {
-            LocalDateTime start = OffsetDateTime.parse(startDateTime).toLocalDateTime().withSecond(0).withNano(0);
-            LocalDateTime end = OffsetDateTime.parse(endDateTime).toLocalDateTime().withSecond(0).withNano(0);
-            if (!end.isAfter(start)) {
-                return null;
-            }
-            return new TaskAutoSchedulerService.BusyInterval(start, end);
-        } catch (DateTimeParseException ex) {
+        ZoneId schedulingZone = resolveSchedulingZone();
+        LocalDateTime start = parseGoogleEventDateTime(startDateTime, startTimeZone, schedulingZone);
+        LocalDateTime end = parseGoogleEventDateTime(endDateTime, endTimeZone, schedulingZone);
+        if (start == null || end == null || !end.isAfter(start)) {
             return null;
+        }
+        return new TaskAutoSchedulerService.BusyInterval(start, end);
+    }
+
+    private LocalDateTime parseGoogleEventDateTime(String dateTime, String timeZone, ZoneId schedulingZone) {
+        if (dateTime == null || dateTime.isBlank()) {
+            return null;
+        }
+
+        try {
+            return OffsetDateTime.parse(dateTime)
+                .atZoneSameInstant(schedulingZone)
+                .toLocalDateTime()
+                .withSecond(0)
+                .withNano(0);
+        } catch (DateTimeParseException ignored) {
+            // Fall back for dateTime values that omit offset and rely on a separate timeZone field.
+        }
+
+        try {
+            LocalDateTime localDateTime = LocalDateTime.parse(dateTime, GOOGLE_DATE_TIME_FORMATTER).withSecond(0).withNano(0);
+            ZoneId sourceZone = resolveZoneId(timeZone, schedulingZone);
+            return localDateTime.atZone(sourceZone).withZoneSameInstant(schedulingZone).toLocalDateTime();
+        } catch (DateTimeParseException ignored) {
+            // Continue to zone-based fallback.
+        }
+
+        try {
+            LocalDateTime localDateTime = LocalDateTime.parse(dateTime).withSecond(0).withNano(0);
+            ZoneId sourceZone = resolveZoneId(timeZone, schedulingZone);
+            return localDateTime.atZone(sourceZone).withZoneSameInstant(schedulingZone).toLocalDateTime();
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private ZoneId resolveSchedulingZone() {
+        return resolveZoneId(defaultTimeZone, ZoneId.systemDefault());
+    }
+
+    private ZoneId resolveZoneId(String zoneIdText, ZoneId fallback) {
+        if (zoneIdText == null || zoneIdText.isBlank()) {
+            return fallback;
+        }
+        try {
+            return ZoneId.of(zoneIdText);
+        } catch (RuntimeException ex) {
+            return fallback;
         }
     }
 

@@ -1,7 +1,8 @@
 import ConfirmPopoverButton from './ConfirmPopoverButton.jsx';
 import { formatPriorityLabel } from '../utils/taskFormatting.js';
+import { getTodayKey } from '../utils/dateFormatters.js';
 
-function TaskListItem({
+export default function TaskListItem ({
     task,
     isEditing = false,
     editorPanel = null,
@@ -30,6 +31,8 @@ function TaskListItem({
         task.comments || '',
     ]).filter(Boolean);
     const isSelectable = typeof onSelect === 'function';
+    const todayKey = getTodayKey();
+    const isOverdue = Boolean(task?.deadline && task.deadline < todayKey && !task?.isCompleted);
 
     return (
         <div className={`task-card ${className} ${isEditing ? 'editing' : ''}`.trim()}>
@@ -41,23 +44,30 @@ function TaskListItem({
                         checked={task.isCompleted || false}
                         onChange={() => onToggleComplete?.(task.taskId)}
                         title="Mark task as complete"
+                        aria-label={`Mark ${task.taskName} as complete`}
                     />
                 )}
 
                 <div className="task-main-copy">
                     {isSelectable ? (
-                        <button type="button" className="calendar-sidebar-title-button" onClick={() => onSelect(task)}>
+                        <button
+                            type="button"
+                            className="calendar-sidebar-title-button"
+                            onClick={() => onSelect(task)}
+                            title={task.taskName}
+                        >
                             {task.taskName}
                         </button>
                     ) : (
-                        <h3 className="task-title">{task.taskName}</h3>
+                        <h3 className="task-title" title={task.taskName}>{task.taskName}</h3>
                     )}
+                    {isOverdue && <span className="task-overdue-pill">Overdue</span>}
                     {showTags && (
-                        <div className="task-tags-inline">
+                        <div className="task-tags-inline" title={taskTagNames.join(', ')}>
                             {taskTagNames.length > 0 ? taskTagNames.join(' • ') : 'No tags'}
                         </div>
                     )}
-                    <div className="task-meta-inline">
+                    <div className="task-meta-inline" title={taskMeta.join(metaSeparator)}>
                         {taskMeta.join(metaSeparator)}
                     </div>
                     {showActions && (
@@ -92,5 +102,3 @@ function TaskListItem({
         </div>
     );
 }
-
-export default TaskListItem;

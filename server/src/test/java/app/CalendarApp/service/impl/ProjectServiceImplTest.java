@@ -113,6 +113,43 @@ class ProjectServiceImplTest {
     }
 
     @Test
+    void updateProjectColorUpdatesByProjectId() {
+        Project project = TestDataFactory.project("proj-1", owner, "Work");
+        project.setProjectColor("#3fb0ba");
+        when(projectRepository.findProjectByProjectIdAndOwner("proj-1", owner)).thenReturn(project);
+        when(projectRepository.save(project)).thenReturn(project);
+
+        Project updated = projectService.updateProjectColor(owner, "proj-1", "#123456");
+
+        assertEquals("#123456", updated.getProjectColor());
+        verify(projectRepository).save(project);
+    }
+
+    @Test
+    void updateProjectColorFallsBackToProjectName() {
+        Project project = TestDataFactory.project("proj-1", owner, "Work");
+        project.setProjectColor("#3fb0ba");
+        when(projectRepository.findProjectByProjectIdAndOwner("Work", owner)).thenReturn(null);
+        when(projectRepository.findProjectByOwnerAndProjectNameIgnoreCase(owner, "Work")).thenReturn(project);
+        when(projectRepository.save(project)).thenReturn(project);
+
+        Project updated = projectService.updateProjectColor(owner, "Work", "#654321");
+
+        assertEquals("#654321", updated.getProjectColor());
+        verify(projectRepository).save(project);
+    }
+
+    @Test
+    void updateProjectColorRejectsInvalidColor() {
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> projectService.updateProjectColor(owner, "proj-1", "not-a-color")
+        );
+
+        assertEquals("Project color is required", exception.getMessage());
+    }
+
+    @Test
     void ensureProjectExistsCreatesMissingProject() {
         Project incoming = TestDataFactory.project(null, null, "Inbox");
         incoming.setProjectColor("#999999");

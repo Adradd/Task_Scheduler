@@ -11,6 +11,13 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Implements project lookup, creation, deletion, and normalization for
+ * user-owned projects.
+ *
+ * @author Gavin McDaniel
+ * @author Adam Raddant
+ */
 @Service
 public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
@@ -84,6 +91,37 @@ public class ProjectServiceImpl implements ProjectService {
 
         taskRepository.deleteAllByOwnerAndProject(owner, project);
         projectRepository.delete(project);
+    }
+
+    @Override
+    public Project updateProjectColor(Account owner, String projectId, String projectColor) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Owner is required");
+        }
+        if (projectId == null || projectId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Project ID is required");
+        }
+
+        String normalizedColor = normalizeProjectColorOrNull(projectColor);
+        if (normalizedColor == null) {
+            throw new IllegalArgumentException("Project color is required");
+        }
+
+        String identifier = projectId.trim();
+        Project project = projectRepository.findProjectByProjectIdAndOwner(identifier, owner);
+        if (project == null) {
+            project = projectRepository.findProjectByOwnerAndProjectNameIgnoreCase(owner, identifier);
+        }
+        if (project == null) {
+            throw new IllegalArgumentException("Project does not exist");
+        }
+
+        if (normalizedColor.equalsIgnoreCase(project.getProjectColor())) {
+            return project;
+        }
+
+        project.setProjectColor(normalizedColor);
+        return projectRepository.save(project);
     }
 
     @Override

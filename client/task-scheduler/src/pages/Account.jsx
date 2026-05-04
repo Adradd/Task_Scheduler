@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/Account.css';
+import '../styles/TaskView.css';
+import { extractApiErrorMessage } from '../utils/api.js';
+import { createAuthConfig, getStoredAccountId } from '../utils/authSession.js';
 
-function Account({ user, onLogout }) {
+export default function Account ({ user, onLogout }) {
     const [accountData, setAccountData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -12,23 +15,32 @@ function Account({ user, onLogout }) {
     const [googleCalendarLinked, setGoogleCalendarLinked] = useState(false);
     const [googleCalendarLoading, setGoogleCalendarLoading] = useState(false);
     const [googleCalendarMessage, setGoogleCalendarMessage] = useState('');
+    const [accountDeleteLoading, setAccountDeleteLoading] = useState(false);
     const navigate = useNavigate();
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-    // Create auth config from stored credentials
-    const getAuthConfig = () => {
-        const authToken = sessionStorage.getItem('authToken');
-        if (authToken) {
-            return {
-                headers: {
-                    'Authorization': 'Basic ' + authToken
-                }
-            };
+    const formatWorkingHourLabel = (value) => {
+        if (!value || typeof value !== 'string') {
+            return '';
         }
-        return {};
+
+        const match = value.match(/^(\d{2}):(\d{2})$/);
+        if (!match) {
+            return value;
+        }
+
+        const [, hoursRaw, minutesRaw] = match;
+        const hours = Number(hoursRaw);
+        const minutes = Number(minutesRaw);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+            return value;
+        }
+
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = (hours % 12) || 12;
+        return `${String(displayHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
     };
 
-    // Fetch account details on component mount
     useEffect(() => {
         if (user) {
             fetchAccountDetails();
@@ -60,8 +72,8 @@ function Account({ user, onLogout }) {
         try {
             setLoading(true);
             setError(null);
-            const accountId = sessionStorage.getItem('accountId');
-            const res = await axios.get(`${backendUrl}/api/accounts/${accountId}`, getAuthConfig());
+            const accountId = getStoredAccountId();
+            const res = await axios.get(`${backendUrl}/api/accounts/${accountId}`, createAuthConfig());
             const normalized = {
                 ...res.data,
                 startWorkingHours: res.data?.startWorkingHours || '09:00',
@@ -70,8 +82,7 @@ function Account({ user, onLogout }) {
             setAccountData(normalized);
             setFormData(normalized);
         } catch (err) {
-            setError('Failed to fetch account details: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to fetch account details: ' + extractApiErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -79,10 +90,10 @@ function Account({ user, onLogout }) {
 
     const fetchGoogleCalendarStatus = async () => {
         try {
-            const res = await axios.get(`${backendUrl}/api/integrations/google/status`, getAuthConfig());
+            const res = await axios.get(`${backendUrl}/api/integrations/google/status`, createAuthConfig());
             setGoogleCalendarLinked(Boolean(res.data?.linked));
-        } catch (err) {
-            console.error('Failed to fetch Google Calendar status', err);
+        } catch {
+            setGoogleCalendarLinked(false);
         }
     };
 
@@ -97,13 +108,12 @@ function Account({ user, onLogout }) {
     const handleSaveChanges = async () => {
         try {
             setError(null);
-            const accountId = sessionStorage.getItem('accountId');
-            await axios.put(`${backendUrl}/api/accounts/${accountId}`, formData, getAuthConfig());
+            const accountId = getStoredAccountId();
+            await axios.put(`${backendUrl}/api/accounts/${accountId}`, formData, createAuthConfig());
             setAccountData(formData);
             setEditing(false);
         } catch (err) {
-            setError('Failed to update account: ' + (err.response?.data?.message || err.message));
-            console.error(err);
+            setError('Failed to update account: ' + extractApiErrorMessage(err));
         }
     };
 
@@ -117,19 +127,40 @@ function Account({ user, onLogout }) {
         navigate('/login');
     };
 
+    const handleDeleteAccount = async () => {
+        const confirmed = window.confirm(
+            'Delete your account and all associated tasks, tags, and projects? This action cannot be undone.',
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setAccountDeleteLoading(true);
+            setError(null);
+            const accountId = getStoredAccountId();
+            await axios.delete(`${backendUrl}/api/accounts/${accountId}`, createAuthConfig());
+            onLogout();
+            navigate('/login');
+        } catch (err) {
+            setError('Failed to delete account: ' + extractApiErrorMessage(err));
+        } finally {
+            setAccountDeleteLoading(false);
+        }
+    };
+
     const handleConnectGoogleCalendar = async () => {
         try {
             setGoogleCalendarLoading(true);
             setGoogleCalendarMessage('');
-            const res = await axios.get(`${backendUrl}/api/integrations/google/connect`, getAuthConfig());
+            const res = await axios.get(`${backendUrl}/api/integrations/google/connect`, createAuthConfig());
             if (!res.data?.authorizationUrl) {
                 setGoogleCalendarMessage('Failed to start Google Calendar connection.');
                 return;
             }
             window.location.href = res.data.authorizationUrl;
-        } catch (err) {
+        } catch {
             setGoogleCalendarMessage('Failed to start Google Calendar connection.');
-            console.error(err);
         } finally {
             setGoogleCalendarLoading(false);
         }
@@ -139,30 +170,38 @@ function Account({ user, onLogout }) {
         try {
             setGoogleCalendarLoading(true);
             setGoogleCalendarMessage('');
-            await axios.delete(`${backendUrl}/api/integrations/google/disconnect`, getAuthConfig());
+            await axios.delete(`${backendUrl}/api/integrations/google/disconnect`, createAuthConfig());
             setGoogleCalendarLinked(false);
             setGoogleCalendarMessage('Google Calendar disconnected.');
-        } catch (err) {
+        } catch {
             setGoogleCalendarMessage('Failed to disconnect Google Calendar.');
-            console.error(err);
         } finally {
             setGoogleCalendarLoading(false);
         }
     };
 
     if (loading) {
-        return <div className="account-container"><p>Loading account details...</p></div>;
+        return (
+            <main className="task-view-container">
+                <div className="task-content">
+                    <div className="task-layout task-layout-loading">
+                        <aside className="project-sidebar task-loading-sidebar" />
+                        <div className="task-main-panel loading loading-panel">Loading account…</div>
+                    </div>
+                </div>
+            </main>
+        );
     }
 
     if (!accountData) {
-        return <div className="account-container"><p>Unable to load account details</p></div>;
+        return <main className="account-container"><p>Unable to load account details.</p></main>;
     }
 
     return (
-        <div className="account-container">
-            <div className="account-card">
-                <h1>Account Details</h1>
-                {error && <div className="error-message">{error}</div>}
+        <main className="account-container">
+            <section className="account-card" aria-labelledby="account-title">
+                <h1 id="account-title">Account Details</h1>
+                {error && <div className="error-message" role="alert">{error}</div>}
 
                 <div className="account-info">
                     <div className="info-group">
@@ -176,6 +215,7 @@ function Account({ user, onLogout }) {
                             <input
                                 type="email"
                                 name="email"
+                                autoComplete="email"
                                 value={formData.email || ''}
                                 onChange={handleChange}
                             />
@@ -194,7 +234,7 @@ function Account({ user, onLogout }) {
                                 onChange={handleChange}
                             />
                         ) : (
-                            <p>{accountData.startWorkingHours || '09:00'}</p>
+                            <p>{formatWorkingHourLabel(accountData.startWorkingHours || '09:00')}</p>
                         )}
                     </div>
 
@@ -208,7 +248,7 @@ function Account({ user, onLogout }) {
                                 onChange={handleChange}
                             />
                         ) : (
-                            <p>{accountData.endWorkingHours || '17:00'}</p>
+                            <p>{formatWorkingHourLabel(accountData.endWorkingHours || '17:00')}</p>
                         )}
                     </div>
 
@@ -223,7 +263,7 @@ function Account({ user, onLogout }) {
                                     onClick={handleConnectGoogleCalendar}
                                     disabled={googleCalendarLoading}
                                 >
-                                    {googleCalendarLoading ? 'Connecting...' : 'Connect Google Calendar'}
+                                    {googleCalendarLoading ? 'Connecting…' : 'Connect Google Calendar'}
                                 </button>
                             ) : (
                                 <button
@@ -232,7 +272,7 @@ function Account({ user, onLogout }) {
                                     onClick={handleDisconnectGoogleCalendar}
                                     disabled={googleCalendarLoading}
                                 >
-                                    {googleCalendarLoading ? 'Disconnecting...' : 'Disconnect Google Calendar'}
+                                    {googleCalendarLoading ? 'Disconnecting…' : 'Disconnect Google Calendar'}
                                 </button>
                             )}
                         </div>
@@ -240,24 +280,30 @@ function Account({ user, onLogout }) {
 
                 </div>
 
-                {googleCalendarMessage && <div className="google-message">{googleCalendarMessage}</div>}
+                {googleCalendarMessage && <div className="google-message" role="status" aria-live="polite">{googleCalendarMessage}</div>}
 
                 <div className="account-actions">
                     {!editing ? (
                         <>
-                            <button className="edit-btn" onClick={() => setEditing(true)}>Edit Profile</button>
-                            <button className="logout-btn" onClick={handleLogout}>Logout</button>
+                            <button type="button" className="edit-btn" onClick={() => setEditing(true)}>Edit Profile</button>
+                            <button type="button" className="logout-btn" onClick={handleLogout}>Logout</button>
+                            <button
+                                type="button"
+                                className="delete-account-btn"
+                                onClick={handleDeleteAccount}
+                                disabled={accountDeleteLoading}
+                            >
+                                {accountDeleteLoading ? 'Deleting Account…' : 'Delete Account'}
+                            </button>
                         </>
                     ) : (
                         <>
-                            <button className="save-btn" onClick={handleSaveChanges}>Save Changes</button>
-                            <button className="cancel-btn" onClick={handleCancel}>Cancel</button>
+                            <button type="button" className="save-btn" onClick={handleSaveChanges}>Save Changes</button>
+                            <button type="button" className="cancel-btn" onClick={handleCancel}>Cancel</button>
                         </>
                     )}
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
     );
 }
-
-export default Account;
