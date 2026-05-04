@@ -39,7 +39,7 @@
     border-radius: 4px;
     cursor: pointer;
     font-weight: 600;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+    transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -47,12 +47,10 @@
 .title-section .cta-button {
     background-color: #0576f3;
     color: #ffffff;
-    box-shadow: 0 10px 24px rgba(5, 118, 243, 0.25);
 }
 
 .title-section .cta-button:hover {
     transform: translateY(-3px);
-    box-shadow: 0 14px 28px rgba(5, 118, 243, 0.34);
 }
 
 .title-section .cta-button:focus-visible {
@@ -105,15 +103,6 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.task-features .feature-card {
-    border-top: 4px solid #3fb0ba;
-}
-
-.calendar-features .feature-card {
-    border-top: 4px solid #0576f3;
-    background-color: #dedbe3;
 }
 
 .feature-card:hover {
